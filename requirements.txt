@@ -9,4 +9,5 @@ python-swiftclient>=1.5
 python-cinderclient>=1.0.6
 
 # Required by openstack.common libraries
+iso8601>=0.1.8
 six>=1.4.1

@@ -24,13 +24,14 @@ import urlparse
 
 from oslo.config import cfg
 
-from glance.store.common import exception
-from glance.store.common import utils
-from glance.openstack.common import jsonutils
-import glance.openstack.common.log as logging
 import glance.store
 import glance.store.base
+from glance.store.common import exception
+from glance.store.common import utils
 import glance.store.location
+from glance.store.openstack.common.gettextutils import _
+from glance.store.openstack.common import jsonutils
+import glance.store.openstack.common.log as logging
 
 LOG = logging.getLogger(__name__)
 

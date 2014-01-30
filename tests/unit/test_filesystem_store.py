@@ -29,7 +29,7 @@ from glance.store.common import exception
 from glance.store.filesystem import ChunkedFile
 from glance.store.filesystem import Store
 from glance.store.location import get_location_from_uri
-from glance.store.tests.unit import base
+from glance.store.tests import base
 
 
 class TestStore(base.StoreBaseTest):

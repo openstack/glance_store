@@ -39,8 +39,8 @@ credentials and is **not** user-facing.
 
 import urlparse
 
-from glance.common import exception
-import glance.openstack.common.log as logging
+from glance.store.common import exception
+from glance.store.openstack.common import log as logging
 
 LOG = logging.getLogger(__name__)
 

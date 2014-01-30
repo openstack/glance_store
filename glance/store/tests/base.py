@@ -27,12 +27,13 @@ class StoreBaseTest(testtools.TestCase):
     def setUp(self):
         super(StoreBaseTest, self).setUp()
         self.conf = cfg.ConfigOpts()
-        self.conf.parse_args(args=[])
+        self.conf(args=[])
+        store.register_opts(self.conf)
 
         # Ensure stores + locations cleared
         location.SCHEME_TO_CLS_MAP = {}
 
-        store.create_stores()
+        store.create_stores(self.conf)
         self.addCleanup(setattr, location, 'SCHEME_TO_CLS_MAP', dict())
         self.test_dir = self.useFixture(fixtures.TempDir()).path
 

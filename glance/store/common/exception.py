@@ -15,6 +15,16 @@
 
 """Glance Store exception subclasses"""
 
+from glance.store.openstack.common.gettextutils import _
+
+
+class BackendException(Exception):
+    pass
+
+
+class UnsupportedBackend(BackendException):
+    pass
+
 
 class GlanceStoreException(Exception):
     """
