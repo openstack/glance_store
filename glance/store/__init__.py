@@ -18,10 +18,11 @@ import sys
 
 from oslo.config import cfg
 
-from glance.common import exception
-from glance.common import utils
+from glance.store.common import exception
+from glance.store.common import utils
 import glance.context
 import glance.domain.proxy
+from glance.openstack.common.gettextutils import _
 from glance.openstack.common import importutils
 import glance.openstack.common.log as logging
 from glance.store import location

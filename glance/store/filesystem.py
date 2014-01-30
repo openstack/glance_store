@@ -24,8 +24,8 @@ import urlparse
 
 from oslo.config import cfg
 
-from glance.common import exception
-from glance.common import utils
+from glance.store.common import exception
+from glance.store.common import utils
 from glance.openstack.common import jsonutils
 import glance.openstack.common.log as logging
 import glance.store
@@ -49,8 +49,7 @@ CONF.register_opts(filesystem_opts)
 
 
 class StoreLocation(glance.store.location.StoreLocation):
-
-    """Class describing a Filesystem URI"""
+    """Class describing a Filesystem URI."""
 
     def process_specs(self):
         self.scheme = self.specs.get('scheme', 'file')
