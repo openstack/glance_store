@@ -14,6 +14,7 @@
 #    under the License.
 
 import collections
+import itertools
 import sys
 
 from oslo.config import cfg
@@ -30,23 +31,9 @@ from glance.store import scrubber
 
 LOG = logging.getLogger(__name__)
 
-store_opts = [
-    cfg.ListOpt('known_stores',
-                default=[
-                    'glance.store.filesystem.Store',
-                    'glance.store.http.Store',
-                    'glance.store.rbd.Store',
-                    'glance.store.s3.Store',
-                    'glance.store.swift.Store',
-                    'glance.store.sheepdog.Store',
-                    'glance.store.cinder.Store',
-                ],
-                help=_('List of which store classes and store class locations '
-                       'are currently known to glance at startup.')),
-    cfg.StrOpt('default_store', default='file',
-               help=_("Default scheme to use to store image data. The "
-                      "scheme must be registered by one of the stores "
-                      "defined by the 'known_stores' config option.")),
+_DEPRECATED_STORE_OPTS = [
+    cfg.DeprecatedOpt('known_stores'),
+    cfg.StrOpt('default_store'),
     cfg.StrOpt('scrubber_datadir',
                default='/var/lib/glance/scrubber',
                help=_('Directory that the scrubber will use to track '
@@ -60,8 +47,26 @@ store_opts = [
                       'performing a delete.')),
 ]
 
+_STORE_OPTS = [
+    cfg.ListOpt('stores', default=['filesystem', 'http'],
+                help=_('List of stores enabled'),
+                deprecated_opts=[_DEPRECATED_STORE_OPTS[0]]),
+    cfg.StrOpt('default_store', default='file',
+               help=_("Default scheme to use to store image data. The "
+                      "scheme must be registered by one of the stores "
+                      "defined by the 'stores' config option."),
+               deprecated_opts=[_DEPRECATED_STORE_OPTS[1]])
+]
+
 CONF = cfg.CONF
-CONF.register_opts(store_opts)
+_STORE_CFG_GROUP = "glance_store"
+CONF.register_opts(_DEPRECATED_STORE_OPTS)
+CONF.register_opts(_STORE_OPTS, group=_STORE_CFG_GROUP)
+
+
+def _oslo_config_options():
+    return itertools.chain(((opt, None) for opt in _DEPRECATED_STORE_OPTS),
+                           ((opt, _STORE_CFG_GROUP) for opt in _STORE_OPTS))
 
 
 class BackendException(Exception):
