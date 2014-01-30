@@ -1,0 +1,11 @@
+# Metrics and style
+hacking>=0.8.0,<0.9
+
+# Packaging
+mock>=1.0
+
+# Unit testing
+fixtures>=0.3.14
+python-subunit
+testrepository>=0.0.17
+testtools>=0.9.32
