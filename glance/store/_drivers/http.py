@@ -16,8 +16,8 @@
 import httplib
 import urlparse
 
-from glance.common import exception
-import glance.openstack.common.log as logging
+from glance.store.common import exception
+import glance.store.openstack.common.log as logging
 import glance.store.base
 import glance.store.location
 
