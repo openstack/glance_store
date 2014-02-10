@@ -36,7 +36,7 @@ import glance.store.openstack.common.log as logging
 
 LOG = logging.getLogger(__name__)
 
-filesystem_opts = [
+_FILESYSTEM_CONFIGS = [
     cfg.StrOpt('filesystem_store_datadir',
                help=_('Directory to which the Filesystem backend '
                       'store writes images.')),
@@ -45,9 +45,6 @@ filesystem_opts = [
                       "metadata to be returned with any location "
                       "associated with this store.  The file must "
                       "contain a valid JSON dict."))]
-
-CONF = cfg.CONF
-CONF.register_opts(filesystem_opts)
 
 
 class StoreLocation(glance.store.location.StoreLocation):
@@ -115,6 +112,9 @@ class Store(glance.store.base.Store):
     def get_schemes(self):
         return ('file', 'filesystem')
 
+    def configure(self):
+        self.conf.register_opts(_FILESYSTEM_CONFIGS)
+
     def configure_add(self):
         """
         Configure the Store to use the stored configuration options
@@ -122,7 +122,7 @@ class Store(glance.store.base.Store):
         this method. If the store was not able to successfully configure
         itself, it should raise `exception.BadStoreConfiguration`
         """
-        self.datadir = CONF.filesystem_store_datadir
+        self.datadir = self.conf.filesystem_store_datadir
         if self.datadir is None:
             reason = (_("Could not find %s in configuration options.") %
                       'filesystem_store_datadir')
@@ -152,31 +152,31 @@ class Store(glance.store.base.Store):
         filepath = location.store_location.path
 
         if not os.path.exists(filepath):
-            raise exception.NotFound(_("Image file %s not found") % filepath)
+            raise exception.NotFound(image=filepath)
 
         filesize = os.path.getsize(filepath)
         return filepath, filesize
 
     def _get_metadata(self):
-        if CONF.filesystem_store_metadata_file is None:
+        if self.conf.filesystem_store_metadata_file is None:
             return {}
 
         try:
-            with open(CONF.filesystem_store_metadata_file, 'r') as fptr:
+            with open(self.conf.filesystem_store_metadata_file, 'r') as fptr:
                 metadata = jsonutils.load(fptr)
             glance.store.check_location_metadata(metadata)
             return metadata
-        except glance.store.BackendException as bee:
+        except exception.BackendException as bee:
             LOG.error(_('The JSON in the metadata file %s could not be used: '
                         '%s  An empty dictionary will be returned '
                         'to the client.')
-                      % (CONF.filesystem_store_metadata_file, str(bee)))
+                      % (self.conf.filesystem_store_metadata_file, str(bee)))
             return {}
         except IOError as ioe:
             LOG.error(_('The path for the metadata file %s could not be '
                         'opened: %s  An empty dictionary will be returned '
                         'to the client.')
-                      % (CONF.filesystem_store_metadata_file, ioe))
+                      % (self.conf.filesystem_store_metadata_file, ioe))
             return {}
         except Exception as ex:
             LOG.exception(_('An error occurred processing the storage systems '
@@ -184,7 +184,7 @@ class Store(glance.store.base.Store):
                             'returned to the client.') % str(ex))
             return {}
 
-    def get(self, location):
+    def get(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns a tuple of generator
@@ -199,7 +199,7 @@ class Store(glance.store.base.Store):
         LOG.debug(msg)
         return (ChunkedFile(filepath), filesize)
 
-    def get_size(self, location):
+    def get_size(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file and returns the image size
@@ -214,7 +214,7 @@ class Store(glance.store.base.Store):
         LOG.debug(msg)
         return filesize
 
-    def delete(self, location):
+    def delete(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file to delete
@@ -234,9 +234,9 @@ class Store(glance.store.base.Store):
             except OSError:
                 raise exception.Forbidden(_("You cannot delete file %s") % fn)
         else:
-            raise exception.NotFound(_("Image file %s does not exist") % fn)
+            raise exception.NotFound(image=fn)
 
-    def add(self, image_id, image_file, image_size):
+    def add(self, image_id, image_file, image_size, context=None):
         """
         Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -260,8 +260,7 @@ class Store(glance.store.base.Store):
         filepath = os.path.join(self.datadir, str(image_id))
 
         if os.path.exists(filepath):
-            raise exception.Duplicate(_("Image file %s already exists!")
-                                      % filepath)
+            raise exception.Duplicate(image=filepath)
 
         checksum = hashlib.md5()
         bytes_written = 0
@@ -294,9 +293,9 @@ class Store(glance.store.base.Store):
         return ('file://%s' % filepath, bytes_written, checksum_hex, metadata)
 
     @staticmethod
-    def _delete_partial(filepath, id):
+    def _delete_partial(filepath, iid):
         try:
             os.unlink(filepath)
         except Exception as e:
             msg = _('Unable to remove partial image data for image %s: %s')
-            LOG.error(msg % (id, e))
+            LOG.error(msg % (iid, e))

@@ -51,7 +51,7 @@ class BadAuthStrategy(GlanceStoreException):
 
 
 class NotFound(GlanceStoreException):
-    message = _("An object with the specified identifier was not found.")
+    message = _("Image %(image)s not found")
 
 
 class UnknownScheme(GlanceStoreException):
@@ -63,7 +63,7 @@ class BadStoreUri(GlanceStoreException):
 
 
 class Duplicate(GlanceStoreException):
-    message = _("An object with the same identifier already exists.")
+    message = _("Image %(image)s already exists")
 
 
 class Conflict(GlanceStoreException):

@@ -40,14 +40,13 @@ class Store(object):
 
     CHUNKSIZE = 16 * (1024 * 1024)  # 16M
 
-    def __init__(self, context=None, location=None):
+    def __init__(self, conf):
         """
         Initialize the Store
         """
+        self.conf = conf
         self.store_location_class = None
-        self.context = context
         self.configure()
-
         try:
             self.configure_add()
         except exception.BadStoreConfiguration as e:
@@ -90,7 +89,7 @@ class Store(object):
         """
         pass
 
-    def get(self, location):
+    def get(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns a tuple of generator
@@ -102,7 +101,7 @@ class Store(object):
         """
         raise NotImplementedError
 
-    def get_size(self, location):
+    def get_size(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns the size
@@ -121,7 +120,7 @@ class Store(object):
         """
         raise exception.StoreAddDisabled
 
-    def add(self, image_id, image_file, image_size):
+    def add(self, image_id, image_file, image_size, context=None):
         """
         Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -138,7 +137,7 @@ class Store(object):
         """
         raise NotImplementedError
 
-    def delete(self, location):
+    def delete(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file to delete
@@ -150,7 +149,7 @@ class Store(object):
         raise NotImplementedError
 
     def set_acls(self, location, public=False, read_tenants=[],
-                 write_tenants=[]):
+                 write_tenants=[], context=None):
         """
         Sets the read and write access control list for an image in the
         backend store.

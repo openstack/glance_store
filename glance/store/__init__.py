@@ -18,6 +18,7 @@ import itertools
 import sys
 
 from oslo.config import cfg
+from stevedore import driver
 
 #import glance.context
 #import glance.domain.proxy
@@ -50,7 +51,7 @@ _SCRUBBER_OPTS = [
 ]
 
 _STORE_OPTS = [
-    cfg.ListOpt('stores', default=['filesystem', 'http'],
+    cfg.ListOpt('stores', default=['file', 'http'],
                 help=_('List of stores enabled'),
                 deprecated_opts=[_DEPRECATED_STORE_OPTS[0]]),
     cfg.StrOpt('default_store', default='file',
@@ -138,16 +139,17 @@ class Indexable(object):
         return self.size
 
 
-def _get_store_class(store_entry):
+def _load_store(conf, store_entry):
     store_cls = None
     try:
         LOG.debug("Attempting to import store %s", store_entry)
-        store_cls = importutils.import_class(store_entry)
-    except exception.NotFound:
-        raise BackendException('Unable to load store. '
-                               'Could not find a class named %s.'
-                               % store_entry)
-    return store_cls
+        mgr = driver.DriverManager('glance.store.drivers',
+                                   store_entry,
+                                   invoke_args=[conf],
+                                   invoke_on_load=True)
+        return mgr.driver
+    except RuntimeError as ex:
+        raise DriverLoadFailure(store_entry, ex)
 
 
 def create_stores(conf=CONF):
@@ -158,13 +160,12 @@ def create_stores(conf=CONF):
     store_count = 0
     store_classes = set()
 
-    for store_entry in conf.glance_store.stores:
-        store_entry = store_entry.strip()
-        if not store_entry:
-            continue
-        store_cls = _get_store_class(store_entry)
+    for store_entry in set(conf.glance_store.stores):
         try:
-            store_instance = store_cls()
+            # FIXME(flaper87): Don't hide BadStoreConfiguration
+            # exceptions. These exceptions should be propagated
+            # to the user of the library.
+            store_instance = _load_store(conf, store_entry)
         except exception.BadStoreConfiguration as e:
             LOG.warn(_("%s Skipping store driver.") % unicode(e))
             continue
@@ -174,21 +175,18 @@ def create_stores(conf=CONF):
                                    'No schemes associated with it.'
                                    % store_cls)
         else:
-            if store_cls not in store_classes:
-                LOG.debug("Registering store %s with schemes %s",
-                          store_cls, schemes)
-                store_classes.add(store_cls)
-                scheme_map = {}
-                for scheme in schemes:
-                    loc_cls = store_instance.get_store_location_class()
-                    scheme_map[scheme] = {
-                        'store_class': store_cls,
-                        'location_class': loc_cls,
-                    }
-                location.register_scheme_map(scheme_map)
-                store_count += 1
-            else:
-                LOG.debug("Store %s already registered", store_cls)
+            LOG.debug("Registering store %s with schemes %s",
+                          store_entry, schemes)
+            scheme_map = {}
+            for scheme in schemes:
+                loc_cls = store_instance.get_store_location_class()
+                scheme_map[scheme] = {
+                    'store': store_instance,
+                    'location_class': loc_cls,
+                }
+            location.register_scheme_map(scheme_map)
+            store_count += 1
+
     return store_count
 
 
@@ -207,7 +205,7 @@ def get_known_schemes():
     return location.SCHEME_TO_CLS_MAP.keys()
 
 
-def get_store_from_scheme(context, scheme, loc=None):
+def get_store_from_scheme(scheme):
     """
     Given a scheme, return the appropriate store object
     for handling that scheme.
@@ -215,11 +213,10 @@ def get_store_from_scheme(context, scheme, loc=None):
     if scheme not in location.SCHEME_TO_CLS_MAP:
         raise exception.UnknownScheme(scheme=scheme)
     scheme_info = location.SCHEME_TO_CLS_MAP[scheme]
-    store = scheme_info['store_class'](context, loc)
-    return store
+    return scheme_info['store']
 
 
-def get_store_from_uri(context, uri, loc=None):
+def get_store_from_uri(uri):
     """
     Given a URI, return the store object that would handle
     operations on the URI.
@@ -227,18 +224,17 @@ def get_store_from_uri(context, uri, loc=None):
     :param uri: URI to analyze
     """
     scheme = uri[0:uri.find('/') - 1]
-    store = get_store_from_scheme(context, scheme, loc)
-    return store
+    return get_store_from_scheme(scheme)
 
 
 def get_from_backend(context, uri, **kwargs):
     """Yields chunks of data from backend specified by uri"""
 
     loc = location.get_location_from_uri(uri)
-    store = get_store_from_uri(context, uri, loc)
+    store = get_store_from_uri(uri)
 
     try:
-        return store.get(loc)
+        return store.get(loc, context)
     except NotImplementedError:
         raise exception.StoreGetNotSupported
 

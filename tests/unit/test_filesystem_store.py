@@ -19,18 +19,18 @@ import __builtin__
 import errno
 import hashlib
 import json
+import mock
 import os
 import StringIO
 import uuid
 
-
 from glance.store.common import exception
-
-from glance.store.filesystem import ChunkedFile
-from glance.store.filesystem import Store
+from glance.store._drivers.filesystem import ChunkedFile
+from glance.store._drivers.filesystem import Store
 from glance.store.location import get_location_from_uri
 from glance.store.tests import base
 
+KB = 1024
 
 class TestStore(base.StoreBaseTest):
 
@@ -39,7 +39,8 @@ class TestStore(base.StoreBaseTest):
         super(TestStore, self).setUp()
         self.orig_chunksize = ChunkedFile.CHUNKSIZE
         ChunkedFile.CHUNKSIZE = 10
-        self.store = Store()
+        self.config(filesystem_store_datadir=self.test_dir)
+        self.store = Store(self.conf)
 
     def tearDown(self):
         """Clear the test environment."""
@@ -87,7 +88,7 @@ class TestStore(base.StoreBaseTest):
         """Test that we can add an image via the filesystem backend"""
         ChunkedFile.CHUNKSIZE = 1024
         expected_image_id = str(uuid.uuid4())
-        expected_file_size = 5 * units.Ki  # 5K
+        expected_file_size = 5 * KB  # 5K
         expected_file_contents = "*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (self.test_dir,
@@ -176,7 +177,7 @@ class TestStore(base.StoreBaseTest):
         """
         ChunkedFile.CHUNKSIZE = 1024
         image_id = str(uuid.uuid4())
-        file_size = 5 * units.Ki  # 5K
+        file_size = 5 * KB  # 5K
         file_contents = "*" * file_size
         image_file = StringIO.StringIO(file_contents)
 
@@ -191,26 +192,21 @@ class TestStore(base.StoreBaseTest):
     def _do_test_add_write_failure(self, errno, exception):
         ChunkedFile.CHUNKSIZE = 1024
         image_id = str(uuid.uuid4())
-        file_size = 5 * units.Ki  # 5K
+        file_size = 5 * KB  # 5K
         file_contents = "*" * file_size
         path = os.path.join(self.test_dir, image_id)
         image_file = StringIO.StringIO(file_contents)
 
-        m = mox.Mox()
-        m.StubOutWithMock(__builtin__, 'open')
-        e = IOError()
-        e.errno = errno
-        open(path, 'wb').AndRaise(e)
-        m.ReplayAll()
+        with mock.patch.object(__builtin__, 'open') as popen:
+            e = IOError()
+            e.errno = errno
+            popen.side_effect = e
 
-        try:
             self.assertRaises(exception,
                               self.store.add,
                               image_id, image_file, 0)
             self.assertFalse(os.path.exists(path))
-        finally:
-            m.VerifyAll()
-            m.UnsetStubs()
+
 
     def test_add_storage_full(self):
         """
@@ -248,7 +244,7 @@ class TestStore(base.StoreBaseTest):
         """
         ChunkedFile.CHUNKSIZE = 1024
         image_id = str(uuid.uuid4())
-        file_size = 5 * units.Ki  # 5K
+        file_size = 5 * KB  # 5K
         file_contents = "*" * file_size
         path = os.path.join(self.test_dir, image_id)
         image_file = StringIO.StringIO(file_contents)
@@ -256,12 +252,13 @@ class TestStore(base.StoreBaseTest):
         def fake_Error(size):
             raise AttributeError()
 
-        self.stubs.Set(image_file, 'read', fake_Error)
+        with mock.patch.object(image_file, 'read') as mock_read:
+            mock_read.side_effect = fake_Error
 
-        self.assertRaises(AttributeError,
-                          self.store.add,
-                          image_id, image_file, 0)
-        self.assertFalse(os.path.exists(path))
+            self.assertRaises(AttributeError,
+                              self.store.add,
+                              image_id, image_file, 0)
+            self.assertFalse(os.path.exists(path))
 
     def test_delete(self):
         """
@@ -269,7 +266,7 @@ class TestStore(base.StoreBaseTest):
         """
         # First add an image
         image_id = str(uuid.uuid4())
-        file_size = 5 * units.Ki  # 5K
+        file_size = 5 * KB  # 5K
         file_contents = "*" * file_size
         image_file = StringIO.StringIO(file_contents)
 
