@@ -37,7 +37,8 @@ class GlanceStoreException(Exception):
     message = ''
 
     def __init__(self, **kwargs):
-        msg = self.message.format(**kwargs)
+        msg = kwargs.pop('message', None)
+        msg = msg or self.message.format(**kwargs)
         super(Exception, self).__init__(msg)
 
 
@@ -59,7 +60,7 @@ class UnknownScheme(GlanceStoreException):
 
 
 class BadStoreUri(GlanceStoreException):
-    message = _("The Store URI was malformed.")
+    message = _("The Store URI was malformed: %(uri)")
 
 
 class Duplicate(GlanceStoreException):
