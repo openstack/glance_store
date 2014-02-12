@@ -243,7 +243,7 @@ def get_size_from_backend(context, uri):
     """Retrieves image size from backend specified by uri"""
 
     loc = location.get_location_from_uri(uri)
-    store = get_store_from_uri(context, uri, loc)
+    store = get_store_from_uri(uri)
 
     return store.get_size(loc)
 
@@ -251,7 +251,7 @@ def get_size_from_backend(context, uri):
 def delete_from_backend(context, uri, **kwargs):
     """Removes chunks of data from backend specified by uri"""
     loc = location.get_location_from_uri(uri)
-    store = get_store_from_uri(context, uri, loc)
+    store = get_store_from_uri(uri)
 
     try:
         return store.delete(loc)

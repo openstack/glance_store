@@ -17,7 +17,8 @@ import httplib
 import urlparse
 
 from glance.store.common import exception
-import glance.store.openstack.common.log as logging
+from glance.store.openstack.common.gettextutils import _
+from glance.store.openstack.common import log as logging
 import glance.store.base
 import glance.store.location
 
@@ -84,9 +85,8 @@ class StoreLocation(glance.store.location.StoreLocation):
         else:
             self.user = None
         if netloc == '':
-            reason = _("No address specified in HTTP URL")
-            LOG.debug(reason)
-            raise exception.BadStoreUri(message=reason)
+            LOG.debug(_("No address specified in HTTP URL"))
+            raise exception.BadStoreUri(uri=uri)
         self.netloc = netloc
         self.path = path
 
@@ -153,7 +153,7 @@ class Store(glance.store.base.Store):
             reason = (_("The HTTP URL exceeded %s maximum "
                         "redirects.") % MAX_REDIRECTS)
             LOG.debug(reason)
-            raise exception.MaxRedirectsExceeded(redirects=MAX_REDIRECTS)
+            raise exception.MaxRedirectsExceeded(message=reason)
         loc = location.store_location
         conn_class = self._get_conn_class(loc)
         conn = conn_class(loc.netloc)
@@ -162,17 +162,19 @@ class Store(glance.store.base.Store):
 
         # Check for bad status codes
         if resp.status >= 400:
-            reason = _("HTTP URL returned a %s status code.") % resp.status
+            reason = (_("HTTP URL %(url)s returned a %(status)s status code.") %
+                      dict(url=loc.path, status=resp.status))
             LOG.debug(reason)
-            raise exception.BadStoreUri(loc.path, reason)
+            raise exception.BadStoreUri(message=reason)
 
         location_header = resp.getheader("location")
         if location_header:
             if resp.status not in (301, 302):
-                reason = (_("The HTTP URL attempted to redirect with an "
-                            "invalid %s status code.") % resp.status)
+                reason = (_("The HTTP URL %(url)s attempted to redirect with an "
+                            "invalid %(status)s status code.") %
+                            dict(url=loc.path, status=resp.status))
                 LOG.debug(reason)
-                raise exception.BadStoreUri(loc.path, reason)
+                raise exception.BadStoreUri(message=reason)
             location_class = glance.store.location.Location
             new_loc = location_class(location.store_name,
                                      location.store_location.__class__,
