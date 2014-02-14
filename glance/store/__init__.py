@@ -147,7 +147,8 @@ def _load_store(conf, store_entry):
                                    invoke_on_load=True)
         return mgr.driver
     except RuntimeError as ex:
-        raise DriverLoadFailure(store_entry, ex)
+        LOG.warn("Failed to load driver %(driver)s."
+                 "The driver will be disabled" % dict(driver=driver))
 
 
 def create_stores(conf=CONF):
@@ -164,8 +165,10 @@ def create_stores(conf=CONF):
             # exceptions. These exceptions should be propagated
             # to the user of the library.
             store_instance = _load_store(conf, store_entry)
+
+            if not store_instance:
+                continue
         except exception.BadStoreConfiguration as e:
-            LOG.warn(_("%s Skipping store driver.") % unicode(e))
             continue
         schemes = store_instance.get_schemes()
         if not schemes:

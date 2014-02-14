@@ -121,6 +121,8 @@ class BadStoreConfiguration(GlanceStoreException):
     message = _("Store %(store_name)s could not be configured correctly. "
                 "Reason: %(reason)s")
 
+class DriverLoadFailure(GlanceStoreException):
+    message = _("Driver %(driver_name)s could not be loaded.")
 
 class BadDriverConfiguration(GlanceStoreException):
     message = _("Driver %(driver_name)s could not be configured correctly. "
