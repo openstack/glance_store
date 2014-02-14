@@ -20,8 +20,6 @@ import sys
 from oslo.config import cfg
 from stevedore import driver
 
-#import glance.context
-#import glance.domain.proxy
 from glance.store.common import exception
 from glance.store.common import utils
 from glance.store import location
@@ -191,10 +189,8 @@ def create_stores(conf=CONF):
 
 
 def verify_default_store():
-    scheme = cfg.CONF.default_store
-    context = glance.context.RequestContext()
     try:
-        get_store_from_scheme(context, scheme)
+        get_store_from_scheme(cfg.CONF.default_store)
     except exception.UnknownScheme:
         msg = _("Store for scheme %s not found") % scheme
         raise RuntimeError(msg)
@@ -227,34 +223,34 @@ def get_store_from_uri(uri):
     return get_store_from_scheme(scheme)
 
 
-def get_from_backend(context, uri, **kwargs):
+def get_from_backend(uri, context=None):
     """Yields chunks of data from backend specified by uri"""
 
     loc = location.get_location_from_uri(uri)
     store = get_store_from_uri(uri)
 
     try:
-        return store.get(loc, context)
+        return store.get(loc, context=context)
     except NotImplementedError:
         raise exception.StoreGetNotSupported
 
 
-def get_size_from_backend(context, uri):
+def get_size_from_backend(uri, context=None):
     """Retrieves image size from backend specified by uri"""
 
     loc = location.get_location_from_uri(uri)
     store = get_store_from_uri(uri)
 
-    return store.get_size(loc)
+    return store.get_size(loc, context=context)
 
 
-def delete_from_backend(context, uri, **kwargs):
+def delete_from_backend(uri, context=None):
     """Removes chunks of data from backend specified by uri"""
     loc = location.get_location_from_uri(uri)
     store = get_store_from_uri(uri)
 
     try:
-        return store.delete(loc)
+        return store.delete(loc, context=context)
     except NotImplementedError:
         raise exception.StoreDeleteNotSupported
 
@@ -271,10 +267,10 @@ def get_store_from_location(uri):
     return loc.store_name
 
 
-def safe_delete_from_backend(context, uri, image_id, **kwargs):
+def safe_delete_from_backend(uri, image_id, context=None):
     """Given a uri, delete an image from the store."""
     try:
-        return delete_from_backend(context, uri, **kwargs)
+        return delete_from_backend(uri, context=context)
     except exception.NotFound:
         msg = _('Failed to delete image %s in store from URI')
         LOG.warn(msg % image_id)
@@ -287,7 +283,7 @@ def safe_delete_from_backend(context, uri, image_id, **kwargs):
         LOG.error(msg)
 
 
-def schedule_delayed_delete_from_backend(context, uri, image_id, **kwargs):
+def _schedule_delayed_delete_from_backend(context, uri, image_id, **kwargs):
     """Given a uri, schedule the deletion of an image location."""
     # FIXME(flaper87): Remove this function
     from glance.store import scrubber
@@ -299,7 +295,7 @@ def schedule_delayed_delete_from_backend(context, uri, image_id, **kwargs):
     file_queue.add_location(image_id, uri)
 
 
-def delete_image_from_backend(context, store_api, image_id, uri):
+def _delete_image_from_backend(context, store_api, image_id, uri):
     if CONF.delayed_delete:
         store_api.schedule_delayed_delete_from_backend(context, uri, image_id)
     else:
