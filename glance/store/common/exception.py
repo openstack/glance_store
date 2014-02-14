@@ -117,42 +117,6 @@ class Invalid(GlanceStoreException):
     message = _("Data supplied was not valid.")
 
 
-class InvalidSortKey(Invalid):
-    message = _("Sort key supplied was not valid.")
-
-
-class InvalidPropertyProtectionConfiguration(Invalid):
-    message = _("Invalid configuration in property protection file.")
-
-
-class InvalidFilterRangeValue(Invalid):
-    message = _("Unable to filter using the specified range.")
-
-
-class ReadonlyProperty(Forbidden):
-    message = _("Attribute '%(property)s' is read-only.")
-
-
-class ReservedProperty(Forbidden):
-    message = _("Attribute '%(property)s' is reserved.")
-
-
-class AuthorizationRedirect(GlanceStoreException):
-    message = _("Redirecting to %(uri)s for authorization.")
-
-
-class DatabaseMigrationError(GlanceStoreException):
-    message = _("There was an error migrating the database.")
-
-
-class ClientConnectionError(GlanceStoreException):
-    message = _("There was an error connecting to a server")
-
-
-class ClientConfigurationError(GlanceStoreException):
-    message = _("There was an error configuring the client.")
-
-
 class BadStoreConfiguration(GlanceStoreException):
     message = _("Store %(store_name)s could not be configured correctly. "
                 "Reason: %(reason)s")
