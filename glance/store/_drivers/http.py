@@ -110,7 +110,7 @@ class Store(glance.store.base.Store):
 
     """An implementation of the HTTP(S) Backend Adapter"""
 
-    def get(self, location):
+    def get(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns a tuple of generator
@@ -135,7 +135,7 @@ class Store(glance.store.base.Store):
     def get_schemes(self):
         return ('http', 'https')
 
-    def get_size(self, location):
+    def get_size(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns the size
