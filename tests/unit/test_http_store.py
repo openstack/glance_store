@@ -131,11 +131,11 @@ class TestHttpStore(base.StoreBaseTest):
         loc = get_location_from_uri(uri)
         self.assertRaises(NotImplementedError, self.store.delete, loc)
         self.assertRaises(exception.StoreDeleteNotSupported,
-                          delete_from_backend, {}, uri)
+                          delete_from_backend, uri, {})
 
     def test_http_schedule_delete_swallows_error(self):
         uri = "https://netloc/path/to/file.tar.gz"
         try:
-            safe_delete_from_backend({}, uri, 'image_id')
+            safe_delete_from_backend(uri, 'image_id', {})
         except exception.StoreDeleteNotSupported:
             self.fail('StoreDeleteNotSupported should be swallowed')
