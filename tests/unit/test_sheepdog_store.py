@@ -15,46 +15,40 @@
 
 import StringIO
 
-import stubout
+import mock
 
 from glance.store.common import exception
 from glance.store.common import utils
-from glance.openstack.common import processutils
-import glance.store.sheepdog
-from glance.store.sheepdog import Store
-from glance.tests.unit import base
+from glance.store.openstack.common import processutils
+from glance.store._drivers import sheepdog
+from glance.store.tests import base
 
 
-SHEEPDOG_CONF = {'verbose': True,
-                 'debug': True,
-                 'default_store': 'sheepdog'}
+class TestSheepdogStore(base.StoreBaseTest):
 
-
-class TestStore(base.StoreClearingUnitTest):
     def setUp(self):
         """Establish a clean test environment"""
+        super(TestSheepdogStore, self).setUp()
+
         def _fake_execute(*cmd, **kwargs):
             pass
 
-        self.config(**SHEEPDOG_CONF)
-        super(TestStore, self).setUp()
-        self.stubs = stubout.StubOutForTesting()
-        self.stubs.Set(processutils, 'execute', _fake_execute)
-        self.store = Store()
-        self.addCleanup(self.stubs.UnsetAll)
+        self.config(default_store='sheepdog',
+                    group='glance_store')
+
+        execute = mock.patch.object(processutils, 'execute').start()
+        execute.side_effect = _fake_execute
+        self.addCleanup(execute.stop)
+        self.store = sheepdog.Store(self.conf)
 
     def test_cleanup_when_add_image_exception(self):
         called_commands = []
 
-        def _fake_run_command(self, command, data, *params):
+        def _fake_run_command(command, data, *params):
             called_commands.append(command)
 
-        self.stubs.Set(glance.store.sheepdog.SheepdogImage,
-                       '_run_command', _fake_run_command)
-
-        self.assertRaises(exception.ImageSizeLimitExceeded,
-                          self.store.add,
-                          'fake_image_id',
-                          utils.LimitingReader(StringIO.StringIO('xx'), 1),
-                          2)
-        self.assertEqual(called_commands, ['list -r', 'create', 'delete'])
+        with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
+            cmd.side_effect = _fake_run_command
+            data = StringIO.StringIO('xx')
+            self.store.add('fake_image_id', data, 2)
+            self.assertEqual(called_commands, ['list -r', 'create', 'write'])
