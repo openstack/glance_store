@@ -23,16 +23,17 @@ import urlparse
 
 from oslo.config import cfg
 
-from glance.common import exception
-from glance.common import utils
-import glance.openstack.common.log as logging
+from glance.store.common import exception
+from glance.store.common import utils
+import glance.store.openstack.common.log as logging
+from glance.store.openstack.common.gettextutils import _
 import glance.store
 import glance.store.base
 import glance.store.location
 
 LOG = logging.getLogger(__name__)
 
-s3_opts = [
+_S3_OPTS = [
     cfg.StrOpt('s3_store_host',
                help=_('The host where the S3 server is listening.')),
     cfg.StrOpt('s3_store_access_key', secret=True,
@@ -52,9 +53,6 @@ s3_opts = [
                help=_('The S3 calling format used to determine the bucket. '
                       'Either subdomain or path can be used.')),
 ]
-
-CONF = cfg.CONF
-CONF.register_opts(s3_opts)
 
 
 class StoreLocation(glance.store.location.StoreLocation):
@@ -212,6 +210,7 @@ class ChunkedFile(object):
 class Store(glance.store.base.Store):
     """An implementation of the s3 adapter."""
 
+    OPTIONS = _S3_OPTS
     EXAMPLE_URL = "s3://<ACCESS_KEY>:<SECRET_KEY>@<S3_URL>/<BUCKET>/<OBJ>"
 
     def get_schemes(self):
@@ -244,10 +243,10 @@ class Store(glance.store.base.Store):
         else:  # Defaults http
             self.full_s3_host = 'http://' + self.s3_host
 
-        self.s3_store_object_buffer_dir = CONF.s3_store_object_buffer_dir
+        self.s3_store_object_buffer_dir = self.conf.glance_store.s3_store_object_buffer_dir
 
     def _option_get(self, param):
-        result = getattr(CONF, param)
+        result = getattr(self.conf.glance_store, param)
         if not result:
             reason = (_("Could not find %(param)s in configuration "
                         "options.") % {'param': param})
@@ -296,10 +295,13 @@ class Store(glance.store.base.Store):
         loc = location.store_location
         from boto.s3.connection import S3Connection
 
+        uformat = self.conf.glance_store.s3_store_bucket_url_format
+        calling_format = get_calling_format(s3_store_bucket_url_format=uformat)
+
         s3_conn = S3Connection(loc.accesskey, loc.secretkey,
                                host=loc.s3serviceurl,
                                is_secure=(loc.scheme == 's3+https'),
-                               calling_format=get_calling_format())
+                               calling_format=calling_format)
         bucket_obj = get_bucket(s3_conn, loc.bucket)
 
         key = get_key(bucket_obj, loc.key)
@@ -347,10 +349,13 @@ class Store(glance.store.base.Store):
                              'accesskey': self.access_key,
                              'secretkey': self.secret_key})
 
+        uformat = self.conf.glance_store.s3_store_bucket_url_format
+        calling_format = get_calling_format(s3_store_bucket_url_format=uformat)
+
         s3_conn = S3Connection(loc.accesskey, loc.secretkey,
                                host=loc.s3serviceurl,
                                is_secure=(loc.scheme == 's3+https'),
-                               calling_format=get_calling_format())
+                               calling_format=calling_format)
 
         create_bucket_if_missing(self.bucket, s3_conn)
 
@@ -364,8 +369,8 @@ class Store(glance.store.base.Store):
 
         key = bucket_obj.get_key(obj_name)
         if key and key.exists():
-            raise exception.Duplicate(_("S3 already has an image at "
-                                      "location %s") %
+            raise exception.Duplicate(message=_("S3 already has an image at "
+                                                "location %s") %
                                       _sanitize(loc.get_uri()))
 
         msg = _("Adding image object to S3 using (s3_host=%(s3_host)s, "
@@ -430,10 +435,14 @@ class Store(glance.store.base.Store):
         """
         loc = location.store_location
         from boto.s3.connection import S3Connection
+
+        uformat = self.conf.glance_store.s3_store_bucket_url_format
+        calling_format = get_calling_format(s3_store_bucket_url_format=uformat)
+
         s3_conn = S3Connection(loc.accesskey, loc.secretkey,
                                host=loc.s3serviceurl,
                                is_secure=(loc.scheme == 's3+https'),
-                               calling_format=get_calling_format())
+                               calling_format=calling_format)
         bucket_obj = get_bucket(s3_conn, loc.bucket)
 
         # Close the key when we're through.
@@ -497,8 +506,8 @@ def create_bucket_if_missing(bucket, s3_conn):
         s3_conn.get_bucket(bucket)
     except S3ResponseError as e:
         if e.status == httplib.NOT_FOUND:
-            if CONF.s3_store_create_bucket_on_put:
-                location = get_s3_location(CONF.s3_store_host)
+            if self.conf.glance_store.s3_store_create_bucket_on_put:
+                location = get_s3_location(self.conf.glance_store.s3_store_host)
                 try:
                     s3_conn.create_bucket(bucket, location=location)
                 except S3ResponseError as e:
@@ -528,14 +537,14 @@ def get_key(bucket, obj):
         msg = (_("Could not find key %(obj)s in bucket %(bucket)s") %
                {'obj': obj, 'bucket': bucket})
         LOG.debug(msg)
-        raise exception.NotFound(msg)
+        raise exception.NotFound(message=msg)
     return key
 
 
-def get_calling_format(bucket_format=None):
+def get_calling_format(bucket_format=None, s3_store_bucket_url_format='subdomain'):
     import boto.s3.connection
     if bucket_format is None:
-        bucket_format = CONF.s3_store_bucket_url_format
+        bucket_format = s3_store_bucket_url_format
     if bucket_format.lower() == 'path':
         return boto.s3.connection.OrdinaryCallingFormat()
     else:

@@ -20,104 +20,98 @@ import StringIO
 import uuid
 
 import boto.s3.connection
-import stubout
+import mock
 
 from glance.store.common import exception
-from glance.openstack.common import units
+from glance.store.openstack.common import units
 
+from glance.store import location
 from glance.store.location import get_location_from_uri
-import glance.store.s3
-from glance.store.s3 import Store, get_s3_location
-from glance.store import UnsupportedBackend
-from glance.tests.unit import base
+from glance.store._drivers import s3
+from glance.store.common.exception import UnsupportedBackend
+from glance.store.tests import base
 
 
 FAKE_UUID = str(uuid.uuid4())
 
 FIVE_KB = 5 * units.Ki
-S3_CONF = {'verbose': True,
-           'debug': True,
-           'default_store': 's3',
-           's3_store_access_key': 'user',
+S3_CONF = {'s3_store_access_key': 'user',
            's3_store_secret_key': 'key',
            's3_store_host': 'localhost:8080',
            's3_store_bucket': 'glance'}
 
 
-# We stub out as little as possible to ensure that the code paths
-# between glance.store.s3 and boto.s3.connection are tested
-# thoroughly
-def stub_out_s3(stubs):
+class FakeKey(object):
+    """
+    Acts like a ``boto.s3.key.Key``
+    """
+    def __init__(self, bucket, name):
+        self.bucket = bucket
+        self.name = name
+        self.data = None
+        self.size = 0
+        self.BufferSize = 1024
 
-    class FakeKey:
-        """
-        Acts like a ``boto.s3.key.Key``
-        """
-        def __init__(self, bucket, name):
-            self.bucket = bucket
-            self.name = name
-            self.data = None
-            self.size = 0
-            self.BufferSize = 1024
+    def close(self):
+        pass
 
-        def close(self):
-            pass
+    def exists(self):
+        return self.bucket.exists(self.name)
 
-        def exists(self):
-            return self.bucket.exists(self.name)
+    def delete(self):
+        self.bucket.delete(self.name)
 
-        def delete(self):
-            self.bucket.delete(self.name)
-
-        def compute_md5(self, data):
+    def compute_md5(self, data):
+        chunk = data.read(self.BufferSize)
+        checksum = hashlib.md5()
+        while chunk:
+            checksum.update(chunk)
             chunk = data.read(self.BufferSize)
-            checksum = hashlib.md5()
-            while chunk:
-                checksum.update(chunk)
-                chunk = data.read(self.BufferSize)
-            checksum_hex = checksum.hexdigest()
-            return checksum_hex, None
+        checksum_hex = checksum.hexdigest()
+        return checksum_hex, None
 
-        def set_contents_from_file(self, fp, replace=False, **kwargs):
-            self.data = StringIO.StringIO()
-            for bytes in fp:
-                self.data.write(bytes)
-            self.size = self.data.len
-            # Reset the buffer to start
-            self.data.seek(0)
-            self.read = self.data.read
+    def set_contents_from_file(self, fp, replace=False, **kwargs):
+        self.data = StringIO.StringIO()
+        for bytes in fp:
+            self.data.write(bytes)
+        self.size = self.data.len
+        # Reset the buffer to start
+        self.data.seek(0)
+        self.read = self.data.read
 
-        def get_file(self):
-            return self.data
+    def get_file(self):
+        return self.data
 
-    class FakeBucket:
-        """
-        Acts like a ``boto.s3.bucket.Bucket``
-        """
-        def __init__(self, name, keys=None):
-            self.name = name
-            self.keys = keys or {}
+class FakeBucket:
+    """
+    Acts like a ``boto.s3.bucket.Bucket``
+    """
+    def __init__(self, name, keys=None):
+        self.name = name
+        self.keys = keys or {}
 
-        def __str__(self):
-            return self.name
+    def __str__(self):
+        return self.name
 
-        def exists(self, key):
-            return key in self.keys
+    def exists(self, key):
+        return key in self.keys
 
-        def delete(self, key):
-            del self.keys[key]
+    def delete(self, key):
+        del self.keys[key]
 
-        def get_key(self, key_name, **kwargs):
-            key = self.keys.get(key_name)
-            if not key:
-                return FakeKey(self, key_name)
-            return key
+    def get_key(self, key_name, **kwargs):
+        key = self.keys.get(key_name)
+        if not key:
+            return FakeKey(self, key_name)
+        return key
 
-        def new_key(self, key_name):
-            new_key = FakeKey(self, key_name)
-            self.keys[key_name] = new_key
-            return new_key
+    def new_key(self, key_name):
+        new_key = FakeKey(self, key_name)
+        self.keys[key_name] = new_key
+        return new_key
 
+
+def fakers():
     fixture_buckets = {'glance': FakeBucket('glance')}
     b = fixture_buckets['glance']
     k = b.new_key(FAKE_UUID)
@@ -128,17 +122,13 @@ def stub_out_s3(stubs):
         if host.startswith('http://') or host.startswith('https://'):
             raise UnsupportedBackend(host)
 
-    def fake_get_bucket(conn, bucket_id):
+    def fake_get_bucket(bucket_id):
         bucket = fixture_buckets.get(bucket_id)
         if not bucket:
             bucket = FakeBucket(bucket_id)
         return bucket
 
-    stubs.Set(boto.s3.connection.S3Connection,
-              '__init__', fake_connection_constructor)
-    stubs.Set(boto.s3.connection.S3Connection,
-              'get_bucket', fake_get_bucket)
-
+    return fake_connection_constructor, fake_get_bucket
 
 def format_s3_location(user, key, authurl, bucket, obj):
     """
@@ -156,16 +146,36 @@ def format_s3_location(user, key, authurl, bucket, obj):
                                     bucket, obj)
 
 
-class TestStore(base.StoreClearingUnitTest):
+class TestStore(base.StoreBaseTest):
 
     def setUp(self):
         """Establish a clean test environment"""
-        self.config(**S3_CONF)
         super(TestStore, self).setUp()
-        self.stubs = stubout.StubOutForTesting()
-        stub_out_s3(self.stubs)
-        self.store = Store()
-        self.addCleanup(self.stubs.UnsetAll)
+        self.store = s3.Store(self.conf)
+        self.config(**S3_CONF)
+        self.store.configure()
+
+        schemes = self.store.get_schemes()
+        scheme_map = {}
+        for scheme in schemes:
+            loc_cls = self.store.get_store_location_class()
+            scheme_map[scheme] = {
+                'store': self.store,
+                'location_class': loc_cls,
+            }
+        location.register_scheme_map(scheme_map)
+
+        fctor, fbucket = fakers()
+
+        init = mock.patch.object(boto.s3.connection.S3Connection,
+                                 '__init__').start()
+        init.side_effect = fctor
+        self.addCleanup(init.stop)
+
+        bucket = mock.patch.object(boto.s3.connection.S3Connection,
+                                   'get_bucket').start()
+        bucket.side_effect = fbucket
+        self.addCleanup(bucket.stop)
 
     def test_get(self):
         """Test a "normal" retrieval of an image in chunks"""
@@ -190,12 +200,12 @@ class TestStore(base.StoreClearingUnitTest):
             expected_cls = boto.s3.connection.OrdinaryCallingFormat
             self.assertIsInstance(kwargs.get('calling_format'), expected_cls)
 
-        self.stubs.Set(boto.s3.connection.S3Connection, '__init__',
-                       fake_S3Connection_init)
+        with mock.patch.object(boto.s3.connection.S3Connection, '__init__') as m:
+            m.side_effect = fake_S3Connection_init
 
-        loc = get_location_from_uri(
-            "s3://user:key@auth_address/glance/%s" % FAKE_UUID)
-        (image_s3, image_size) = self.store.get(loc)
+            loc = get_location_from_uri(
+                "s3://user:key@auth_address/glance/%s" % FAKE_UUID)
+            (image_s3, image_size) = self.store.get(loc)
 
     def test_get_calling_format_default(self):
         """Test a "normal" retrieval of an image in chunks"""
@@ -204,12 +214,12 @@ class TestStore(base.StoreClearingUnitTest):
             expected_cls = boto.s3.connection.SubdomainCallingFormat
             self.assertIsInstance(kwargs.get('calling_format'), expected_cls)
 
-        self.stubs.Set(boto.s3.connection.S3Connection, '__init__',
-                       fake_S3Connection_init)
+        with mock.patch.object(boto.s3.connection.S3Connection, '__init__') as m:
+            m.side_effect = fake_S3Connection_init
 
-        loc = get_location_from_uri(
-            "s3://user:key@auth_address/glance/%s" % FAKE_UUID)
-        (image_s3, image_size) = self.store.get(loc)
+            loc = get_location_from_uri(
+                "s3://user:key@auth_address/glance/%s" % FAKE_UUID)
+            (image_s3, image_size) = self.store.get(loc)
 
     def test_get_non_existing(self):
         """
@@ -287,7 +297,7 @@ class TestStore(base.StoreClearingUnitTest):
             image_s3 = StringIO.StringIO(expected_s3_contents)
 
             self.config(**new_conf)
-            self.store = Store()
+            self.store = s3.Store(self.conf)
             location, size, checksum, _ = self.store.add(expected_image_id,
                                                          image_s3,
                                                          expected_s3_size)
@@ -320,7 +330,7 @@ class TestStore(base.StoreClearingUnitTest):
 
         try:
             self.config(**conf)
-            self.store = Store()
+            self.store = s3.Store(self.conf)
             return self.store.add == self.store.add_disabled
         except Exception:
             return False
@@ -364,12 +374,12 @@ class TestStore(base.StoreClearingUnitTest):
         self.assertRaises(exception.NotFound, self.store.delete, loc)
 
     def _do_test_get_s3_location(self, host, loc):
-        self.assertEqual(get_s3_location(host), loc)
-        self.assertEqual(get_s3_location(host + ':80'), loc)
-        self.assertEqual(get_s3_location('http://' + host), loc)
-        self.assertEqual(get_s3_location('http://' + host + ':80'), loc)
-        self.assertEqual(get_s3_location('https://' + host), loc)
-        self.assertEqual(get_s3_location('https://' + host + ':80'), loc)
+        self.assertEqual(s3.get_s3_location(host), loc)
+        self.assertEqual(s3.get_s3_location(host + ':80'), loc)
+        self.assertEqual(s3.get_s3_location('http://' + host), loc)
+        self.assertEqual(s3.get_s3_location('http://' + host + ':80'), loc)
+        self.assertEqual(s3.get_s3_location('https://' + host), loc)
+        self.assertEqual(s3.get_s3_location('https://' + host + ':80'), loc)
 
     def test_get_s3_good_location(self):
         """
@@ -399,15 +409,13 @@ class TestStore(base.StoreClearingUnitTest):
             self._do_test_get_s3_location(url, expected)
 
     def test_calling_format_path(self):
-        self.config(s3_store_bucket_url_format='path')
-        self.assertIsInstance(glance.store.s3.get_calling_format(),
+        self.assertIsInstance(s3.get_calling_format(s3_store_bucket_url_format='path'),
                               boto.s3.connection.OrdinaryCallingFormat)
 
     def test_calling_format_subdomain(self):
-        self.config(s3_store_bucket_url_format='subdomain')
-        self.assertIsInstance(glance.store.s3.get_calling_format(),
+        self.assertIsInstance(s3.get_calling_format(s3_store_bucket_url_format='subdomain'),
                               boto.s3.connection.SubdomainCallingFormat)
 
     def test_calling_format_default(self):
-        self.assertIsInstance(glance.store.s3.get_calling_format(),
+        self.assertIsInstance(s3.get_calling_format(),
                               boto.s3.connection.SubdomainCallingFormat)

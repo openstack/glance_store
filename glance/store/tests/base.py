@@ -49,6 +49,6 @@ class StoreBaseTest(testtools.TestCase):
         All overrides are automatically cleared at the end of the current
         test by the fixtures cleanup process.
         """
-        group = kw.pop('group', None)
+        group = kw.pop('group', 'glance_store')
         for k, v in kw.iteritems():
             self.conf.set_override(k, v, group)
