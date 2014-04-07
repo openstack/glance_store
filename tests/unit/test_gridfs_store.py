@@ -92,9 +92,7 @@ class TestStore(base.StoreBaseTest):
 
         self.store = gfs.Store(self.conf)
         self.config(group='glance_store', **GRIDFS_CONF)
-        # FIXME(FlaPer87): The first instance failed because
-        # the uri was None.
-        self.store = gfs.Store(self.conf)
+        self.store.configure()
 
     def test_cleanup_when_add_image_exception(self):
         if pymongo is None:

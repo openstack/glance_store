@@ -39,8 +39,10 @@ class TestStore(base.StoreBaseTest):
         super(TestStore, self).setUp()
         self.orig_chunksize = ChunkedFile.CHUNKSIZE
         ChunkedFile.CHUNKSIZE = 10
-        self.config(filesystem_store_datadir=self.test_dir)
         self.store = Store(self.conf)
+        self.config(filesystem_store_datadir=self.test_dir,
+                    group="glance_store")
+        self.store.configure()
 
     def tearDown(self):
         """Clear the test environment."""
@@ -122,7 +124,8 @@ class TestStore(base.StoreBaseTest):
         jsonfilename = os.path.join(self.test_dir,
                                     "storage_metadata.%s" % expected_image_id)
 
-        self.config(filesystem_store_metadata_file=jsonfilename)
+        self.config(filesystem_store_metadata_file=jsonfilename,
+                    group="glance_store")
         with open(jsonfilename, 'w') as fptr:
             json.dump(in_metadata, fptr)
         expected_file_size = 10
@@ -141,7 +144,8 @@ class TestStore(base.StoreBaseTest):
         jsonfilename = os.path.join(self.test_dir,
                                     "storage_metadata.%s" % expected_image_id)
 
-        self.config(filesystem_store_metadata_file=jsonfilename)
+        self.config(filesystem_store_metadata_file=jsonfilename,
+                    group="glance_store")
         with open(jsonfilename, 'w') as fptr:
             json.dump(in_metadata, fptr)
         expected_file_size = 10
@@ -159,7 +163,8 @@ class TestStore(base.StoreBaseTest):
         jsonfilename = os.path.join(self.test_dir,
                                     "storage_metadata.%s" % expected_image_id)
 
-        self.config(filesystem_store_metadata_file=jsonfilename)
+        self.config(filesystem_store_metadata_file=jsonfilename,
+                    group="glance_store")
         expected_file_size = 10
         expected_file_contents = "*" * expected_file_size
         image_file = StringIO.StringIO(expected_file_contents)

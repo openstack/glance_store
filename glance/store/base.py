@@ -16,6 +16,8 @@
 
 """Base class for all storage backends"""
 
+from oslo.config import cfg
+
 from glance.store.common import exception
 from glance.store.openstack.common.gettextutils import _
 from glance.store.openstack.common import importutils
@@ -39,6 +41,7 @@ def _exception_to_unicode(exc):
 
 class Store(object):
 
+    OPTIONS = None
     CHUNKSIZE = 16 * (1024 * 1024)  # 16M
 
     def __init__(self, conf):
@@ -47,14 +50,14 @@ class Store(object):
         """
         self.conf = conf
         self.store_location_class = None
-        self.configure()
+
         try:
-            self.configure_add()
-        except exception.BadStoreConfiguration as e:
-            self.add = self.add_disabled
-            msg = (_(u"Failed to configure store correctly: %s "
-                     "Disabling add method.") % _exception_to_unicode(e))
-            LOG.warn(msg)
+            if self.OPTIONS is not None:
+                self.conf.register_opts(self.OPTIONS, group='glance_store')
+        except cfg.DuplicateOptError:
+            pass
+
+        self.configure()
 
     def configure(self):
         """
@@ -62,7 +65,16 @@ class Store(object):
         Any store that needs special configuration should implement
         this method.
         """
-        pass
+
+        try:
+            self.configure_add()
+            self.add = getattr(self, '_add', self.add)
+        except exception.BadStoreConfiguration as e:
+            self._add = self.add
+            self.add = self.add_disabled
+            msg = (_(u"Failed to configure store correctly: %s "
+                     "Disabling add method.") % _exception_to_unicode(e))
+            LOG.warn(msg)
 
     def get_schemes(self):
         """
@@ -88,7 +100,7 @@ class Store(object):
         If the store was not able to successfully configure
         itself, it should raise `exception.BadStoreConfiguration`.
         """
-        pass
+        # NOTE(flaper87): This should probably go away
 
     def get(self, location, context=None):
         """

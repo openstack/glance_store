@@ -109,11 +109,10 @@ class ChunkedFile(object):
 
 class Store(glance.store.base.Store):
 
+    OPTIONS = _FILESYSTEM_CONFIGS
+
     def get_schemes(self):
         return ('file', 'filesystem')
-
-    def configure(self):
-        self.conf.register_opts(_FILESYSTEM_CONFIGS)
 
     def configure_add(self):
         """
@@ -122,7 +121,7 @@ class Store(glance.store.base.Store):
         this method. If the store was not able to successfully configure
         itself, it should raise `exception.BadStoreConfiguration`
         """
-        self.datadir = self.conf.filesystem_store_datadir
+        self.datadir = self.conf.glance_store.filesystem_store_datadir
         if self.datadir is None:
             reason = (_("Could not find %s in configuration options.") %
                       'filesystem_store_datadir')
@@ -158,11 +157,11 @@ class Store(glance.store.base.Store):
         return filepath, filesize
 
     def _get_metadata(self):
-        if self.conf.filesystem_store_metadata_file is None:
+        if self.conf.glance_store.filesystem_store_metadata_file is None:
             return {}
 
         try:
-            with open(self.conf.filesystem_store_metadata_file, 'r') as fptr:
+            with open(self.conf.glance_store.filesystem_store_metadata_file, 'r') as fptr:
                 metadata = jsonutils.load(fptr)
             glance.store.check_location_metadata(metadata)
             return metadata
@@ -170,13 +169,13 @@ class Store(glance.store.base.Store):
             LOG.error(_('The JSON in the metadata file %s could not be used: '
                         '%s  An empty dictionary will be returned '
                         'to the client.')
-                      % (self.conf.filesystem_store_metadata_file, str(bee)))
+                      % (self.conf.glance_store.filesystem_store_metadata_file, str(bee)))
             return {}
         except IOError as ioe:
             LOG.error(_('The path for the metadata file %s could not be '
                         'opened: %s  An empty dictionary will be returned '
                         'to the client.')
-                      % (self.conf.filesystem_store_metadata_file, ioe))
+                      % (self.conf.glance_store.filesystem_store_metadata_file, ioe))
             return {}
         except Exception as ex:
             LOG.exception(_('An error occurred processing the storage systems '

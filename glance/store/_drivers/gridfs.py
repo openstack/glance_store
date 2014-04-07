@@ -79,13 +79,11 @@ class StoreLocation(glance.store.location.StoreLocation):
 class Store(glance.store.base.Store):
     """GridFS adapter"""
 
+    OPTIONS = _GRIDFS_OPTS
     EXAMPLE_URL = "gridfs://<IMAGE_ID>"
 
     def get_schemes(self):
         return ('gridfs',)
-
-    def configure(self):
-        self.conf.register_opts(_GRIDFS_OPTS, group='glance_store')
 
     def configure_add(self):
         """
