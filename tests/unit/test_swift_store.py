@@ -24,16 +24,11 @@ import urllib
 import uuid
 
 from oslo.config import cfg
-import stubout
 import swiftclient
 
-import glance.store.common.auth
 from glance.store.common import exception
-from glance.openstack.common import units
-
-from glance.store import BackendException
 from glance.store.location import get_location_from_uri
-import glance.store.swift
+from glance.store._drivers import swift
 from glance.tests.unit import base
 
 CONF = cfg.CONF
@@ -41,8 +36,8 @@ CONF = cfg.CONF
 FAKE_UUID = lambda: str(uuid.uuid4())
 
 Store = glance.store.swift.Store
-FIVE_KB = 5 * units.Ki
-FIVE_GB = 5 * units.Gi
+FIVE_KB = 5 * 1024
+FIVE_GB = 5 * 1024 * 3
 MAX_SWIFT_OBJECT_SIZE = FIVE_GB
 SWIFT_PUT_OBJECT_CALLS = 0
 SWIFT_CONF = {'verbose': True,
@@ -58,7 +53,7 @@ SWIFT_CONF = {'verbose': True,
 # We stub out as little as possible to ensure that the code paths
 # between glance.store.swift and swiftclient are tested
 # thoroughly
-def stub_out_swiftclient(stubs, swift_store_auth_version):
+def stub_out_swiftclient(test, swift_store_auth_version):
     fixture_containers = ['glance']
     fixture_container_headers = {}
     fixture_headers = {
@@ -184,24 +179,20 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
             raise swiftclient.ClientException(msg)
         return None, None
 
-    stubs.Set(swiftclient.client,
-              'head_container', fake_head_container)
-    stubs.Set(swiftclient.client,
-              'put_container', fake_put_container)
-    stubs.Set(swiftclient.client,
-              'post_container', fake_post_container)
-    stubs.Set(swiftclient.client,
-              'put_object', fake_put_object)
-    stubs.Set(swiftclient.client,
-              'delete_object', fake_delete_object)
-    stubs.Set(swiftclient.client,
-              'head_object', fake_head_object)
-    stubs.Set(swiftclient.client,
-              'get_object', fake_get_object)
-    stubs.Set(swiftclient.client,
-              'get_auth', fake_get_auth)
-    stubs.Set(swiftclient.client,
-              'http_connection', fake_http_connection)
+    to_mock = [('head_container', fake_head_container),
+               ('put_container', fake_put_container),
+               ('post_container', fake_post_container),
+               ('put_object', fake_put_object),
+               ('delete_object', fake_delete_object),
+               ('head_object', fake_head_object),
+               ('get_object', fake_get_object),
+               ('get_auth', fake_get_auth),
+               ('http_connection', fake_http_connection)]
+
+    for (meth, fake_meth) in to_mock:
+        mocked = mock.patch.object(swiftclient.client, meth).start()
+        mocked.side_effect = fake_meth
+        test.add_cleanUp(mocked.stop)
 
 
 class SwiftTests(object):
@@ -384,7 +375,7 @@ class SwiftTests(object):
         exception_caught = False
         try:
             self.store.add(str(uuid.uuid4()), image_swift, 0)
-        except BackendException as e:
+        except backend.BackendException as e:
             exception_caught = True
             self.assertTrue("container noexist does not exist "
                             "in Swift" in str(e))
@@ -683,11 +674,8 @@ class TestStoreAuthV1(base.StoreClearingUnitTest, SwiftTests):
         conf = self.getConfig()
         self.config(**conf)
         super(TestStoreAuthV1, self).setUp()
-        self.stubs = stubout.StubOutForTesting()
-        stub_out_swiftclient(self.stubs, conf['swift_store_auth_version'])
+        stub_out_swiftclient(self, conf['swift_store_auth_version'])
         self.store = Store()
-        self.addCleanup(self.stubs.UnsetAll)
-
 
 class TestStoreAuthV2(TestStoreAuthV1):
 

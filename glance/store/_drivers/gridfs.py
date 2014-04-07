@@ -19,9 +19,10 @@ from __future__ import absolute_import
 from oslo.config import cfg
 import urlparse
 
-from glance.common import exception
-from glance.openstack.common import excutils
-import glance.openstack.common.log as logging
+from glance.store.common import exception
+from glance.store.openstack.common import excutils
+import glance.store.openstack.common.log as logging
+from glance.store.openstack.common.gettextutils import _
 import glance.store.base
 import glance.store.location
 
@@ -35,7 +36,7 @@ except ImportError:
 
 LOG = logging.getLogger(__name__)
 
-gridfs_opts = [
+_GRIDFS_OPTS = [
     cfg.StrOpt('mongodb_store_uri',
                help="Hostname or IP address of the instance to connect to, "
                     "or a mongodb URI, or a list of hostnames / mongodb URIs. "
@@ -44,9 +45,6 @@ gridfs_opts = [
                     "URL syntax (e.g. '[::1]' for localhost)"),
     cfg.StrOpt('mongodb_store_db', default=None, help='Database to use'),
 ]
-
-CONF = cfg.CONF
-CONF.register_opts(gridfs_opts)
 
 
 class StoreLocation(glance.store.location.StoreLocation):
@@ -86,6 +84,9 @@ class Store(glance.store.base.Store):
     def get_schemes(self):
         return ('gridfs',)
 
+    def configure(self):
+        self.conf.register_opts(_GRIDFS_OPTS, group='glance_store')
+
     def configure_add(self):
         """
         Configure the Store to use the stored configuration options
@@ -108,7 +109,7 @@ class Store(glance.store.base.Store):
         self.fs = gridfs.GridFS(self.mongodb[self.mongodb_db])
 
     def _option_get(self, param):
-        result = getattr(CONF, param)
+        result = getattr(self.conf.glance_store, param)
         if not result:
             reason = (_("Could not find %(param)s in configuration "
                         "options.") % {'param': param})
@@ -117,7 +118,7 @@ class Store(glance.store.base.Store):
                                                   reason=reason)
         return result
 
-    def get(self, location):
+    def get(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns a tuple of generator
@@ -130,7 +131,7 @@ class Store(glance.store.base.Store):
         image = self._get_file(location)
         return (image, image.length)
 
-    def get_size(self, location):
+    def get_size(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns the image_size (or 0
@@ -159,7 +160,7 @@ class Store(glance.store.base.Store):
             LOG.debug(msg)
             raise exception.NotFound(msg)
 
-    def add(self, image_id, image_file, image_size):
+    def add(self, image_id, image_file, image_size, context=None):
         """
         Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -197,7 +198,7 @@ class Store(glance.store.base.Store):
 
         return (loc.get_uri(), image.length, image.md5, {})
 
-    def delete(self, location):
+    def delete(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file to delete

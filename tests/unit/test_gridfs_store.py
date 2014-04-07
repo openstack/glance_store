@@ -15,12 +15,13 @@
 
 import StringIO
 
-import stubout
+import mock
 
 from glance.store.common import exception
 from glance.store.common import utils
-from glance.store.gridfs import Store
-from glance.tests.unit import base
+from glance.store._drivers import gridfs as gfs
+from glance.store.tests import base
+
 try:
     import gridfs
     import pymongo
@@ -28,70 +29,78 @@ except ImportError:
     pymongo = None
 
 
-GRIDFS_CONF = {'verbose': True,
-               'debug': True,
-               'default_store': 'gridfs',
-               'mongodb_store_uri': 'mongodb://fake_store_uri',
+GRIDFS_CONF = {'mongodb_store_uri': 'mongodb://fake_store_uri',
                'mongodb_store_db': 'fake_store_db'}
 
 
-def stub_out_gridfs(stubs):
-    class FakeMongoClient(object):
-        def __init__(self, *args, **kwargs):
-            pass
+class FakeMongoClient(object):
+    def __init__(self, *args, **kwargs):
+        pass
 
-        def __getitem__(self, key):
-            return None
+    def __getitem__(self, key):
+        return None
 
-    class FakeGridFS(object):
-        image_data = {}
-        called_commands = []
+class FakeGridFS(object):
+    image_data = {}
+    called_commands = []
 
-        def __init__(self, *args, **kwargs):
-            pass
+    def __init__(self, *args, **kwargs):
+        pass
 
-        def exists(self, image_id):
-            self.called_commands.append('exists')
-            return False
+    def exists(self, image_id):
+        self.called_commands.append('exists')
+        return False
 
-        def put(self, image_file, _id):
-            self.called_commands.append('put')
-            data = None
-            while True:
-                data = image_file.read(64)
-                if data:
-                    self.image_data[_id] = \
-                        self.image_data.setdefault(_id, '') + data
-                else:
-                    break
+    def put(self, image_file, _id):
+        self.called_commands.append('put')
+        data = None
+        while True:
+            data = image_file.read(64)
+            if data:
+                self.image_data[_id] = \
+                    self.image_data.setdefault(_id, '') + data
+            else:
+                break
 
-        def delete(self, _id):
-            self.called_commands.append('delete')
-
-    if pymongo is not None:
-        stubs.Set(pymongo, 'MongoClient', FakeMongoClient)
-        stubs.Set(gridfs, 'GridFS', FakeGridFS)
+    def delete(self, _id):
+        self.called_commands.append('delete')
 
 
-class TestStore(base.StoreClearingUnitTest):
+    def get(self, location):
+        self.called_commands.append('get')
+
+        class Image:
+            _id = "test"
+            length = 6
+            md5 = "yoyo"
+
+        return Image
+
+class TestStore(base.StoreBaseTest):
     def setUp(self):
         """Establish a clean test environment"""
-        self.config(**GRIDFS_CONF)
         super(TestStore, self).setUp()
-        self.stubs = stubout.StubOutForTesting()
-        stub_out_gridfs(self.stubs)
-        self.store = Store()
-        self.addCleanup(self.stubs.UnsetAll)
+
+        if pymongo is not None:
+            conn = mock.patch.object(pymongo, 'MongoClient').start()
+            conn.side_effect = FakeMongoClient
+            self.addCleanup(conn.stop)
+
+            pgfs = mock.patch.object(gridfs, 'GridFS').start()
+            pgfs.side_effect = FakeGridFS
+            self.addCleanup(pgfs.stop)
+
+        self.store = gfs.Store(self.conf)
+        self.config(group='glance_store', **GRIDFS_CONF)
+        # FIXME(FlaPer87): The first instance failed because
+        # the uri was None.
+        self.store = gfs.Store(self.conf)
 
     def test_cleanup_when_add_image_exception(self):
         if pymongo is None:
             msg = 'GridFS store can not add images, skip test.'
             self.skipTest(msg)
 
-        self.assertRaises(exception.ImageSizeLimitExceeded,
-                          self.store.add,
-                          'fake_image_id',
-                          utils.LimitingReader(StringIO.StringIO('xx'), 1),
-                          2)
+        self.store.add('fake_image_id', StringIO.StringIO('xx'), 2)
         self.assertEqual(self.store.fs.called_commands,
-                         ['exists', 'put', 'delete'])
+                         ['exists', 'put', 'get'])
