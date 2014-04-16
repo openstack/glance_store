@@ -255,7 +255,7 @@ class Store(glance.store.base.Store):
                                                   reason=reason)
         return result
 
-    def get(self, location):
+    def get(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns a tuple of generator
@@ -276,7 +276,7 @@ class Store(glance.store.base.Store):
 
         return (ChunkedIndexable(ChunkedFile(key), key.size), key.size)
 
-    def get_size(self, location):
+    def get_size(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns the image_size (or 0
@@ -316,7 +316,7 @@ class Store(glance.store.base.Store):
 
         return key
 
-    def add(self, image_id, image_file, image_size):
+    def add(self, image_id, image_file, image_size, context=None):
         """
         Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -423,7 +423,7 @@ class Store(glance.store.base.Store):
 
         return (loc.get_uri(), size, checksum_hex, {})
 
-    def delete(self, location):
+    def delete(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file to delete
