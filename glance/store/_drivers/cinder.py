@@ -15,19 +15,18 @@
 from cinderclient import exceptions as cinder_exception
 from cinderclient import service_catalog
 from cinderclient.v2 import client as cinderclient
-
 from oslo.config import cfg
 
-from glance.common import exception
-from glance.common import utils
-import glance.openstack.common.log as logging
-from glance.openstack.common import units
+from glance.store.common import utils
+from glance.store.common import exception
+import glance.store.openstack.common.log as logging
+from glance.store.openstack.common.gettextutils import _
 import glance.store.base
 import glance.store.location
 
 LOG = logging.getLogger(__name__)
 
-cinder_opts = [
+_CINDER_OPTS = [
     cfg.StrOpt('cinder_catalog_info',
                default='volume:cinder:publicURL',
                help='Info to match when looking for cinder in the service '
@@ -52,21 +51,18 @@ cinder_opts = [
                 help='Allow to perform insecure SSL requests to cinder'),
 ]
 
-CONF = cfg.CONF
-CONF.register_opts(cinder_opts)
 
-
-def get_cinderclient(context):
-    if CONF.cinder_endpoint_template:
-        url = CONF.cinder_endpoint_template % context.to_dict()
+def get_cinderclient(conf, context):
+    if conf.glance_store.cinder_endpoint_template:
+        url = conf.glance_store.cinder_endpoint_template % context.to_dict()
     else:
-        info = CONF.cinder_catalog_info
+        info = conf.glance_store.cinder_catalog_info
         service_type, service_name, endpoint_type = info.split(':')
 
         # extract the region if set in configuration
-        if CONF.os_region_name:
+        if conf.glance_store.os_region_name:
             attr = 'region'
-            filter_value = CONF.os_region_name
+            filter_value = conf.glance_store.os_region_name
         else:
             attr = None
             filter_value = None
@@ -91,9 +87,9 @@ def get_cinderclient(context):
                             context.auth_tok,
                             project_id=context.tenant,
                             auth_url=url,
-                            insecure=CONF.cinder_api_insecure,
-                            retries=CONF.cinder_http_retries,
-                            cacert=CONF.cinder_ca_certificates_file)
+                            insecure=conf.glance_store.cinder_api_insecure,
+                            retries=conf.glance_store.cinder_http_retries,
+                            cacert=conf.glance_store.cinder_ca_certificates_file)
 
     # noauth extracts user_id:project_id from auth_token
     c.client.auth_token = context.auth_tok or '%s:%s' % (context.user,
@@ -132,12 +128,13 @@ class Store(glance.store.base.Store):
 
     """Cinder backend store adapter."""
 
-    EXAMPLE_URL = "cinder://volume-id"
+    OPTIONS = _CINDER_OPTS
+    EXAMPLE_URL = "cinder://<VOLUME_ID>"
 
     def get_schemes(self):
         return ('cinder',)
 
-    def configure_add(self):
+    def _check_context(self, context):
         """
         Configure the Store to use the stored configuration options
         Any store that needs special configuration should implement
@@ -145,16 +142,16 @@ class Store(glance.store.base.Store):
         itself, it should raise `exception.BadStoreConfiguration`
         """
 
-        if self.context is None:
+        if context is None:
             reason = _("Cinder storage requires a context.")
             raise exception.BadStoreConfiguration(store_name="cinder",
                                                   reason=reason)
-        if self.context.service_catalog is None:
+        if context.service_catalog is None:
             reason = _("Cinder storage requires a service catalog.")
             raise exception.BadStoreConfiguration(store_name="cinder",
                                                   reason=reason)
 
-    def get_size(self, location):
+    def get_size(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file and returns the image size
@@ -168,9 +165,10 @@ class Store(glance.store.base.Store):
         loc = location.store_location
 
         try:
-            volume = get_cinderclient(self.context).volumes.get(loc.volume_id)
+            self._check_context(context)
+            volume = get_cinderclient(self.conf, context).volumes.get(loc.volume_id)
             # GB unit convert to byte
-            return volume.size * units.Gi
+            return volume.size * (1024**3)
         except cinder_exception.NotFound as e:
             reason = _("Failed to get image size due to "
                        "volume can not be found: %s") % self.volume_id

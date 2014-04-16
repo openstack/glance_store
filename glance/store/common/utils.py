@@ -18,6 +18,8 @@
 System-level utilities and helper functions.
 """
 
+import uuid
+
 try:
     from eventlet import sleep
 except ImportError:
@@ -28,6 +30,19 @@ from glance.store.openstack.common import log as logging
 
 
 LOG = logging.getLogger(__name__)
+
+
+def is_uuid_like(val):
+    """Returns validation of a value as a UUID.
+
+    For our purposes, a UUID is a canonical form string:
+    aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+    """
+
+    try:
+        return str(uuid.UUID(val)) == val
+    except (TypeError, ValueError, AttributeError):
+        return False
 
 
 def chunkreadable(iter, chunk_size=65536):

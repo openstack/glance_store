@@ -52,3 +52,15 @@ class StoreBaseTest(testtools.TestCase):
         group = kw.pop('group', 'glance_store')
         for k, v in kw.iteritems():
             self.conf.set_override(k, v, group)
+
+    def register_store_schemes(self, store):
+        schemes = store.get_schemes()
+        scheme_map = {}
+
+        for scheme in schemes:
+            loc_cls = store.get_store_location_class()
+            scheme_map[scheme] = {
+                'store': store,
+                'location_class': loc_cls,
+            }
+        location.register_scheme_map(scheme_map)
