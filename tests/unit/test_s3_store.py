@@ -154,16 +154,8 @@ class TestStore(base.StoreBaseTest):
         self.store = s3.Store(self.conf)
         self.config(**S3_CONF)
         self.store.configure()
+        self.register_store_schemes(self.store)
 
-        schemes = self.store.get_schemes()
-        scheme_map = {}
-        for scheme in schemes:
-            loc_cls = self.store.get_store_location_class()
-            scheme_map[scheme] = {
-                'store': self.store,
-                'location_class': loc_cls,
-            }
-        location.register_scheme_map(scheme_map)
 
         fctor, fbucket = fakers()
 
