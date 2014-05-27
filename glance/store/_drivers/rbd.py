@@ -24,12 +24,12 @@ import urllib
 
 from oslo.config import cfg
 
-from glance.common import exception
-from glance.common import utils
-import glance.openstack.common.log as logging
-from glance.openstack.common import units
-import glance.store.base
-import glance.store.location
+from glance.store.common import exception
+from glance.store.common import utils
+from glance.store.openstack.common.gettextutils import _
+from glance.store.openstack.common import log as logging
+from glance.store import base
+from glance.store import location
 
 try:
     import rados
@@ -46,7 +46,7 @@ DEFAULT_SNAPNAME = 'snap'
 
 LOG = logging.getLogger(__name__)
 
-rbd_opts = [
+_RBD_OPTS = [
     cfg.IntOpt('rbd_store_chunk_size', default=DEFAULT_CHUNKSIZE,
                help=_('RADOS images will be chunked into objects of this size '
                       '(in megabytes). For best performance, this should be '
@@ -65,11 +65,8 @@ rbd_opts = [
                       'in a client.<USER> section')),
 ]
 
-CONF = cfg.CONF
-CONF.register_opts(rbd_opts)
 
-
-class StoreLocation(glance.store.location.StoreLocation):
+class StoreLocation(location.StoreLocation):
     """
     Class describing a RBD URI. This is of the form:
 
@@ -171,8 +168,10 @@ class ImageIterator(object):
                 _('RBD image %s does not exist') % self.name)
 
 
-class Store(glance.store.base.Store):
+class Store(base.Store):
     """An implementation of the RBD backend adapter."""
+
+    OPTIONS = _RBD_OPTS
 
     EXAMPLE_URL = "rbd://<FSID>/<POOL>/<IMAGE>/<SNAP>"
 
@@ -187,20 +186,21 @@ class Store(glance.store.base.Store):
         itself, it should raise `exception.BadStoreConfiguration`
         """
         try:
-            self.chunk_size = CONF.rbd_store_chunk_size * units.Mi
+            chunk = self.conf.glance_store.rbd_store_chunk_size
+            self.chunk_size =  chunk * 1024^2
 
             # these must not be unicode since they will be passed to a
             # non-unicode-aware C library
-            self.pool = str(CONF.rbd_store_pool)
-            self.user = str(CONF.rbd_store_user)
-            self.conf_file = str(CONF.rbd_store_ceph_conf)
+            self.pool = str(self.conf.glance_store.rbd_store_pool)
+            self.user = str(self.conf.glance_store.rbd_store_user)
+            self.conf_file = str(self.conf.glance_store.rbd_store_ceph_conf)
         except cfg.ConfigFileValueError as e:
             reason = _("Error in store configuration: %s") % e
             LOG.error(reason)
             raise exception.BadStoreConfiguration(store_name='rbd',
                                                   reason=reason)
 
-    def get(self, location):
+    def get(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns a tuple of generator
@@ -213,7 +213,7 @@ class Store(glance.store.base.Store):
         loc = location.store_location
         return (ImageIterator(loc.image, self), self.get_size(location))
 
-    def get_size(self, location):
+    def get_size(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns the size
@@ -236,7 +236,7 @@ class Store(glance.store.base.Store):
                     LOG.debug(msg)
                     raise exception.NotFound(msg)
 
-    def _create_image(self, fsid, ioctx, image_name, size, order):
+    def _create_image(self, fsid, ioctx, image_name, size, order, context=None):
         """
         Create an rbd image. If librbd supports it,
         make it a cloneable snapshot, so that copy-on-write
@@ -260,7 +260,7 @@ class Store(glance.store.base.Store):
             librbd.create(ioctx, image_name, size, order, old_format=True)
             return StoreLocation({'image': image_name})
 
-    def _delete_image(self, image_name, snapshot_name=None):
+    def _delete_image(self, image_name, snapshot_name=None, context=None):
         """
         Delete RBD image and snapshot.
 
@@ -291,7 +291,7 @@ class Store(glance.store.base.Store):
                     # Then delete image.
                     rbd.RBD().remove(ioctx, image_name)
                 except rbd.ImageNotFound:
-                    raise exception.NotFound(
+                    raise exception.NotFound(message=
                         _("RBD image %s does not exist") % image_name)
                 except rbd.ImageBusy:
                     log_msg = _("image %s could not be removed "
@@ -299,7 +299,7 @@ class Store(glance.store.base.Store):
                     LOG.debug(log_msg % image_name)
                     raise exception.InUseByStore()
 
-    def add(self, image_id, image_file, image_size):
+    def add(self, image_id, image_file, image_size, context=None):
         """
         Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -333,7 +333,7 @@ class Store(glance.store.base.Store):
                     loc = self._create_image(fsid, ioctx, image_name,
                                              image_size, order)
                 except rbd.ImageExists:
-                    raise exception.Duplicate(
+                    raise exception.Duplicate(message=
                         _('RBD image %s already exists') % image_id)
                 try:
                     with rbd.Image(ioctx, image_name) as image:
@@ -351,7 +351,7 @@ class Store(glance.store.base.Store):
                                 length = offset + chunk_length
                                 bytes_written += chunk_length
                                 LOG.debug(_("resizing image to %s KiB") %
-                                          (length / units.Ki))
+                                          (length / 1024))
                                 image.resize(length)
                             LOG.debug(_("writing chunk at offset %s") %
                                       (offset))
@@ -375,7 +375,7 @@ class Store(glance.store.base.Store):
 
         return (loc.get_uri(), image_size, checksum.hexdigest(), {})
 
-    def delete(self, location):
+    def delete(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file to delete.

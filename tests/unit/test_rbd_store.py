@@ -19,44 +19,169 @@ import mock
 
 from glance.store.common import exception
 from glance.store.common import utils
-from glance.openstack.common import units
 from glance.store.location import Location
-import glance.store.rbd as rbd_store
-from glance.store.rbd import StoreLocation
-from glance.tests.unit import base
-from glance.tests.unit.fake_rados import mock_rados
-from glance.tests.unit.fake_rados import mock_rbd
+from glance.store._drivers import rbd as rbd_store
+from glance.store.tests import base
+
+class MockRados(object):
+
+    class ioctx(object):
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self, *args, **kwargs):
+            return self
+
+        def __exit__(self, *args, **kwargs):
+            return False
+
+        def close(self, *args, **kwargs):
+            pass
+
+    class Rados(object):
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self, *args, **kwargs):
+            return self
+
+        def __exit__(self, *args, **kwargs):
+            return False
+
+        def connect(self, *args, **kwargs):
+            pass
+
+        def open_ioctx(self, *args, **kwargs):
+            return MockRados.ioctx()
+
+        def shutdown(self, *args, **kwargs):
+            pass
 
 
-class TestStore(base.StoreClearingUnitTest):
+class MockRBD(object):
+
+    class ImageExists(Exception):
+        pass
+
+    class ImageBusy(Exception):
+        pass
+
+    class ImageNotFound(Exception):
+        pass
+
+    class Image(object):
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self, *args, **kwargs):
+            return self
+
+        def __exit__(self, *args, **kwargs):
+            pass
+
+        def create_snap(self, *args, **kwargs):
+            pass
+
+        def remove_snap(self, *args, **kwargs):
+            pass
+
+        def protect_snap(self, *args, **kwargs):
+            pass
+
+        def unprotect_snap(self, *args, **kwargs):
+            pass
+
+        def read(self, *args, **kwargs):
+            raise NotImplementedError()
+
+        def write(self, *args, **kwargs):
+            raise NotImplementedError()
+
+        def resize(self, *args, **kwargs):
+            raise NotImplementedError()
+
+        def discard(self, offset, length):
+            raise NotImplementedError()
+
+        def close(self):
+            pass
+
+        def list_snaps(self):
+            raise NotImplementedError()
+
+        def parent_info(self):
+            raise NotImplementedError()
+
+        def size(self):
+            raise NotImplementedError()
+
+    class RBD(object):
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self, *args, **kwargs):
+            return self
+
+        def __exit__(self, *args, **kwargs):
+            return False
+
+        def create(self, *args, **kwargs):
+            pass
+
+        def remove(self, *args, **kwargs):
+            pass
+
+        def list(self, *args, **kwargs):
+            raise NotImplementedError()
+
+        def clone(self, *args, **kwargs):
+            raise NotImplementedError()
+
+
+class TestStore(base.StoreBaseTest):
     def setUp(self):
         """Establish a clean test environment"""
         super(TestStore, self).setUp()
-        self.stubs.Set(rbd_store, 'rados', mock_rados)
-        self.stubs.Set(rbd_store, 'rbd', mock_rbd)
-        self.store = rbd_store.Store()
+
+        rbd_store.rados = MockRados
+        rbd_store.rbd = MockRBD
+        #mocked = mock.patch.object(rbd_store.rados, autospec=True).start()
+        #mocked.side_effect = MockRados
+        #self.addCleanup(mocked.stop)
+
+        #mocked = mock.patch.object(rbd_store, 'rbd', autospec=True).start()
+        #mocked.side_effect = MockRBD
+        #self.addCleanup(mocked.stop)
+
+        self.store = rbd_store.Store(self.conf)
         self.store.chunk_size = 2
         self.called_commands_actual = []
         self.called_commands_expected = []
         self.store_specs = {'image': 'fake_image',
                             'snapshot': 'fake_snapshot'}
-        self.location = StoreLocation(self.store_specs)
+        self.location = rbd_store.StoreLocation(self.store_specs)
         # Provide enough data to get more than one chunk iteration.
-        self.data_len = 3 * units.Ki
+        self.data_len = 3 * 1024
         self.data_iter = StringIO.StringIO('*' * self.data_len)
 
     def test_add_w_image_size_zero(self):
         """Assert that correct size is returned even though 0 was provided."""
-        self.store.chunk_size = units.Ki
+        self.store.chunk_size = 1024
         with mock.patch.object(rbd_store.rbd.Image, 'resize') as resize:
             with mock.patch.object(rbd_store.rbd.Image, 'write') as write:
                 ret = self.store.add('fake_image_id', self.data_iter, 0)
 
-        resize.assert_called()
-        write.assert_called()
+        self.assertTrue(resize.called)
+        self.assertTrue(write.called)
         self.assertEqual(ret[1], self.data_len)
 
-    def test_add_w_rbd_image_exception(self):
+    @mock.patch.object(MockRBD.Image, '__enter__')
+    @mock.patch.object(rbd_store.Store, '_create_image')
+    @mock.patch.object(rbd_store.Store, '_delete_image')
+    def test_add_w_rbd_image_exception(self, delete, create, enter):
         def _fake_create_image(*args, **kwargs):
             self.called_commands_actual.append('create')
             return self.location
@@ -65,11 +190,11 @@ class TestStore(base.StoreClearingUnitTest):
             self.called_commands_actual.append('delete')
 
         def _fake_enter(*args, **kwargs):
-            raise exception.NotFound("")
+            raise exception.NotFound()
 
-        self.stubs.Set(self.store, '_create_image', _fake_create_image)
-        self.stubs.Set(self.store, '_delete_image', _fake_delete_image)
-        self.stubs.Set(mock_rbd.Image, '__enter__', _fake_enter)
+        create.side_effect = _fake_create_image
+        delete.side_effect = _fake_delete_image
+        enter.side_effect = _fake_enter
 
         self.assertRaises(exception.NotFound, self.store.add,
                           'fake_image_id', self.data_iter, self.data_len)
@@ -77,33 +202,43 @@ class TestStore(base.StoreClearingUnitTest):
         self.called_commands_expected = ['create', 'delete']
 
     def test_add_duplicate_image(self):
+
         def _fake_create_image(*args, **kwargs):
             self.called_commands_actual.append('create')
-            raise mock_rbd.ImageExists()
+            raise MockRBD.ImageExists()
 
-        self.stubs.Set(self.store, '_create_image', _fake_create_image)
-        self.assertRaises(exception.Duplicate, self.store.add,
-                          'fake_image_id', self.data_iter, self.data_len)
-        self.called_commands_expected = ['create']
+        with mock.patch.object(self.store, '_create_image') as create_image:
+            create_image.side_effect = _fake_create_image
+
+            self.assertRaises(exception.Duplicate, self.store.add,
+                              'fake_image_id', self.data_iter, self.data_len)
+            self.called_commands_expected = ['create']
 
     def test_delete(self):
         def _fake_remove(*args, **kwargs):
             self.called_commands_actual.append('remove')
 
-        self.stubs.Set(mock_rbd.RBD, 'remove', _fake_remove)
-        self.store.delete(Location('test_rbd_store', StoreLocation,
-                                   self.location.get_uri()))
-        self.called_commands_expected = ['remove']
+        with mock.patch.object(MockRBD.RBD, 'remove') as remove_image:
+            remove_image.side_effect = _fake_remove
 
-    def test__delete_image(self):
+            self.store.delete(Location('test_rbd_store', rbd_store.StoreLocation,
+                                       self.location.get_uri()))
+            self.called_commands_expected = ['remove']
+
+    def test_delete_image(self):
         def _fake_remove(*args, **kwargs):
             self.called_commands_actual.append('remove')
 
-        self.stubs.Set(mock_rbd.RBD, 'remove', _fake_remove)
-        self.store._delete_image(self.location)
-        self.called_commands_expected = ['remove']
+        with mock.patch.object(MockRBD.RBD, 'remove') as remove_image:
+            remove_image.side_effect = _fake_remove
 
-    def test__delete_image_w_snap(self):
+            self.store._delete_image(self.location)
+            self.called_commands_expected = ['remove']
+
+    @mock.patch.object(MockRBD.RBD, 'remove')
+    @mock.patch.object(MockRBD.Image, 'remove_snap')
+    @mock.patch.object(MockRBD.Image, 'unprotect_snap')
+    def test_delete_image_w_snap(self, unprotect, remove_snap, remove):
         def _fake_unprotect_snap(*args, **kwargs):
             self.called_commands_actual.append('unprotect_snap')
 
@@ -113,53 +248,38 @@ class TestStore(base.StoreClearingUnitTest):
         def _fake_remove(*args, **kwargs):
             self.called_commands_actual.append('remove')
 
-        self.stubs.Set(mock_rbd.RBD, 'remove', _fake_remove)
-        self.stubs.Set(mock_rbd.Image, 'unprotect_snap', _fake_unprotect_snap)
-        self.stubs.Set(mock_rbd.Image, 'remove_snap', _fake_remove_snap)
+        remove.side_effect = _fake_remove
+        unprotect.side_effect = _fake_unprotect_snap
+        remove_snap.side_effect = _fake_remove_snap
         self.store._delete_image(self.location, snapshot_name='snap')
 
         self.called_commands_expected = ['unprotect_snap', 'remove_snap',
                                          'remove']
 
-    def test__delete_image_w_snap_exc_image_not_found(self):
+    def test_delete_image_w_snap_exc_image_not_found(self):
         def _fake_unprotect_snap(*args, **kwargs):
             self.called_commands_actual.append('unprotect_snap')
-            raise mock_rbd.ImageNotFound()
+            raise MockRBD.ImageNotFound()
 
-        self.stubs.Set(mock_rbd.Image, 'unprotect_snap', _fake_unprotect_snap)
-        self.assertRaises(exception.NotFound, self.store._delete_image,
-                          self.location, snapshot_name='snap')
+        with mock.patch.object(MockRBD.Image, 'unprotect_snap') as mocked:
+            mocked.side_effect = _fake_unprotect_snap
 
-        self.called_commands_expected = ['unprotect_snap']
+            self.assertRaises(exception.NotFound, self.store._delete_image,
+                              self.location, snapshot_name='snap')
 
-    def test__delete_image_exc_image_not_found(self):
+            self.called_commands_expected = ['unprotect_snap']
+
+    def test_delete_image_exc_image_not_found(self):
         def _fake_remove(*args, **kwargs):
             self.called_commands_actual.append('remove')
-            raise mock_rbd.ImageNotFound()
+            raise MockRBD.ImageNotFound()
 
-        self.stubs.Set(mock_rbd.RBD, 'remove', _fake_remove)
-        self.assertRaises(exception.NotFound, self.store._delete_image,
-                          self.location, snapshot_name='snap')
+        with mock.patch.object(MockRBD.RBD, 'remove') as remove:
+            remove.side_effect = _fake_remove
+            self.assertRaises(exception.NotFound, self.store._delete_image,
+                              self.location, snapshot_name='snap')
 
-        self.called_commands_expected = ['remove']
-
-    def test_image_size_exceeded_exception(self):
-        def _fake_write(*args, **kwargs):
-            if 'write' not in self.called_commands_actual:
-                self.called_commands_actual.append('write')
-            raise exception.ImageSizeLimitExceeded
-
-        def _fake_delete_image(*args, **kwargs):
-            self.called_commands_actual.append('delete')
-
-        self.stubs.Set(mock_rbd.Image, 'write', _fake_write)
-        self.stubs.Set(self.store, '_delete_image', _fake_delete_image)
-        data = utils.LimitingReader(self.data_iter, self.data_len)
-        self.assertRaises(exception.ImageSizeLimitExceeded,
-                          self.store.add, 'fake_image_id',
-                          data, self.data_len + 1)
-
-        self.called_commands_expected = ['write', 'delete']
+            self.called_commands_expected = ['remove']
 
     def tearDown(self):
         self.assertEqual(self.called_commands_actual,
