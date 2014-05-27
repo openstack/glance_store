@@ -102,7 +102,7 @@ class Store(object):
         """
         # NOTE(flaper87): This should probably go away
 
-    def get(self, location, context=None):
+    def get(self, location, offset=0, chunk_size=None, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns a tuple of generator

@@ -110,7 +110,7 @@ class Store(glance.store.base.Store):
 
     """An implementation of the HTTP(S) Backend Adapter"""
 
-    def get(self, location, context=None):
+    def get(self, location, offset=0, chunk_size=None, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns a tuple of generator

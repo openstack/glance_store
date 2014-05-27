@@ -273,7 +273,7 @@ class BaseStore(glance.store.base.Store):
         self.insecure = CONF.swift_store_auth_insecure
         self.ssl_compression = CONF.swift_store_ssl_compression
 
-    def get(self, location, connection=None):
+    def get(self, location, offset=0, chunk_size=None, context=None):
         location = location.store_location
         if not connection:
             connection = self.get_connection(location)
