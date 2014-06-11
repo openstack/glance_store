@@ -19,6 +19,7 @@ from __future__ import absolute_import
 
 import hashlib
 import httplib
+import logging
 import math
 import urllib
 import urlparse
@@ -28,7 +29,6 @@ from oslo.config import cfg
 from glance.common import auth
 from glance.common import exception
 from glance.openstack.common import excutils
-import glance.openstack.common.log as logging
 import glance.store
 import glance.store.base
 import glance.store.location

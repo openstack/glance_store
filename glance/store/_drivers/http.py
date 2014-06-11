@@ -14,11 +14,11 @@
 #    under the License.
 
 import httplib
+import logging
 import urlparse
 
 from glance.store.common import exception
 from glance.store.openstack.common.gettextutils import _
-from glance.store.openstack.common import log as logging
 import glance.store.base
 import glance.store.location
 

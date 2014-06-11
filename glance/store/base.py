@@ -16,13 +16,14 @@
 
 """Base class for all storage backends"""
 
+import logging
+
 from oslo.config import cfg
 
 from glance.store.common import exception
 from glance.store.openstack.common.gettextutils import _
 from glance.store.openstack.common import importutils
 from glance.store.openstack.common import strutils
-import glance.store.openstack.common.log as logging
 
 LOG = logging.getLogger(__name__)
 

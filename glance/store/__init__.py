@@ -15,6 +15,7 @@
 
 import collections
 import itertools
+import logging
 import sys
 
 from oslo.config import cfg
@@ -25,7 +26,6 @@ from glance.store.common import utils
 from glance.store import location
 from glance.store.openstack.common.gettextutils import _
 from glance.store.openstack.common import importutils
-from glance.store.openstack.common import log as logging
 
 LOG = logging.getLogger(__name__)
 

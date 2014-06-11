@@ -16,12 +16,13 @@
 """Storage backend for GridFS"""
 from __future__ import absolute_import
 
-from oslo.config import cfg
+import logging
 import urlparse
+
+from oslo.config import cfg
 
 from glance.store.common import exception
 from glance.store.openstack.common import excutils
-import glance.store.openstack.common.log as logging
 from glance.store.openstack.common.gettextutils import _
 import glance.store.base
 import glance.store.location

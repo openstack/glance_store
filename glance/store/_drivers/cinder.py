@@ -12,6 +12,8 @@
 
 """Storage backend for Cinder"""
 
+import logging
+
 from cinderclient import exceptions as cinder_exception
 from cinderclient import service_catalog
 from cinderclient.v2 import client as cinderclient
@@ -19,7 +21,6 @@ from oslo.config import cfg
 
 from glance.store.common import utils
 from glance.store.common import exception
-import glance.store.openstack.common.log as logging
 from glance.store.openstack.common.gettextutils import _
 import glance.store.base
 import glance.store.location

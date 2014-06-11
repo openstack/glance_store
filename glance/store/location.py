@@ -37,10 +37,10 @@ that it stores in its storage backends. It **may contain** security
 credentials and is **not** user-facing.
 """
 
+import logging
 import urlparse
 
 from glance.store.common import exception
-from glance.store.openstack.common import log as logging
 
 LOG = logging.getLogger(__name__)
 

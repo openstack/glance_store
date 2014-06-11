@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import with_statement
 
 import hashlib
+import logging
 import math
 import urllib
 
@@ -27,7 +28,6 @@ from oslo.config import cfg
 from glance.store.common import exception
 from glance.store.common import utils
 from glance.store.openstack.common.gettextutils import _
-from glance.store.openstack.common import log as logging
 from glance.store import base
 from glance.store import location
 

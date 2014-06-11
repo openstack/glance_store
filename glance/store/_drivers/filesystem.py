@@ -20,6 +20,7 @@ A simple filesystem-backed store
 
 import errno
 import hashlib
+import logging
 import os
 import urlparse
 
@@ -32,7 +33,7 @@ from glance.store.common import utils
 import glance.store.location
 from glance.store.openstack.common.gettextutils import _
 from glance.store.openstack.common import jsonutils
-import glance.store.openstack.common.log as logging
+
 
 LOG = logging.getLogger(__name__)
 

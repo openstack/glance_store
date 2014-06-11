@@ -17,6 +17,7 @@
 
 import hashlib
 import httplib
+import logging
 import re
 import tempfile
 import urlparse
@@ -25,7 +26,6 @@ from oslo.config import cfg
 
 from glance.store.common import exception
 from glance.store.common import utils
-import glance.store.openstack.common.log as logging
 from glance.store.openstack.common.gettextutils import _
 import glance.store
 import glance.store.base

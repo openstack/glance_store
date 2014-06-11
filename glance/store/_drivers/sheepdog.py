@@ -16,13 +16,13 @@
 """Storage backend for Sheepdog storage system"""
 
 import hashlib
+import logging
 
 from oslo.config import cfg
 
 from glance.store.common import exception
 from glance.store.openstack.common.gettextutils import _
 from glance.store.openstack.common import excutils
-import glance.store.openstack.common.log as logging
 from glance.store.openstack.common import processutils
 from glance.store.openstack.common import units
 import glance.store

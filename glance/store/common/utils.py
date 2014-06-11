@@ -18,15 +18,13 @@
 System-level utilities and helper functions.
 """
 
+import logging
 import uuid
 
 try:
     from eventlet import sleep
 except ImportError:
     from time import sleep
-
-
-from glance.store.openstack.common import log as logging
 
 
 LOG = logging.getLogger(__name__)
