@@ -27,8 +27,8 @@ import urlparse
 from oslo.config import cfg
 
 import glance.store
-import glance.store.base
-from glance.store.common import exception
+import glance.store.driver
+from glance.store import exceptions
 from glance.store.common import utils
 import glance.store.location
 from glance.store.openstack.common.gettextutils import _
@@ -71,7 +71,7 @@ class StoreLocation(glance.store.location.StoreLocation):
         if path == '':
             reason = _("No path specified in URI: %s") % uri
             LOG.debug(reason)
-            raise exception.BadStoreUri('No path specified')
+            raise exceptions.BadStoreUri('No path specified')
         self.path = path
 
 
@@ -108,7 +108,7 @@ class ChunkedFile(object):
             self.fp = None
 
 
-class Store(glance.store.base.Store):
+class Store(glance.store.driver.Store):
 
     OPTIONS = _FILESYSTEM_CONFIGS
 
@@ -120,14 +120,14 @@ class Store(glance.store.base.Store):
         Configure the Store to use the stored configuration options
         Any store that needs special configuration should implement
         this method. If the store was not able to successfully configure
-        itself, it should raise `exception.BadStoreConfiguration`
+        itself, it should raise `exceptions.BadStoreConfiguration`
         """
         self.datadir = self.conf.glance_store.filesystem_store_datadir
         if self.datadir is None:
             reason = (_("Could not find %s in configuration options.") %
                       'filesystem_store_datadir')
             LOG.error(reason)
-            raise exception.BadStoreConfiguration(store_name="filesystem",
+            raise exceptions.BadStoreConfiguration(store_name="filesystem",
                                                   reason=reason)
 
         if not os.path.exists(self.datadir):
@@ -144,7 +144,7 @@ class Store(glance.store.base.Store):
                     return
                 reason = _("Unable to create datadir: %s") % self.datadir
                 LOG.error(reason)
-                raise exception.BadStoreConfiguration(store_name="filesystem",
+                raise exceptions.BadStoreConfiguration(store_name="filesystem",
                                                       reason=reason)
 
     @staticmethod
@@ -152,7 +152,7 @@ class Store(glance.store.base.Store):
         filepath = location.store_location.path
 
         if not os.path.exists(filepath):
-            raise exception.NotFound(image=filepath)
+            raise exceptions.NotFound(image=filepath)
 
         filesize = os.path.getsize(filepath)
         return filepath, filesize
@@ -166,7 +166,7 @@ class Store(glance.store.base.Store):
                 metadata = jsonutils.load(fptr)
             glance.store.check_location_metadata(metadata)
             return metadata
-        except exception.BackendException as bee:
+        except exceptions.BackendException as bee:
             LOG.error(_('The JSON in the metadata file %s could not be used: '
                         '%s  An empty dictionary will be returned '
                         'to the client.')
@@ -192,7 +192,7 @@ class Store(glance.store.base.Store):
 
         :param location `glance.store.location.Location` object, supplied
                         from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.store.exceptions.NotFound` if image does not exist
         """
         filepath, filesize = self._resolve_location(location)
         msg = _("Found image at %s. Returning in ChunkedFile.") % filepath
@@ -206,7 +206,7 @@ class Store(glance.store.base.Store):
 
         :param location `glance.store.location.Location` object, supplied
                         from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.store.exceptions.NotFound` if image does not exist
         :rtype int
         """
         filepath, filesize = self._resolve_location(location)
@@ -232,9 +232,9 @@ class Store(glance.store.base.Store):
                 LOG.debug(_("Deleting image at %(fn)s"), {'fn': fn})
                 os.unlink(fn)
             except OSError:
-                raise exception.Forbidden(_("You cannot delete file %s") % fn)
+                raise exceptions.Forbidden(_("You cannot delete file %s") % fn)
         else:
-            raise exception.NotFound(image=fn)
+            raise exceptions.NotFound(image=fn)
 
     def add(self, image_id, image_file, image_size, context=None):
         """
@@ -248,7 +248,7 @@ class Store(glance.store.base.Store):
 
         :retval tuple of URL in backing store, bytes written, checksum
                 and a dictionary with storage system specific information
-        :raises `glance.common.exception.Duplicate` if the image already
+        :raises `glance.store.exceptions.Duplicate` if the image already
                 existed
 
         :note By default, the backend writes the image data to a file
@@ -260,7 +260,7 @@ class Store(glance.store.base.Store):
         filepath = os.path.join(self.datadir, str(image_id))
 
         if os.path.exists(filepath):
-            raise exception.Duplicate(image=filepath)
+            raise exceptions.Duplicate(image=filepath)
 
         checksum = hashlib.md5()
         bytes_written = 0
@@ -274,10 +274,10 @@ class Store(glance.store.base.Store):
         except IOError as e:
             if e.errno != errno.EACCES:
                 self._delete_partial(filepath, image_id)
-            exceptions = {errno.EFBIG: exception.StorageFull(),
-                          errno.ENOSPC: exception.StorageFull(),
-                          errno.EACCES: exception.StorageWriteDenied()}
-            raise exceptions.get(e.errno, e)
+            errors = {errno.EFBIG: exceptions.StorageFull(),
+                      errno.ENOSPC: exceptions.StorageFull(),
+                      errno.EACCES: exceptions.StorageWriteDenied()}
+            raise errors.get(e.errno, e)
         except Exception:
             self._delete_partial(filepath, image_id)
             raise

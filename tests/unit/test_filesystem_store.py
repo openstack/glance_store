@@ -24,7 +24,7 @@ import os
 import StringIO
 import uuid
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store._drivers.filesystem import ChunkedFile
 from glance.store._drivers.filesystem import Store
 from glance.store.location import get_location_from_uri
@@ -82,7 +82,7 @@ class TestStore(base.StoreBaseTest):
         raises an error
         """
         loc = get_location_from_uri("file:///%s/non-existing" % self.test_dir)
-        self.assertRaises(exception.NotFound,
+        self.assertRaises(exceptions.NotFound,
                           self.store.get,
                           loc)
 
@@ -190,7 +190,7 @@ class TestStore(base.StoreBaseTest):
                                                      image_file,
                                                      file_size)
         image_file = StringIO.StringIO("nevergonnamakeit")
-        self.assertRaises(exception.Duplicate,
+        self.assertRaises(exceptions.Duplicate,
                           self.store.add,
                           image_id, image_file, 0)
 
@@ -218,14 +218,14 @@ class TestStore(base.StoreBaseTest):
         Tests that adding an image without enough space on disk
         raises an appropriate exception
         """
-        self._do_test_add_write_failure(errno.ENOSPC, exception.StorageFull)
+        self._do_test_add_write_failure(errno.ENOSPC, exceptions.StorageFull)
 
     def test_add_file_too_big(self):
         """
         Tests that adding an excessively large image file
         raises an appropriate exception
         """
-        self._do_test_add_write_failure(errno.EFBIG, exception.StorageFull)
+        self._do_test_add_write_failure(errno.EFBIG, exceptions.StorageFull)
 
     def test_add_storage_write_denied(self):
         """
@@ -233,12 +233,12 @@ class TestStore(base.StoreBaseTest):
         raises an appropriate exception
         """
         self._do_test_add_write_failure(errno.EACCES,
-                                        exception.StorageWriteDenied)
+                                        exceptions.StorageWriteDenied)
 
     def test_add_other_failure(self):
         """
         Tests that a non-space-related IOError does not raise a
-        StorageFull exception.
+        StorageFull exceptions.
         """
         self._do_test_add_write_failure(errno.ENOTDIR, IOError)
 
@@ -284,7 +284,7 @@ class TestStore(base.StoreBaseTest):
         loc = get_location_from_uri(uri)
         self.store.delete(loc)
 
-        self.assertRaises(exception.NotFound, self.store.get, loc)
+        self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_delete_non_existing(self):
         """
@@ -292,6 +292,6 @@ class TestStore(base.StoreBaseTest):
         raises an error
         """
         loc = get_location_from_uri("file:///tmp/glance-tests/non-existing")
-        self.assertRaises(exception.NotFound,
+        self.assertRaises(exceptions.NotFound,
                           self.store.delete,
                           loc)

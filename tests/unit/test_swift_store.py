@@ -26,7 +26,7 @@ import uuid
 from oslo.config import cfg
 import swiftclient
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store.location import get_location_from_uri
 from glance.store._drivers import swift
 from glance.tests.unit import base
@@ -262,7 +262,7 @@ class SwiftTests(object):
         """
         loc = get_location_from_uri("swift://%s:key@authurl/glance/noexist" % (
             self.swift_store_user))
-        self.assertRaises(exception.NotFound,
+        self.assertRaises(exceptions.NotFound,
                           self.store.get,
                           loc)
 
@@ -533,7 +533,7 @@ class SwiftTests(object):
         raises an appropriate exception
         """
         image_swift = StringIO.StringIO("nevergonnamakeit")
-        self.assertRaises(exception.Duplicate,
+        self.assertRaises(exceptions.Duplicate,
                           self.store.add,
                           FAKE_UUID, image_swift, 0)
 
@@ -553,10 +553,10 @@ class SwiftTests(object):
                 pass
 
         image_swift = StringIO.StringIO(swift_contents)
-        connection.put_object.side_effect = exception.ClientConnectionError
+        connection.put_object.side_effect = exceptions.ClientConnectionError
         self.store._delete_stale_chunks = fake_delete_chunk
 
-        self.assertRaises(exception.ClientConnectionError,
+        self.assertRaises(exceptions.ClientConnectionError,
                           self.store.add,
                           image_id,
                           image_swift,
@@ -602,7 +602,7 @@ class SwiftTests(object):
         loc = get_location_from_uri(uri)
         self.store.delete(loc)
 
-        self.assertRaises(exception.NotFound, self.store.get, loc)
+        self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_delete_non_existing(self):
         """
@@ -611,7 +611,7 @@ class SwiftTests(object):
         """
         loc = get_location_from_uri("swift://%s:key@authurl/glance/noexist" % (
             self.swift_store_user))
-        self.assertRaises(exception.NotFound, self.store.delete, loc)
+        self.assertRaises(exceptions.NotFound, self.store.delete, loc)
 
     def test_read_acl_public(self):
         """
@@ -691,7 +691,7 @@ class TestStoreAuthV2(TestStoreAuthV1):
         uri = "swift://%s:key@auth_address/glance/%s" % (
             conf['swift_store_user'], FAKE_UUID)
         loc = get_location_from_uri(uri)
-        self.assertRaises(exception.BadStoreUri,
+        self.assertRaises(exceptions.BadStoreUri,
                           self.store.get,
                           loc)
 
@@ -771,13 +771,13 @@ class TestSingleTenantStoreConnections(base.IsolatedUnitTest):
     def test_connection_invalid_user(self):
         self.store.configure()
         self.location.user = 'invalid:format:user'
-        self.assertRaises(exception.BadStoreUri,
+        self.assertRaises(exceptions.BadStoreUri,
                           self.store.get_connection, self.location)
 
     def test_connection_missing_user(self):
         self.store.configure()
         self.location.user = None
-        self.assertRaises(exception.BadStoreUri,
+        self.assertRaises(exceptions.BadStoreUri,
                           self.store.get_connection, self.location)
 
     def test_connection_with_region(self):

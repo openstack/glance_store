@@ -17,7 +17,7 @@ import mock
 
 from cinderclient.v2 import client as cinderclient
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store._drivers import cinder
 from glance.store.location import get_location_from_uri
 from glance.store.tests import base
@@ -38,10 +38,10 @@ class TestCinderStore(base.StoreBaseTest):
         self.register_store_schemes(self.store)
 
     def test_cinder_configure_add(self):
-        self.assertRaises(exception.BadStoreConfiguration,
+        self.assertRaises(exceptions.BadStoreConfiguration,
                           self.store._check_context, None)
 
-        self.assertRaises(exception.BadStoreConfiguration,
+        self.assertRaises(exceptions.BadStoreConfiguration,
                           self.store._check_context,
                           FakeObject(service_catalog=None))
 

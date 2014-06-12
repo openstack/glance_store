@@ -20,13 +20,13 @@ import logging
 
 from oslo.config import cfg
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store.openstack.common.gettextutils import _
 from glance.store.openstack.common import excutils
 from glance.store.openstack.common import processutils
 from glance.store.openstack.common import units
 import glance.store
-import glance.store.base
+import glance.store.driver
 import glance.store.location
 
 
@@ -150,7 +150,7 @@ class StoreLocation(glance.store.location.StoreLocation):
 
     def parse_uri(self, uri):
         if not uri.startswith('sheepdog://'):
-            raise exception.BadStoreUri(uri, "URI must start with %s://" %
+            raise exceptions.BadStoreUri(uri, "URI must start with %s://" %
                                         'sheepdog')
         self.image = uri[11:]
 
@@ -174,7 +174,7 @@ class ImageIterator(object):
         raise StopIteration()
 
 
-class Store(glance.store.base.Store):
+class Store(glance.store.driver.Store):
     """Sheepdog backend adapter."""
 
     EXAMPLE_URL = "sheepdog://image"
@@ -187,7 +187,7 @@ class Store(glance.store.base.Store):
         Configure the Store to use the stored configuration options
         Any store that needs special configuration should implement
         this method. If the store was not able to successfully configure
-        itself, it should raise `exception.BadStoreConfiguration`
+        itself, it should raise `exceptions.BadStoreConfiguration`
         """
 
         try:
@@ -197,7 +197,7 @@ class Store(glance.store.base.Store):
         except cfg.ConfigFileValueError as e:
             reason = _("Error in store configuration: %s") % e
             LOG.error(reason)
-            raise exception.BadStoreConfiguration(store_name='sheepdog',
+            raise exceptions.BadStoreConfiguration(store_name='sheepdog',
                                                   reason=reason)
 
         try:
@@ -205,7 +205,7 @@ class Store(glance.store.base.Store):
         except processutils.ProcessExecutionError as exc:
             reason = _("Error in store configuration: %s") % exc
             LOG.error(reason)
-            raise exception.BadStoreConfiguration(store_name='sheepdog',
+            raise exceptions.BadStoreConfiguration(store_name='sheepdog',
                                                   reason=reason)
 
     def get(self, location):
@@ -216,14 +216,14 @@ class Store(glance.store.base.Store):
 
         :param location `glance.store.location.Location` object, supplied
                         from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.store.exceptions.NotFound` if image does not exist
         """
 
         loc = location.store_location
         image = SheepdogImage(self.addr, self.port, loc.image,
                               self.chunk_size)
         if not image.exist():
-            raise exception.NotFound(_("Sheepdog image %s does not exist")
+            raise exceptions.NotFound(_("Sheepdog image %s does not exist")
                                      % image.name)
         return (ImageIterator(image), image.get_size())
 
@@ -234,7 +234,7 @@ class Store(glance.store.base.Store):
 
         :param location `glance.store.location.Location` object, supplied
                         from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.store.exceptions.NotFound` if image does not exist
         :rtype int
         """
 
@@ -242,7 +242,7 @@ class Store(glance.store.base.Store):
         image = SheepdogImage(self.addr, self.port, loc.image,
                               self.chunk_size)
         if not image.exist():
-            raise exception.NotFound(_("Sheepdog image %s does not exist")
+            raise exceptions.NotFound(_("Sheepdog image %s does not exist")
                                      % image.name)
         return image.get_size()
 
@@ -257,14 +257,14 @@ class Store(glance.store.base.Store):
         :param image_size: The size of the image data to write, in bytes
 
         :retval tuple of URL in backing store, bytes written, and checksum
-        :raises `glance.common.exception.Duplicate` if the image already
+        :raises `glance.store.exceptions.Duplicate` if the image already
                 existed
         """
 
         image = SheepdogImage(self.addr, self.port, image_id,
                               self.chunk_size)
         if image.exist():
-            raise exception.Duplicate(_("Sheepdog image %s already exists")
+            raise exceptions.Duplicate(_("Sheepdog image %s already exists")
                                       % image_id)
 
         location = StoreLocation({'image': image_id})
@@ -282,7 +282,7 @@ class Store(glance.store.base.Store):
                 checksum.update(data)
         except Exception:
             # Note(zhiyan): clean up already received data when
-            # error occurs such as ImageSizeLimitExceeded exception.
+            # error occurs such as ImageSizeLimitExceeded exceptions.
             with excutils.save_and_reraise_exception():
                 image.delete()
 
@@ -303,6 +303,6 @@ class Store(glance.store.base.Store):
         image = SheepdogImage(self.addr, self.port, loc.image,
                               self.chunk_size)
         if not image.exist():
-            raise exception.NotFound(_("Sheepdog image %s does not exist") %
+            raise exceptions.NotFound(_("Sheepdog image %s does not exist") %
                                      loc.image)
         image.delete()

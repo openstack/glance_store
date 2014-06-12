@@ -22,13 +22,13 @@ import uuid
 import boto.s3.connection
 import mock
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store.openstack.common import units
 
 from glance.store import location
 from glance.store.location import get_location_from_uri
 from glance.store._drivers import s3
-from glance.store.common.exception import UnsupportedBackend
+from glance.store.exceptions import UnsupportedBackend
 from glance.store.tests import base
 
 
@@ -220,11 +220,11 @@ class TestStore(base.StoreBaseTest):
         """
         uri = "s3://user:key@auth_address/badbucket/%s" % FAKE_UUID
         loc = get_location_from_uri(uri)
-        self.assertRaises(exception.NotFound, self.store.get, loc)
+        self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
         uri = "s3://user:key@auth_address/glance/noexist"
         loc = get_location_from_uri(uri)
-        self.assertRaises(exception.NotFound, self.store.get, loc)
+        self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_add(self):
         """Test that we can add an image via the s3 backend"""
@@ -312,7 +312,7 @@ class TestStore(base.StoreBaseTest):
         raises an appropriate exception
         """
         image_s3 = StringIO.StringIO("nevergonnamakeit")
-        self.assertRaises(exception.Duplicate,
+        self.assertRaises(exceptions.Duplicate,
                           self.store.add,
                           FAKE_UUID, image_s3, 0)
 
@@ -354,7 +354,7 @@ class TestStore(base.StoreBaseTest):
         loc = get_location_from_uri(uri)
         self.store.delete(loc)
 
-        self.assertRaises(exception.NotFound, self.store.get, loc)
+        self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_delete_non_existing(self):
         """
@@ -363,7 +363,7 @@ class TestStore(base.StoreBaseTest):
         """
         uri = "s3://user:key@auth_address/glance/noexist"
         loc = get_location_from_uri(uri)
-        self.assertRaises(exception.NotFound, self.store.delete, loc)
+        self.assertRaises(exceptions.NotFound, self.store.delete, loc)
 
     def _do_test_get_s3_location(self, host, loc):
         self.assertEqual(s3.get_s3_location(host), loc)

@@ -13,10 +13,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from glance.store import base
-from glance.store.common import exception
+from glance.store import driver
+from glance.store import exceptions
 
 
 class UnconfigurableStore(base.Store):
     def configure(self):
-        raise exception.BadStoreConfiguration()
+        raise exceptions.BadStoreConfiguration()

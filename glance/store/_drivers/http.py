@@ -17,9 +17,9 @@ import httplib
 import logging
 import urlparse
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store.openstack.common.gettextutils import _
-import glance.store.base
+import glance.store.driver
 import glance.store.location
 
 LOG = logging.getLogger(__name__)
@@ -81,12 +81,12 @@ class StoreLocation(glance.store.location.StoreLocation):
                 reason = (_("Credentials '%s' not well-formatted.")
                           % "".join(creds))
                 LOG.debug(reason)
-                raise exception.BadStoreUri()
+                raise exceptions.BadStoreUri()
         else:
             self.user = None
         if netloc == '':
             LOG.debug(_("No address specified in HTTP URL"))
-            raise exception.BadStoreUri(uri=uri)
+            raise exceptions.BadStoreUri(uri=uri)
         self.netloc = netloc
         self.path = path
 
@@ -106,7 +106,7 @@ def http_response_iterator(conn, response, size):
     conn.close()
 
 
-class Store(glance.store.base.Store):
+class Store(glance.store.driver.Store):
 
     """An implementation of the HTTP(S) Backend Adapter"""
 
@@ -153,7 +153,7 @@ class Store(glance.store.base.Store):
             reason = (_("The HTTP URL exceeded %s maximum "
                         "redirects.") % MAX_REDIRECTS)
             LOG.debug(reason)
-            raise exception.MaxRedirectsExceeded(message=reason)
+            raise exceptions.MaxRedirectsExceeded(message=reason)
         loc = location.store_location
         conn_class = self._get_conn_class(loc)
         conn = conn_class(loc.netloc)
@@ -165,7 +165,7 @@ class Store(glance.store.base.Store):
             reason = (_("HTTP URL %(url)s returned a %(status)s status code.") %
                       dict(url=loc.path, status=resp.status))
             LOG.debug(reason)
-            raise exception.BadStoreUri(message=reason)
+            raise exceptions.BadStoreUri(message=reason)
 
         location_header = resp.getheader("location")
         if location_header:
@@ -174,7 +174,7 @@ class Store(glance.store.base.Store):
                             "invalid %(status)s status code.") %
                             dict(url=loc.path, status=resp.status))
                 LOG.debug(reason)
-                raise exception.BadStoreUri(message=reason)
+                raise exceptions.BadStoreUri(message=reason)
             location_class = glance.store.location.Location
             new_loc = location_class(location.store_name,
                                      location.store_location.__class__,

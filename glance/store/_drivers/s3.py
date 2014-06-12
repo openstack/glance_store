@@ -24,11 +24,11 @@ import urlparse
 
 from oslo.config import cfg
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store.common import utils
 from glance.store.openstack.common.gettextutils import _
 import glance.store
-import glance.store.base
+import glance.store.driver
 import glance.store.location
 
 LOG = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ class StoreLocation(glance.store.location.StoreLocation):
                        "s3+https://accesskey:secretkey@"
                        "s3.amazonaws.com/bucket/key-id")
             LOG.debug(_("Invalid store uri: %s") % reason)
-            raise exception.BadStoreUri(message=reason)
+            raise exceptions.BadStoreUri(message=reason)
 
         pieces = urlparse.urlparse(uri)
         assert pieces.scheme in ('s3', 's3+http', 's3+https')
@@ -146,7 +146,7 @@ class StoreLocation(glance.store.location.StoreLocation):
             except IndexError:
                 reason = _("Badly formed S3 credentials %s") % creds
                 LOG.debug(reason)
-                raise exception.BadStoreUri()
+                raise exceptions.BadStoreUri()
         else:
             self.accesskey = None
             path = entire_path
@@ -158,11 +158,11 @@ class StoreLocation(glance.store.location.StoreLocation):
                 self.s3serviceurl = '/'.join(path_parts).strip('/')
             else:
                 reason = _("Badly formed S3 URI. Missing s3 service URL.")
-                raise exception.BadStoreUri()
+                raise exceptions.BadStoreUri()
         except IndexError:
             reason = _("Badly formed S3 URI: %s") % uri
             LOG.debug(reason)
-            raise exception.BadStoreUri()
+            raise exceptions.BadStoreUri()
 
 
 class ChunkedFile(object):
@@ -207,7 +207,7 @@ class ChunkedFile(object):
             self.fp = None
 
 
-class Store(glance.store.base.Store):
+class Store(glance.store.driver.Store):
     """An implementation of the s3 adapter."""
 
     OPTIONS = _S3_OPTS
@@ -221,7 +221,7 @@ class Store(glance.store.base.Store):
         Configure the Store to use the stored configuration options
         Any store that needs special configuration should implement
         this method. If the store was not able to successfully configure
-        itself, it should raise `exception.BadStoreConfiguration`
+        itself, it should raise `exceptions.BadStoreConfiguration`
         """
         self.s3_host = self._option_get('s3_store_host')
         access_key = self._option_get('s3_store_access_key')
@@ -251,7 +251,7 @@ class Store(glance.store.base.Store):
             reason = (_("Could not find %(param)s in configuration "
                         "options.") % {'param': param})
             LOG.debug(reason)
-            raise exception.BadStoreConfiguration(store_name="s3",
+            raise exceptions.BadStoreConfiguration(store_name="s3",
                                                   reason=reason)
         return result
 
@@ -263,7 +263,7 @@ class Store(glance.store.base.Store):
 
         :param location `glance.store.location.Location` object, supplied
                         from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.store.exceptions.NotFound` if image does not exist
         """
         key = self._retrieve_key(location)
 
@@ -328,7 +328,7 @@ class Store(glance.store.base.Store):
 
         :retval tuple of URL in backing store, bytes written, checksum
                 and a dictionary with storage system specific information
-        :raises `glance.common.exception.Duplicate` if the image already
+        :raises `glance.store.exceptions.Duplicate` if the image already
                 existed
 
         S3 writes the image data using the scheme:
@@ -369,7 +369,7 @@ class Store(glance.store.base.Store):
 
         key = bucket_obj.get_key(obj_name)
         if key and key.exists():
-            raise exception.Duplicate(message=_("S3 already has an image at "
+            raise exceptions.Duplicate(message=_("S3 already has an image at "
                                                 "location %s") %
                                       _sanitize(loc.get_uri()))
 
@@ -465,14 +465,14 @@ def get_bucket(conn, bucket_id):
 
     :param conn: The ``boto.s3.connection.S3Connection``
     :param bucket_id: ID of the bucket to fetch
-    :raises ``glance.exception.NotFound`` if bucket is not found.
+    :raises ``glance.store.exceptions.NotFound`` if bucket is not found.
     """
 
     bucket = conn.get_bucket(bucket_id)
     if not bucket:
         msg = _("Could not find bucket with ID %s") % bucket_id
         LOG.debug(msg)
-        raise exception.NotFound(msg)
+        raise exceptions.NotFound(msg)
 
     return bucket
 
@@ -529,7 +529,7 @@ def get_key(bucket, obj):
 
     :param bucket: The ``boto.s3.Bucket``
     :param obj: Object to get the key for
-    :raises ``glance.exception.NotFound`` if key is not found.
+    :raises ``glance.store.exceptions.NotFound`` if key is not found.
     """
 
     key = bucket.get_key(obj)
@@ -537,7 +537,7 @@ def get_key(bucket, obj):
         msg = (_("Could not find key %(obj)s in bucket %(bucket)s") %
                {'obj': obj, 'bucket': bucket})
         LOG.debug(msg)
-        raise exception.NotFound(message=msg)
+        raise exceptions.NotFound(message=msg)
     return key
 
 

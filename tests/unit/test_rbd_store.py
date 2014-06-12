@@ -17,7 +17,7 @@ import StringIO
 
 import mock
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store.common import utils
 from glance.store.location import Location
 from glance.store._drivers import rbd as rbd_store
@@ -190,13 +190,13 @@ class TestStore(base.StoreBaseTest):
             self.called_commands_actual.append('delete')
 
         def _fake_enter(*args, **kwargs):
-            raise exception.NotFound()
+            raise exceptions.NotFound()
 
         create.side_effect = _fake_create_image
         delete.side_effect = _fake_delete_image
         enter.side_effect = _fake_enter
 
-        self.assertRaises(exception.NotFound, self.store.add,
+        self.assertRaises(exceptions.NotFound, self.store.add,
                           'fake_image_id', self.data_iter, self.data_len)
 
         self.called_commands_expected = ['create', 'delete']
@@ -210,7 +210,7 @@ class TestStore(base.StoreBaseTest):
         with mock.patch.object(self.store, '_create_image') as create_image:
             create_image.side_effect = _fake_create_image
 
-            self.assertRaises(exception.Duplicate, self.store.add,
+            self.assertRaises(exceptions.Duplicate, self.store.add,
                               'fake_image_id', self.data_iter, self.data_len)
             self.called_commands_expected = ['create']
 
@@ -264,7 +264,7 @@ class TestStore(base.StoreBaseTest):
         with mock.patch.object(MockRBD.Image, 'unprotect_snap') as mocked:
             mocked.side_effect = _fake_unprotect_snap
 
-            self.assertRaises(exception.NotFound, self.store._delete_image,
+            self.assertRaises(exceptions.NotFound, self.store._delete_image,
                               self.location, snapshot_name='snap')
 
             self.called_commands_expected = ['unprotect_snap']
@@ -276,7 +276,7 @@ class TestStore(base.StoreBaseTest):
 
         with mock.patch.object(MockRBD.RBD, 'remove') as remove:
             remove.side_effect = _fake_remove
-            self.assertRaises(exception.NotFound, self.store._delete_image,
+            self.assertRaises(exceptions.NotFound, self.store._delete_image,
                               self.location, snapshot_name='snap')
 
             self.called_commands_expected = ['remove']

@@ -20,7 +20,7 @@ import logging
 
 from oslo.config import cfg
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store.openstack.common.gettextutils import _
 from glance.store.openstack.common import importutils
 from glance.store.openstack.common import strutils
@@ -70,7 +70,7 @@ class Store(object):
         try:
             self.configure_add()
             self.add = getattr(self, '_add', self.add)
-        except exception.BadStoreConfiguration as e:
+        except exceptions.BadStoreConfiguration as e:
             self._add = self.add
             self.add = self.add_disabled
             msg = (_(u"Failed to configure store correctly: %s "
@@ -99,7 +99,7 @@ class Store(object):
         configuring the store to accept objects.
 
         If the store was not able to successfully configure
-        itself, it should raise `exception.BadStoreConfiguration`.
+        itself, it should raise `exceptions.BadStoreConfiguration`.
         """
         # NOTE(flaper87): This should probably go away
 
@@ -111,7 +111,7 @@ class Store(object):
 
         :param location `glance.store.location.Location` object, supplied
                         from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.exceptions.NotFound` if image does not exist
         """
         raise NotImplementedError
 
@@ -122,7 +122,7 @@ class Store(object):
 
         :param location `glance.store.location.Location` object, supplied
                         from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.store.exceptions.NotFound` if image does not exist
         """
         raise NotImplementedError
 
@@ -132,7 +132,7 @@ class Store(object):
         not able to be configured properly and therefore the add()
         method would error out.
         """
-        raise exception.StoreAddDisabled
+        raise exceptions.StoreAddDisabled
 
     def add(self, image_id, image_file, image_size, context=None):
         """
@@ -146,7 +146,7 @@ class Store(object):
 
         :retval tuple of URL in backing store, bytes written, checksum
                and a dictionary with storage system specific information
-        :raises `glance.common.exception.Duplicate` if the image already
+        :raises `glance.store.exceptions.Duplicate` if the image already
                 existed
         """
         raise NotImplementedError
@@ -158,7 +158,7 @@ class Store(object):
 
         :location `glance.store.location.Location` object, supplied
                   from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.store.exceptions.NotFound` if image does not exist
         """
         raise NotImplementedError
 

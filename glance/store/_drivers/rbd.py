@@ -25,10 +25,10 @@ import urllib
 
 from oslo.config import cfg
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store.common import utils
 from glance.store.openstack.common.gettextutils import _
-from glance.store import base
+from glance.store import driver
 from glance.store import location
 
 try:
@@ -105,7 +105,7 @@ class StoreLocation(location.StoreLocation):
             msg = (_("Invalid URI: %(uri)s: %(reason)s") % {'uri': uri,
                                                             'reason': reason})
             LOG.debug(msg)
-            raise exception.BadStoreUri(message=reason)
+            raise exceptions.BadStoreUri(message=reason)
         # convert to ascii since librbd doesn't handle unicode
         try:
             ascii_uri = str(uri)
@@ -114,7 +114,7 @@ class StoreLocation(location.StoreLocation):
             msg = (_("Invalid URI: %(uri)s: %(reason)s") % {'uri': uri,
                                                             'reason': reason})
             LOG.debug(msg)
-            raise exception.BadStoreUri(message=reason)
+            raise exceptions.BadStoreUri(message=reason)
         pieces = ascii_uri[len(prefix):].split('/')
         if len(pieces) == 1:
             self.fsid, self.pool, self.image, self.snapshot = \
@@ -127,13 +127,13 @@ class StoreLocation(location.StoreLocation):
             msg = (_("Invalid URI: %(uri)s: %(reason)s") % {'uri': uri,
                                                             'reason': reason})
             LOG.debug(msg)
-            raise exception.BadStoreUri(message=reason)
+            raise exceptions.BadStoreUri(message=reason)
         if any(map(lambda p: p == '', pieces)):
             reason = _('URI cannot contain empty components')
             msg = (_("Invalid URI: %(uri)s: %(reason)s") % {'uri': uri,
                                                             'reason': reason})
             LOG.debug(msg)
-            raise exception.BadStoreUri(message=reason)
+            raise exceptions.BadStoreUri(message=reason)
 
 
 class ImageIterator(object):
@@ -164,11 +164,11 @@ class ImageIterator(object):
                             yield data
                         raise StopIteration()
         except rbd.ImageNotFound:
-            raise exception.NotFound(
+            raise exceptions.NotFound(
                 _('RBD image %s does not exist') % self.name)
 
 
-class Store(base.Store):
+class Store(driver.Store):
     """An implementation of the RBD backend adapter."""
 
     OPTIONS = _RBD_OPTS
@@ -183,7 +183,7 @@ class Store(base.Store):
         Configure the Store to use the stored configuration options
         Any store that needs special configuration should implement
         this method. If the store was not able to successfully configure
-        itself, it should raise `exception.BadStoreConfiguration`
+        itself, it should raise `exceptions.BadStoreConfiguration`
         """
         try:
             chunk = self.conf.glance_store.rbd_store_chunk_size
@@ -197,7 +197,7 @@ class Store(base.Store):
         except cfg.ConfigFileValueError as e:
             reason = _("Error in store configuration: %s") % e
             LOG.error(reason)
-            raise exception.BadStoreConfiguration(store_name='rbd',
+            raise exceptions.BadStoreConfiguration(store_name='rbd',
                                                   reason=reason)
 
     def get(self, location, offset=0, chunk_size=None, context=None):
@@ -208,7 +208,7 @@ class Store(base.Store):
 
         :param location `glance.store.location.Location` object, supplied
                         from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.store.exceptions.NotFound` if image does not exist
         """
         loc = location.store_location
         return (ImageIterator(loc.image, self), self.get_size(location))
@@ -220,7 +220,7 @@ class Store(base.Store):
 
         :param location `glance.store.location.Location` object, supplied
                         from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.store.exceptions.NotFound` if image does not exist
         """
         loc = location.store_location
         with rados.Rados(conffile=self.conf_file,
@@ -234,7 +234,7 @@ class Store(base.Store):
                 except rbd.ImageNotFound:
                     msg = _('RBD image %s does not exist') % loc.get_uri()
                     LOG.debug(msg)
-                    raise exception.NotFound(msg)
+                    raise exceptions.NotFound(msg)
 
     def _create_image(self, fsid, ioctx, image_name, size, order, context=None):
         """
@@ -285,19 +285,19 @@ class Store(base.Store):
                                 LOG.debug(log_msg %
                                           {'image': image_name,
                                            'snap': snapshot_name})
-                                raise exception.InUseByStore()
+                                raise exceptions.InUseByStore()
                             image.remove_snap(snapshot_name)
 
                     # Then delete image.
                     rbd.RBD().remove(ioctx, image_name)
                 except rbd.ImageNotFound:
-                    raise exception.NotFound(message=
+                    raise exceptions.NotFound(message=
                         _("RBD image %s does not exist") % image_name)
                 except rbd.ImageBusy:
                     log_msg = _("image %s could not be removed "
                                 "because it is in use")
                     LOG.debug(log_msg % image_name)
-                    raise exception.InUseByStore()
+                    raise exceptions.InUseByStore()
 
     def add(self, image_id, image_file, image_size, context=None):
         """
@@ -311,7 +311,7 @@ class Store(base.Store):
 
         :retval tuple of URL in backing store, bytes written, checksum
                 and a dictionary with storage system specific information
-        :raises `glance.common.exception.Duplicate` if the image already
+        :raises `glance.store.exceptions.Duplicate` if the image already
                 existed
         """
         checksum = hashlib.md5()
@@ -333,7 +333,7 @@ class Store(base.Store):
                     loc = self._create_image(fsid, ioctx, image_name,
                                              image_size, order)
                 except rbd.ImageExists:
-                    raise exception.Duplicate(message=
+                    raise exceptions.Duplicate(message=
                         _('RBD image %s already exists') % image_id)
                 try:
                     with rbd.Image(ioctx, image_name) as image:
@@ -364,7 +364,7 @@ class Store(base.Store):
                     # Delete image if one was created
                     try:
                         self._delete_image(loc.image, loc.snapshot)
-                    except exception.NotFound:
+                    except exceptions.NotFound:
                         pass
 
                     raise exc

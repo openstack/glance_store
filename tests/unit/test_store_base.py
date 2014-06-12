@@ -14,8 +14,7 @@
 #    under the License.
 
 from glance import store
-from glance.store import base as store_base
-from glance.store.common import exception
+from glance.store import driver
 from glance.store.openstack.common.gettextutils import _
 from glance.store.tests import base
 
@@ -32,17 +31,17 @@ class TestStoreBase(base.StoreBaseTest):
                 raise UnicodeError()
 
         exc = Exception('error message')
-        ret = store_base._exception_to_unicode(exc)
+        ret = driver._exception_to_unicode(exc)
         self.assertIsInstance(ret, unicode)
         self.assertEqual(ret, 'error message')
 
         exc = Exception('\xa5 error message')
-        ret = store_base._exception_to_unicode(exc)
+        ret = driver._exception_to_unicode(exc)
         self.assertIsInstance(ret, unicode)
         self.assertEqual(ret, ' error message')
 
         exc = FakeException('\xa5 error message')
-        ret = store_base._exception_to_unicode(exc)
+        ret = driver._exception_to_unicode(exc)
         self.assertIsInstance(ret, unicode)
         self.assertEqual(ret, _("Caught '%(exception)s' exception.") %
                          {'exception': 'FakeException'})

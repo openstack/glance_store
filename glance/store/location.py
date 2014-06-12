@@ -40,7 +40,7 @@ credentials and is **not** user-facing.
 import logging
 import urlparse
 
-from glance.store.common import exception
+from glance.store import exceptions
 
 LOG = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ def get_location_from_uri(uri):
     """
     pieces = urlparse.urlparse(uri)
     if pieces.scheme not in SCHEME_TO_CLS_MAP.keys():
-        raise exception.UnknownScheme(scheme=pieces.scheme)
+        raise exceptions.UnknownScheme(scheme=pieces.scheme)
     scheme_info = SCHEME_TO_CLS_MAP[pieces.scheme]
     return Location(pieces.scheme, uri=uri,
                     store_location_class=scheme_info['location_class'])

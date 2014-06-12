@@ -20,9 +20,9 @@ from cinderclient.v2 import client as cinderclient
 from oslo.config import cfg
 
 from glance.store.common import utils
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store.openstack.common.gettextutils import _
-import glance.store.base
+import glance.store.driver
 import glance.store.location
 
 LOG = logging.getLogger(__name__)
@@ -114,7 +114,7 @@ class StoreLocation(glance.store.location.StoreLocation):
         if not uri.startswith('cinder://'):
             reason = _("URI must start with cinder://")
             LOG.error(reason)
-            raise exception.BadStoreUri(uri, reason)
+            raise exceptions.BadStoreUri(uri, reason)
 
         self.scheme = 'cinder'
         self.volume_id = uri[9:]
@@ -122,10 +122,10 @@ class StoreLocation(glance.store.location.StoreLocation):
         if not utils.is_uuid_like(self.volume_id):
             reason = _("URI contains invalid volume ID: %s") % self.volume_id
             LOG.error(reason)
-            raise exception.BadStoreUri(uri, reason)
+            raise exceptions.BadStoreUri(uri, reason)
 
 
-class Store(glance.store.base.Store):
+class Store(glance.store.driver.Store):
 
     """Cinder backend store adapter."""
 
@@ -140,16 +140,16 @@ class Store(glance.store.base.Store):
         Configure the Store to use the stored configuration options
         Any store that needs special configuration should implement
         this method. If the store was not able to successfully configure
-        itself, it should raise `exception.BadStoreConfiguration`
+        itself, it should raise `exceptions.BadStoreConfiguration`
         """
 
         if context is None:
             reason = _("Cinder storage requires a context.")
-            raise exception.BadStoreConfiguration(store_name="cinder",
+            raise exceptions.BadStoreConfiguration(store_name="cinder",
                                                   reason=reason)
         if context.service_catalog is None:
             reason = _("Cinder storage requires a service catalog.")
-            raise exception.BadStoreConfiguration(store_name="cinder",
+            raise exceptions.BadStoreConfiguration(store_name="cinder",
                                                   reason=reason)
 
     def get_size(self, location, context=None):
@@ -159,7 +159,7 @@ class Store(glance.store.base.Store):
 
         :param location `glance.store.location.Location` object, supplied
                         from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.store.exceptions.NotFound` if image does not exist
         :rtype int
         """
 
@@ -174,7 +174,7 @@ class Store(glance.store.base.Store):
             reason = _("Failed to get image size due to "
                        "volume can not be found: %s") % self.volume_id
             LOG.error(reason)
-            raise exception.NotFound(reason)
+            raise exceptions.NotFound(reason)
         except Exception as e:
             LOG.exception(_("Failed to get image size due to "
                             "internal error: %s") % e)

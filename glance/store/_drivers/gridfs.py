@@ -21,10 +21,10 @@ import urlparse
 
 from oslo.config import cfg
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store.openstack.common import excutils
 from glance.store.openstack.common.gettextutils import _
-import glance.store.base
+import glance.store.driver
 import glance.store.location
 
 try:
@@ -77,7 +77,7 @@ class StoreLocation(glance.store.location.StoreLocation):
         self.specs["image_id"] = parsed.netloc
 
 
-class Store(glance.store.base.Store):
+class Store(glance.store.driver.Store):
     """GridFS adapter"""
 
     OPTIONS = _GRIDFS_OPTS
@@ -91,11 +91,11 @@ class Store(glance.store.base.Store):
         Configure the Store to use the stored configuration options
         Any store that needs special configuration should implement
         this method. If the store was not able to successfully configure
-        itself, it should raise `exception.BadStoreConfiguration`
+        itself, it should raise `exceptions.BadStoreConfiguration`
         """
         if pymongo is None:
             msg = _("Missing dependencies: pymongo")
-            raise exception.BadStoreConfiguration(store_name="gridfs",
+            raise exceptions.BadStoreConfiguration(store_name="gridfs",
                                                   reason=msg)
 
         self.mongodb_uri = self._option_get('mongodb_store_uri')
@@ -113,7 +113,7 @@ class Store(glance.store.base.Store):
             reason = (_("Could not find %(param)s in configuration "
                         "options.") % {'param': param})
             LOG.debug(reason)
-            raise exception.BadStoreConfiguration(store_name="gridfs",
+            raise exceptions.BadStoreConfiguration(store_name="gridfs",
                                                   reason=reason)
         return result
 
@@ -125,7 +125,7 @@ class Store(glance.store.base.Store):
 
         :param location `glance.store.location.Location` object, supplied
                         from glance.store.location.get_location_from_uri()
-        :raises `glance.exception.NotFound` if image does not exist
+        :raises `glance.store.exceptions.NotFound` if image does not exist
         """
         image = self._get_file(location)
         return (image, image.length)
@@ -157,7 +157,7 @@ class Store(glance.store.base.Store):
             msg = _("Could not find %s image in GridFS") % \
                 store_location.get_uri()
             LOG.debug(msg)
-            raise exception.NotFound(msg)
+            raise exceptions.NotFound(msg)
 
     def add(self, image_id, image_file, image_size, context=None):
         """
@@ -171,13 +171,13 @@ class Store(glance.store.base.Store):
 
         :retval tuple of URL in backing store, bytes written, checksum
                 and a dictionary with storage system specific information
-        :raises `glance.common.exception.Duplicate` if the image already
+        :raises `glance.store.exceptions.Duplicate` if the image already
                 existed
         """
         loc = StoreLocation({'image_id': image_id})
 
         if self.fs.exists(image_id):
-            raise exception.Duplicate(_("GridFS already has an image at "
+            raise exceptions.Duplicate(_("GridFS already has an image at "
                                         "location %s") % loc.get_uri())
 
         LOG.debug(_("Adding a new image to GridFS with id %s and size %s") %

@@ -17,7 +17,7 @@ import httplib
 import mock
 import StringIO
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store import delete_from_backend
 from glance.store import safe_delete_from_backend
 from glance.store._drivers import http
@@ -107,7 +107,7 @@ class TestHttpStore(base.StoreBaseTest):
 
         uri = "http://netloc/path/to/file.tar.gz"
         loc = get_location_from_uri(uri)
-        self.assertRaises(exception.MaxRedirectsExceeded, self.store.get, loc)
+        self.assertRaises(exceptions.MaxRedirectsExceeded, self.store.get, loc)
 
     def test_http_get_redirect_invalid(self):
         redirect = {"location": "http://example.com/teapot.img"}
@@ -116,7 +116,7 @@ class TestHttpStore(base.StoreBaseTest):
 
         uri = "http://netloc/path/to/file.tar.gz"
         loc = get_location_from_uri(uri)
-        self.assertRaises(exception.BadStoreUri, self.store.get, loc)
+        self.assertRaises(exceptions.BadStoreUri, self.store.get, loc)
 
     def test_http_get_not_found(self):
         fake = FakeHTTPResponse(status=404, data="404 Not Found")
@@ -124,18 +124,18 @@ class TestHttpStore(base.StoreBaseTest):
 
         uri = "http://netloc/path/to/file.tar.gz"
         loc = get_location_from_uri(uri)
-        self.assertRaises(exception.BadStoreUri, self.store.get, loc)
+        self.assertRaises(exceptions.BadStoreUri, self.store.get, loc)
 
     def test_http_delete_raise_error(self):
         uri = "https://netloc/path/to/file.tar.gz"
         loc = get_location_from_uri(uri)
         self.assertRaises(NotImplementedError, self.store.delete, loc)
-        self.assertRaises(exception.StoreDeleteNotSupported,
+        self.assertRaises(exceptions.StoreDeleteNotSupported,
                           delete_from_backend, uri, {})
 
     def test_http_schedule_delete_swallows_error(self):
         uri = "https://netloc/path/to/file.tar.gz"
         try:
             safe_delete_from_backend(uri, 'image_id', {})
-        except exception.StoreDeleteNotSupported:
+        except exceptions.StoreDeleteNotSupported:
             self.fail('StoreDeleteNotSupported should be swallowed')

@@ -17,7 +17,7 @@ import StringIO
 
 import mock
 
-from glance.store.common import exception
+from glance.store import exceptions
 from glance.store.common import utils
 from glance.store.openstack.common import processutils
 from glance.store._drivers import sheepdog
