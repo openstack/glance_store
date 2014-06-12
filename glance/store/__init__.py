@@ -172,9 +172,9 @@ def create_stores(conf=CONF):
             continue
         schemes = store_instance.get_schemes()
         if not schemes:
-            raise BackendException('Unable to register store %s. '
-                                   'No schemes associated with it.'
-                                   % store_cls)
+            raise exception.BackendException('Unable to register store %s. '
+                                             'No schemes associated with it.'
+                                             % store_cls)
         else:
             LOG.debug("Registering store %s with schemes %s",
                           store_entry, schemes)
@@ -315,9 +315,9 @@ def check_location_metadata(val, key=''):
             check_location_metadata(v, key='%s[%d]' % (key, ndx))
             ndx = ndx + 1
     elif not isinstance(val, unicode):
-        raise BackendException(_("The image metadata key %s has an invalid "
-                                 "type of %s.  Only dict, list, and unicode "
-                                 "are supported.") % (key, type(val)))
+        raise exception.BackendException(_("The image metadata key %s has an invalid "
+                                           "type of %s.  Only dict, list, and unicode "
+                                           "are supported.") % (key, type(val)))
 
 
 def store_add_to_backend(image_id, data, size, store):
@@ -341,15 +341,15 @@ def store_add_to_backend(image_id, data, size, store):
                      "This must be a dictionary type") %
                    (str(store), str(metadata)))
             LOG.error(msg)
-            raise BackendException(msg)
+            raise exception.BackendException(msg)
         try:
             check_location_metadata(metadata)
-        except BackendException as e:
+        except exception.BackendException as e:
             e_msg = (_("A bad metadata structure was returned from the "
                        "%s storage driver: %s.  %s.") %
                      (str(store), str(metadata), str(e)))
             LOG.error(e_msg)
-            raise BackendException(e_msg)
+            raise exception.BackendException(e_msg)
     return (location, size, checksum, metadata)
 
 
