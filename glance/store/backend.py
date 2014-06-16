@@ -188,8 +188,9 @@ def create_stores(conf=CONF):
 
 
 def verify_default_store():
+    scheme = cfg.CONF.glance_store.default_store
     try:
-        get_store_from_scheme(cfg.CONF.glance_store.default_store)
+        get_store_from_scheme(scheme)
     except exceptions.UnknownScheme:
         msg = _("Store for scheme %s not found") % scheme
         raise RuntimeError(msg)
