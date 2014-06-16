@@ -276,7 +276,7 @@ def safe_delete_from_backend(uri, image_id, context=None):
         LOG.warn(msg % image_id)
     except exceptions.StoreDeleteNotSupported as e:
         LOG.warn(str(e))
-    except UnsupportedBackend:
+    except exceptions.UnsupportedBackend:
         exc_type = sys.exc_info()[0].__name__
         msg = (_('Failed to delete image %s from store (%s)') %
                (image_id, exc_type))
