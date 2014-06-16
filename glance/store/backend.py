@@ -34,20 +34,6 @@ _DEPRECATED_STORE_OPTS = [
     cfg.DeprecatedOpt('default_store')
 ]
 
-_SCRUBBER_OPTS = [
-    cfg.StrOpt('scrubber_datadir',
-               default='/var/lib/glance/scrubber',
-               help=_('Directory that the scrubber will use to track '
-                      'information about what to delete. '
-                      'Make sure this is set in glance-api.conf and '
-                      'glance-scrubber.conf')),
-    cfg.BoolOpt('delayed_delete', default=False,
-                help=_('Turn on/off delayed delete.')),
-    cfg.IntOpt('scrub_time', default=0,
-               help=_('The amount of time in seconds to delay before '
-                      'performing a delete.')),
-]
-
 _STORE_OPTS = [
     cfg.ListOpt('stores', default=['file', 'http'],
                 help=_('List of stores enabled'),
@@ -64,8 +50,7 @@ _STORE_CFG_GROUP = "glance_store"
 
 
 def _oslo_config_options():
-    return itertools.chain(((opt, None) for opt in _SCRUBBER_OPTS),
-                           ((opt, _STORE_CFG_GROUP) for opt in _STORE_OPTS))
+    return ((opt, _STORE_CFG_GROUP) for opt in _STORE_OPTS)
 
 
 def register_opts(conf):
