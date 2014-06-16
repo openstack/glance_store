@@ -58,6 +58,10 @@ def register_opts(conf):
         conf.register_opt(opt, group=group)
 
 
+def register_store_opts(conf):
+    list(_load_stores(conf))
+
+
 class Indexable(object):
     """Indexable for file-like objs iterators
 
@@ -136,14 +140,7 @@ def _load_store(conf, store_entry):
                  "The driver will be disabled" % dict(driver=driver))
 
 
-def create_stores(conf=CONF):
-    """
-    Registers all store modules and all schemes
-    from the given config. Duplicates are not re-registered.
-    """
-    store_count = 0
-    store_classes = set()
-
+def _load_stores(conf):
     for store_entry in set(conf.glance_store.stores):
         try:
             # FIXME(flaper87): Don't hide BadStoreConfiguration
@@ -153,9 +150,23 @@ def create_stores(conf=CONF):
 
             if not store_instance:
                 continue
+
+            yield (store_entry, store_instance)
+
         except exceptions.BadStoreConfiguration as e:
             continue
+
+def create_stores(conf=CONF):
+    """
+    Registers all store modules and all schemes
+    from the given config. Duplicates are not re-registered.
+    """
+    store_count = 0
+    store_classes = set()
+
+    for (store_entry, store_instance) in _load_stores(conf):
         schemes = store_instance.get_schemes()
+        store_instance.configure()
         if not schemes:
             raise exceptions.BackendException('Unable to register store %s. '
                                              'No schemes associated with it.'
