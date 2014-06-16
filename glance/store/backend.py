@@ -178,7 +178,7 @@ def create_stores(conf=CONF):
 
 def verify_default_store():
     try:
-        get_store_from_scheme(cfg.CONF.default_store)
+        get_store_from_scheme(cfg.CONF.glance_store.default_store)
     except exceptions.UnknownScheme:
         msg = _("Store for scheme %s not found") % scheme
         raise RuntimeError(msg)
@@ -305,7 +305,7 @@ def check_location_metadata(val, key=''):
                                            "are supported.") % (key, type(val)))
 
 
-def store_add_to_backend(image_id, data, size, store):
+def store_add_to_backend(image_id, data, size, store, context=None):
     """
     A wrapper around a call to each stores add() method.  This gives glance
     a common place to check the output
@@ -338,55 +338,28 @@ def store_add_to_backend(image_id, data, size, store):
     return (location, size, checksum, metadata)
 
 
-def add_to_backend(context, scheme, image_id, data, size):
-    store = get_store_from_scheme(context, scheme)
+def add_to_backend(conf, image_id, data, size, scheme=None, context=None):
+    if scheme is None:
+        scheme = conf['glance_store']['default_store']
+    store = get_store_from_scheme(scheme)
     try:
-        return store_add_to_backend(image_id, data, size, store)
+        return store_add_to_backend(image_id, data, size, store, context)
     except NotImplementedError:
         raise exceptions.StoreAddNotSupported
 
 
-def set_acls(context, location_uri, public=False, read_tenants=[],
-             write_tenants=[]):
+def set_acls(location_uri, public=False, read_tenants=[],
+             write_tenants=None, context=None):
+
+    if write_tenants is None:
+        write_tenants = []
+
     loc = location.get_location_from_uri(location_uri)
     scheme = get_store_from_location(location_uri)
-    store = get_store_from_scheme(context, scheme, loc)
+    store = get_store_from_scheme(scheme)
     try:
-        store.set_acls(loc, public=public, read_tenants=read_tenants,
+        store.set_acls(loc, public=public,
+                       read_tenants=read_tenants,
                        write_tenants=write_tenants)
     except NotImplementedError:
         LOG.debug(_("Skipping store.set_acls... not implemented."))
-
-def _check_location_uri(context, store_api, uri):
-    """
-    Check if an image location uri is valid.
-
-    :param context: Glance request context
-    :param store_api: store API module
-    :param uri: location's uri string
-    """
-    is_ok = True
-    try:
-        size = store_api.get_size_from_backend(context, uri)
-        # NOTE(zhiyan): Some stores return zero when it catch exception
-        is_ok = size > 0
-    except (exceptions.UnknownScheme, exceptions.NotFound):
-        is_ok = False
-    if not is_ok:
-        raise exceptions.BadStoreUri(_('Invalid location: %s') % uri)
-
-
-def _check_image_location(context, store_api, location):
-    _check_location_uri(context, store_api, location['url'])
-    store_api.check_location_metadata(location['metadata'])
-
-
-def _set_image_size(context, image, locations):
-    if not image.size:
-        for location in locations:
-            size_from_backend = glance.store.get_size_from_backend(
-                context, location['url'])
-            if size_from_backend:
-                # NOTE(flwang): This assumes all locations have the same size
-                image.size = size_from_backend
-                break
