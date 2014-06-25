@@ -15,7 +15,6 @@
 
 import httplib
 import mock
-import StringIO
 
 from glance.store import exceptions
 from glance.store import delete_from_backend
@@ -23,24 +22,7 @@ from glance.store import safe_delete_from_backend
 from glance.store._drivers import http
 from glance.store.location import get_location_from_uri
 from glance.store.tests import base
-
-
-class FakeHTTPResponse(object):
-    def __init__(self, status=200, headers=None, data=None, *args, **kwargs):
-        data = data or 'I am a teapot, short and stout\n'
-        self.data = StringIO.StringIO(data)
-        self.read = self.data.read
-        self.status = status
-        self.headers = headers or {'content-length': len(data)}
-
-    def getheader(self, name, default=None):
-        return self.headers.get(name.lower(), default)
-
-    def getheaders(self):
-        return self.headers or {}
-
-    def read(self, amt):
-        self.data.read(amt)
+from glance.store.tests import utils
 
 
 class TestHttpStore(base.StoreBaseTest):
@@ -53,7 +35,7 @@ class TestHttpStore(base.StoreBaseTest):
 
         response = mock.patch('httplib.HTTPConnection.getresponse')
         self.response = response.start()
-        self.response.return_value = FakeHTTPResponse()
+        self.response.return_value = utils.FakeHTTPResponse()
         self.addCleanup(response.stop)
 
         request = mock.patch('httplib.HTTPConnection.request')
@@ -77,9 +59,9 @@ class TestHttpStore(base.StoreBaseTest):
         # both redirects.
         redirect1 = {"location": "http://example.com/teapot.img"}
         redirect2 = {"location": "http://example.com/teapot_real.img"}
-        responses = [FakeHTTPResponse(status=302, headers=redirect1),
-                     FakeHTTPResponse(status=301, headers=redirect2),
-                     FakeHTTPResponse()]
+        responses = [utils.FakeHTTPResponse(status=302, headers=redirect1),
+                     utils.FakeHTTPResponse(status=301, headers=redirect2),
+                     utils.FakeHTTPResponse()]
 
         def getresponse():
             return responses.pop()
@@ -98,7 +80,7 @@ class TestHttpStore(base.StoreBaseTest):
 
     def test_http_get_max_redirects(self):
         redirect = {"location": "http://example.com/teapot.img"}
-        responses = ([FakeHTTPResponse(status=302, headers=redirect)]
+        responses = ([utils.FakeHTTPResponse(status=302, headers=redirect)]
                      * (http.MAX_REDIRECTS + 2))
 
         def getresponse():
@@ -111,7 +93,7 @@ class TestHttpStore(base.StoreBaseTest):
 
     def test_http_get_redirect_invalid(self):
         redirect = {"location": "http://example.com/teapot.img"}
-        redirect_resp = FakeHTTPResponse(status=307, headers=redirect)
+        redirect_resp = utils.FakeHTTPResponse(status=307, headers=redirect)
         self.response.return_value = redirect_resp
 
         uri = "http://netloc/path/to/file.tar.gz"
@@ -119,7 +101,7 @@ class TestHttpStore(base.StoreBaseTest):
         self.assertRaises(exceptions.BadStoreUri, self.store.get, loc)
 
     def test_http_get_not_found(self):
-        fake = FakeHTTPResponse(status=404, data="404 Not Found")
+        fake = utils.FakeHTTPResponse(status=404, data="404 Not Found")
         self.response.return_value = fake
 
         uri = "http://netloc/path/to/file.tar.gz"
