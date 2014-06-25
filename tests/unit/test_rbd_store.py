@@ -148,13 +148,6 @@ class TestStore(base.StoreBaseTest):
 
         rbd_store.rados = MockRados
         rbd_store.rbd = MockRBD
-        #mocked = mock.patch.object(rbd_store.rados, autospec=True).start()
-        #mocked.side_effect = MockRados
-        #self.addCleanup(mocked.stop)
-
-        #mocked = mock.patch.object(rbd_store, 'rbd', autospec=True).start()
-        #mocked.side_effect = MockRBD
-        #self.addCleanup(mocked.stop)
 
         self.store = rbd_store.Store(self.conf)
         self.store.chunk_size = 2
