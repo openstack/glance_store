@@ -14,4 +14,5 @@
 #    under the License.
 
 from .backend import *
+from .driver import *
 from .exceptions import *
