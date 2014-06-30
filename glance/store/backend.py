@@ -223,14 +223,16 @@ def get_store_from_uri(uri):
     return get_store_from_scheme(scheme)
 
 
-def get_from_backend(uri, context=None):
+def get_from_backend(uri, offset=0, chunk_size=None, context=None):
     """Yields chunks of data from backend specified by uri"""
 
     loc = location.get_location_from_uri(uri)
     store = get_store_from_uri(uri)
 
     try:
-        return store.get(loc, context=context)
+        return store.get(loc, offset=offset,
+                         chunk_size=chunk_size,
+                         context=context)
     except NotImplementedError:
         raise exceptions.StoreGetNotSupported
 
