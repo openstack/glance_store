@@ -24,10 +24,14 @@ import os
 import StringIO
 import uuid
 
+import fixtures
+import six
+
 from glance.store import exceptions
 from glance.store._drivers.filesystem import ChunkedFile
 from glance.store._drivers.filesystem import Store
 from glance.store.location import get_location_from_uri
+from glance.store.openstack.common import units
 from glance.store.tests import base
 
 KB = 1024
@@ -295,3 +299,113 @@ class TestStore(base.StoreBaseTest):
         self.assertRaises(exceptions.NotFound,
                           self.store.delete,
                           loc)
+
+    def test_configure_add_with_multi_datadirs(self):
+        """
+        Tests multiple filesystem specified by filesystem_store_datadirs
+        are parsed correctly.
+        """
+        store_map = [self.useFixture(fixtures.TempDir()).path,
+                     self.useFixture(fixtures.TempDir()).path]
+        self.conf.clear_override('filesystem_store_datadir',
+                                 group='glance_store')
+        self.conf.set_override('filesystem_store_datadirs',
+                               [store_map[0] + ":100",
+                                store_map[1] + ":200"],
+                               group='glance_store')
+        self.store.configure_add()
+
+        expected_priority_map = {100: [store_map[0]], 200: [store_map[1]]}
+        expected_priority_list = [200, 100]
+        self.assertEqual(self.store.priority_data_map, expected_priority_map)
+        self.assertEqual(self.store.priority_list, expected_priority_list)
+
+    def test_configure_add_same_dir_multiple_times(self):
+        """
+        Tests BadStoreConfiguration exception is raised if same directory
+        is specified multiple times in filesystem_store_datadirs.
+        """
+        store_map = [self.useFixture(fixtures.TempDir()).path,
+                     self.useFixture(fixtures.TempDir()).path]
+        self.conf.clear_override('filesystem_store_datadir',
+                                 group='glance_store')
+        self.conf.set_override('filesystem_store_datadirs',
+                               [store_map[0] + ":100",
+                                store_map[1] + ":200",
+                                store_map[0] + ":300"],
+                               group='glance_store')
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure_add)
+
+    def test_add_with_multiple_dirs(self):
+        """Test adding multiple filesystem directories."""
+        store_map = [self.useFixture(fixtures.TempDir()).path,
+                     self.useFixture(fixtures.TempDir()).path]
+        self.conf.clear_override('filesystem_store_datadir',
+                                 group='glance_store')
+        self.conf.set_override('filesystem_store_datadirs',
+                               [store_map[0] + ":100",
+                                store_map[1] + ":200"],
+                               group='glance_store')
+        self.store.configure_add()
+
+        """Test that we can add an image via the filesystem backend"""
+        ChunkedFile.CHUNKSIZE = 1024
+        expected_image_id = str(uuid.uuid4())
+        expected_file_size = 5 * units.Ki  # 5K
+        expected_file_contents = "*" * expected_file_size
+        expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_location = "file://%s/%s" % (store_map[1],
+                                              expected_image_id)
+        image_file = six.StringIO(expected_file_contents)
+
+        location, size, checksum, _ = self.store.add(expected_image_id,
+                                                     image_file,
+                                                     expected_file_size)
+
+        self.assertEqual(expected_location, location)
+        self.assertEqual(expected_file_size, size)
+        self.assertEqual(expected_checksum, checksum)
+
+        loc = get_location_from_uri(expected_location)
+        (new_image_file, new_image_size) = self.store.get(loc)
+        new_image_contents = ""
+        new_image_file_size = 0
+
+        for chunk in new_image_file:
+            new_image_file_size += len(chunk)
+            new_image_contents += chunk
+
+        self.assertEqual(expected_file_contents, new_image_contents)
+        self.assertEqual(expected_file_size, new_image_file_size)
+
+    def test_add_with_multiple_dirs_storage_full(self):
+        """
+        Test StorageFull exception is raised if no filesystem directory
+        is found that can store an image.
+        """
+        store_map = [self.useFixture(fixtures.TempDir()).path,
+                     self.useFixture(fixtures.TempDir()).path]
+        self.conf.clear_override('filesystem_store_datadir',
+                                 group='glance_store')
+        self.conf.set_override('filesystem_store_datadirs',
+                               [store_map[0] + ":100",
+                                store_map[1] + ":200"],
+                               group='glance_store')
+
+        self.store.configure_add()
+
+        def fake_get_capacity_info(mount_point):
+            return 0
+
+        with mock.patch.object(self.store, '_get_capacity_info') as capacity:
+            capacity.return_value = 0
+
+            ChunkedFile.CHUNKSIZE = 1024
+            expected_image_id = str(uuid.uuid4())
+            expected_file_size = 5 * units.Ki  # 5K
+            expected_file_contents = "*" * expected_file_size
+            image_file = six.StringIO(expected_file_contents)
+
+            self.assertRaises(exceptions.StorageFull, self.store.add,
+                              expected_image_id, image_file, expected_file_size)
