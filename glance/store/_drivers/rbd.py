@@ -25,9 +25,9 @@ import urllib
 
 from oslo.config import cfg
 
-from glance.store import exceptions
 from glance.store.common import utils
-from glance.store.openstack.common.gettextutils import _
+from glance.store import exceptions
+from glance.store.i18n import _
 from glance.store import driver
 from glance.store import location
 

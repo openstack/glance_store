@@ -25,11 +25,10 @@ from oslo.config import cfg
 from oslo.vmware import api
 import six.moves.urllib.parse as urlparse
 
-
 import glance.store
 from glance.store import exceptions
+from glance.store.i18n import _
 from glance.store import location
-from glance.store.openstack.common.gettextutils import _
 from glance.store.openstack.common import excutils
 
 LOG = logging.getLogger(__name__)

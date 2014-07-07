@@ -28,10 +28,10 @@ from oslo.config import cfg
 
 import glance.store
 import glance.store.driver
-from glance.store import exceptions
 from glance.store.common import utils
+from glance.store import exceptions
+from glance.store.i18n import _
 import glance.store.location
-from glance.store.openstack.common.gettextutils import _
 from glance.store.openstack.common import excutils
 from glance.store.openstack.common import jsonutils
 from glance.store.openstack.common import processutils

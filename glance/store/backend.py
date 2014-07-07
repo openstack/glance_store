@@ -22,9 +22,9 @@ from oslo.config import cfg
 from stevedore import driver
 
 from glance.store import exceptions
+from glance.store.i18n import _
 from glance.store.common import utils
 from glance.store import location
-from glance.store.openstack.common.gettextutils import _
 from glance.store.openstack.common import importutils
 
 LOG = logging.getLogger(__name__)

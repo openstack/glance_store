@@ -18,7 +18,7 @@ import logging
 import urlparse
 
 from glance.store import exceptions
-from glance.store.openstack.common.gettextutils import _
+from glance.store.i18n import _
 import glance.store.driver
 import glance.store.location
 
