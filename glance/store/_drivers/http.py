@@ -17,9 +17,9 @@ import httplib
 import logging
 import urlparse
 
+import glance.store.driver
 from glance.store import exceptions
 from glance.store.i18n import _
-import glance.store.driver
 import glance.store.location
 
 LOG = logging.getLogger(__name__)
@@ -162,7 +162,8 @@ class Store(glance.store.driver.Store):
 
         # Check for bad status codes
         if resp.status >= 400:
-            reason = (_("HTTP URL %(url)s returned a %(status)s status code.") %
+            reason = (_("HTTP URL %(url)s returned a "
+                        "%(status)s status code.") %
                       dict(url=loc.path, status=resp.status))
             LOG.debug(reason)
             raise exceptions.BadStoreUri(message=reason)
@@ -170,9 +171,9 @@ class Store(glance.store.driver.Store):
         location_header = resp.getheader("location")
         if location_header:
             if resp.status not in (301, 302):
-                reason = (_("The HTTP URL %(url)s attempted to redirect with an "
-                            "invalid %(status)s status code.") %
-                            dict(url=loc.path, status=resp.status))
+                reason = (_("The HTTP URL %(url)s attempted to redirect "
+                            "with an invalid %(status)s status code.") %
+                          dict(url=loc.path, status=resp.status))
                 LOG.debug(reason)
                 raise exceptions.BadStoreUri(message=reason)
             location_class = glance.store.location.Location

@@ -21,11 +21,11 @@ import urlparse
 
 from oslo.config import cfg
 
+import glance.store.driver
 from glance.store import exceptions
 from glance.store.i18n import _
-from glance.store.openstack.common import excutils
-import glance.store.driver
 import glance.store.location
+from glance.store.openstack.common import excutils
 
 try:
     import gridfs
@@ -96,7 +96,7 @@ class Store(glance.store.driver.Store):
         if pymongo is None:
             msg = _("Missing dependencies: pymongo")
             raise exceptions.BadStoreConfiguration(store_name="gridfs",
-                                                  reason=msg)
+                                                   reason=msg)
 
         self.mongodb_uri = self._option_get('mongodb_store_uri')
 
@@ -114,7 +114,7 @@ class Store(glance.store.driver.Store):
                         "options.") % {'param': param})
             LOG.debug(reason)
             raise exceptions.BadStoreConfiguration(store_name="gridfs",
-                                                  reason=reason)
+                                                   reason=reason)
         return result
 
     def get(self, location, offset=0, chunk_size=None, context=None):
@@ -178,10 +178,11 @@ class Store(glance.store.driver.Store):
 
         if self.fs.exists(image_id):
             raise exceptions.Duplicate(_("GridFS already has an image at "
-                                        "location %s") % loc.get_uri())
+                                         "location %s") % loc.get_uri())
 
-        LOG.debug(_("Adding a new image to GridFS with id %s and size %s") %
-                 (image_id, image_size))
+        LOG.debug(_("Adding a new image to GridFS with "
+                    "id %(iid)s and size %(size)s")
+                  % dict(iid=image_id, size=image_size))
 
         try:
             self.fs.put(image_file, _id=image_id)
@@ -192,8 +193,9 @@ class Store(glance.store.driver.Store):
             with excutils.save_and_reraise_exception():
                 self.fs.delete(image_id)
 
-        LOG.debug(_("Uploaded image %s, md5 %s, length %s to GridFS") %
-                 (image._id, image.md5, image.length))
+        LOG.debug(_("Uploaded image %(iid)s, "
+                    "md5 %(md)s, length %(len)s to GridFS") %
+                  dict(iid=image._id, md=image.md5, len=image.length))
 
         return (loc.get_uri(), image.length, image.md5, {})
 

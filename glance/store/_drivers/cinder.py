@@ -20,9 +20,9 @@ from cinderclient.v2 import client as cinderclient
 from oslo.config import cfg
 
 from glance.store.common import utils
+import glance.store.driver
 from glance.store import exceptions
 from glance.store.i18n import _
-import glance.store.driver
 import glance.store.location
 
 LOG = logging.getLogger(__name__)
@@ -84,13 +84,14 @@ def get_cinderclient(conf, context):
 
     LOG.debug(_('Cinderclient connection created using URL: %s') % url)
 
+    glance_store = conf.glance_store
     c = cinderclient.Client(context.user,
                             context.auth_tok,
                             project_id=context.tenant,
                             auth_url=url,
-                            insecure=conf.glance_store.cinder_api_insecure,
-                            retries=conf.glance_store.cinder_http_retries,
-                            cacert=conf.glance_store.cinder_ca_certificates_file)
+                            insecure=glance_store.cinder_api_insecure,
+                            retries=glance_store.cinder_http_retries,
+                            cacert=glance_store.cinder_ca_certificates_file)
 
     # noauth extracts user_id:project_id from auth_token
     c.client.auth_token = context.auth_tok or '%s:%s' % (context.user,
@@ -146,11 +147,11 @@ class Store(glance.store.driver.Store):
         if context is None:
             reason = _("Cinder storage requires a context.")
             raise exceptions.BadStoreConfiguration(store_name="cinder",
-                                                  reason=reason)
+                                                   reason=reason)
         if context.service_catalog is None:
             reason = _("Cinder storage requires a service catalog.")
             raise exceptions.BadStoreConfiguration(store_name="cinder",
-                                                  reason=reason)
+                                                   reason=reason)
 
     def get_size(self, location, context=None):
         """
@@ -167,9 +168,10 @@ class Store(glance.store.driver.Store):
 
         try:
             self._check_context(context)
-            volume = get_cinderclient(self.conf, context).volumes.get(loc.volume_id)
+            volume = get_cinderclient(self.conf,
+                                      context).volumes.get(loc.volume_id)
             # GB unit convert to byte
-            return volume.size * (1024**3)
+            return volume.size * (1024 ** 3)
         except cinder_exception.NotFound as e:
             reason = _("Failed to get image size due to "
                        "volume can not be found: %s") % self.volume_id

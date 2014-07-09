@@ -13,8 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import collections
-import itertools
 import logging
 import sys
 
@@ -23,9 +21,8 @@ from stevedore import driver
 
 from glance.store import exceptions
 from glance.store.i18n import _
-from glance.store.common import utils
 from glance.store import location
-from glance.store.openstack.common import importutils
+
 
 LOG = logging.getLogger(__name__)
 
@@ -156,6 +153,7 @@ def _load_stores(conf):
         except exceptions.BadStoreConfiguration as e:
             continue
 
+
 def create_stores(conf=CONF):
     """
     Registers all store modules and all schemes
@@ -169,11 +167,12 @@ def create_stores(conf=CONF):
         store_instance.configure()
         if not schemes:
             raise exceptions.BackendException('Unable to register store %s. '
-                                             'No schemes associated with it.'
-                                             % store_cls)
+                                              'No schemes associated with it.'
+                                              % store_cls)
         else:
             LOG.debug("Registering store %s with schemes %s",
-                          store_entry, schemes)
+                      store_entry, schemes)
+
             scheme_map = {}
             for scheme in schemes:
                 loc_cls = store_instance.get_store_location_class()
@@ -280,8 +279,9 @@ def safe_delete_from_backend(uri, image_id, context=None):
         LOG.warn(str(e))
     except exceptions.UnsupportedBackend:
         exc_type = sys.exc_info()[0].__name__
-        msg = (_('Failed to delete image %s from store (%s)') %
-               (image_id, exc_type))
+        msg = (_('Failed to delete image %(image_id)s '
+                 'from store (%(exc_type)s)') %
+               dict(image_id=image_id, exc_type=exc_type))
         LOG.error(msg)
 
 
@@ -302,9 +302,11 @@ def check_location_metadata(val, key=''):
             check_location_metadata(v, key='%s[%d]' % (key, ndx))
             ndx = ndx + 1
     elif not isinstance(val, unicode):
-        raise exceptions.BackendException(_("The image metadata key %s has an invalid "
-                                           "type of %s.  Only dict, list, and unicode "
-                                           "are supported.") % (key, type(val)))
+        raise exceptions.BackendException(_("The image metadata key %(key)s "
+                                            "has an invalid type of %(type)s. "
+                                            "Only dict, list, and unicode are "
+                                            "supported.")
+                                          % dict(key=key, type=type(val)))
 
 
 def store_add_to_backend(image_id, data, size, store, context=None):
@@ -324,17 +326,17 @@ def store_add_to_backend(image_id, data, size, store, context=None):
     (location, size, checksum, metadata) = store.add(image_id, data, size)
     if metadata is not None:
         if not isinstance(metadata, dict):
-            msg = (_("The storage driver %s returned invalid metadata %s"
-                     "This must be a dictionary type") %
-                   (str(store), str(metadata)))
+            msg = (_("The storage driver %(driver)s returned invalid "
+                     " metadata %(metadata)s. This must be a dictionary type")
+                   % dict(driver=str(store), metadata=str(metadata)))
             LOG.error(msg)
             raise exceptions.BackendException(msg)
         try:
             check_location_metadata(metadata)
         except exceptions.BackendException as e:
             e_msg = (_("A bad metadata structure was returned from the "
-                       "%s storage driver: %s.  %s.") %
-                     (str(store), str(metadata), str(e)))
+                       "%(driver)s storage driver: %(metadata)s.  %(e)s.") %
+                     dict(driver=str(store), metadata=str(metadata), e=str(e)))
             LOG.error(e_msg)
             raise exceptions.BackendException(e_msg)
     return (location, size, checksum, metadata)

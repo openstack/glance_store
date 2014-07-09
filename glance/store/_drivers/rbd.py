@@ -26,9 +26,9 @@ import urllib
 from oslo.config import cfg
 
 from glance.store.common import utils
+from glance.store import driver
 from glance.store import exceptions
 from glance.store.i18n import _
-from glance.store import driver
 from glance.store import location
 
 try:
@@ -187,7 +187,7 @@ class Store(driver.Store):
         """
         try:
             chunk = self.conf.glance_store.rbd_store_chunk_size
-            self.chunk_size =  chunk * 1024^2
+            self.chunk_size = chunk * (1024 ^ 2)
 
             # these must not be unicode since they will be passed to a
             # non-unicode-aware C library
@@ -198,7 +198,7 @@ class Store(driver.Store):
             reason = _("Error in store configuration: %s") % e
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name='rbd',
-                                                  reason=reason)
+                                                   reason=reason)
 
     def get(self, location, offset=0, chunk_size=None, context=None):
         """
@@ -236,7 +236,8 @@ class Store(driver.Store):
                     LOG.debug(msg)
                     raise exceptions.NotFound(msg)
 
-    def _create_image(self, fsid, ioctx, image_name, size, order, context=None):
+    def _create_image(self, fsid, ioctx, image_name,
+                      size, order, context=None):
         """
         Create an rbd image. If librbd supports it,
         make it a cloneable snapshot, so that copy-on-write
@@ -292,7 +293,8 @@ class Store(driver.Store):
                     rbd.RBD().remove(ioctx, image_name)
                 except rbd.ImageNotFound:
                     raise exceptions.NotFound(message=
-                        _("RBD image %s does not exist") % image_name)
+                                              _("RBD image %s does not exist")
+                                              % image_name)
                 except rbd.ImageBusy:
                     log_msg = _("image %s could not be removed "
                                 "because it is in use")
@@ -334,7 +336,8 @@ class Store(driver.Store):
                                              image_size, order)
                 except rbd.ImageExists:
                     raise exceptions.Duplicate(message=
-                        _('RBD image %s already exists') % image_id)
+                                               _('RBD image %s already exists')
+                                               % image_id)
                 try:
                     with rbd.Image(ioctx, image_name) as image:
                         bytes_written = 0

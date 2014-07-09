@@ -25,10 +25,9 @@ import mock
 from glance.store import exceptions
 from glance.store.openstack.common import units
 
-from glance.store import location
-from glance.store.location import get_location_from_uri
 from glance.store._drivers import s3
 from glance.store.exceptions import UnsupportedBackend
+from glance.store.location import get_location_from_uri
 from glance.store.tests import base
 
 
@@ -82,10 +81,9 @@ class FakeKey(object):
     def get_file(self):
         return self.data
 
+
 class FakeBucket:
-    """
-    Acts like a ``boto.s3.bucket.Bucket``
-    """
+    """Acts like a ``boto.s3.bucket.Bucket``."""
     def __init__(self, name, keys=None):
         self.name = name
         self.keys = keys or {}
@@ -130,6 +128,7 @@ def fakers():
 
     return fake_connection_constructor, fake_get_bucket
 
+
 def format_s3_location(user, key, authurl, bucket, obj):
     """
     Helper method that returns a S3 store URI given
@@ -155,7 +154,6 @@ class TestStore(base.StoreBaseTest):
         self.config(**S3_CONF)
         self.store.configure()
         self.register_store_schemes(self.store)
-
 
         fctor, fbucket = fakers()
 
@@ -192,7 +190,8 @@ class TestStore(base.StoreBaseTest):
             expected_cls = boto.s3.connection.OrdinaryCallingFormat
             self.assertIsInstance(kwargs.get('calling_format'), expected_cls)
 
-        with mock.patch.object(boto.s3.connection.S3Connection, '__init__') as m:
+        s3_connection = boto.s3.connection.S3Connection
+        with mock.patch.object(s3_connection, '__init__') as m:
             m.side_effect = fake_S3Connection_init
 
             loc = get_location_from_uri(
@@ -206,7 +205,8 @@ class TestStore(base.StoreBaseTest):
             expected_cls = boto.s3.connection.SubdomainCallingFormat
             self.assertIsInstance(kwargs.get('calling_format'), expected_cls)
 
-        with mock.patch.object(boto.s3.connection.S3Connection, '__init__') as m:
+        s3_connection = boto.s3.connection.S3Connection
+        with mock.patch.object(s3_connection, '__init__') as m:
             m.side_effect = fake_S3Connection_init
 
             loc = get_location_from_uri(
@@ -401,12 +401,12 @@ class TestStore(base.StoreBaseTest):
             self._do_test_get_s3_location(url, expected)
 
     def test_calling_format_path(self):
-        self.assertIsInstance(s3.get_calling_format(s3_store_bucket_url_format='path'),
-                              boto.s3.connection.OrdinaryCallingFormat)
+        cf = s3.get_calling_format(s3_store_bucket_url_format='path')
+        self.assertIsInstance(cf, boto.s3.connection.OrdinaryCallingFormat)
 
     def test_calling_format_subdomain(self):
-        self.assertIsInstance(s3.get_calling_format(s3_store_bucket_url_format='subdomain'),
-                              boto.s3.connection.SubdomainCallingFormat)
+        cf = s3.get_calling_format(s3_store_bucket_url_format='subdomain')
+        self.assertIsInstance(cf, boto.s3.connection.SubdomainCallingFormat)
 
     def test_calling_format_default(self):
         self.assertIsInstance(s3.get_calling_format(),

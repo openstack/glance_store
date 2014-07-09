@@ -21,11 +21,11 @@ import uuid
 import mock
 import six
 
+import glance.store._drivers.vmware_datastore as vm_store
 from glance.store import backend
 from glance.store import exceptions
 from glance.store.location import get_location_from_uri
 from glance.store.openstack.common import units
-import glance.store._drivers.vmware_datastore as vm_store
 from glance.store.tests import base
 from glance.store.tests import utils
 
@@ -34,7 +34,7 @@ FAKE_UUID = str(uuid.uuid4())
 
 FIVE_KB = 5 * units.Ki
 
-VMWARE_DST = {
+VMWARE_DS = {
     'verbose': True,
     'debug': True,
     'known_stores': ['vmware_datastore'],
@@ -90,10 +90,10 @@ class TestStore(base.StoreBaseTest):
         self.config(group='glance_store',
                     vmware_server_username='admin',
                     vmware_server_password='admin',
-                    vmware_server_host=VMWARE_DST['vmware_server_host'],
-                    vmware_api_insecure=VMWARE_DST['vmware_api_insecure'],
-                    vmware_datastore_name=VMWARE_DST['vmware_datastore_name'],
-                    vmware_datacenter_path=VMWARE_DST['vmware_datacenter_path'])
+                    vmware_server_host=VMWARE_DS['vmware_server_host'],
+                    vmware_api_insecure=VMWARE_DS['vmware_api_insecure'],
+                    vmware_datastore_name=VMWARE_DS['vmware_datastore_name'],
+                    vmware_datacenter_path=VMWARE_DS['vmware_datacenter_path'])
 
         backend.create_stores(self.conf)
 
@@ -127,7 +127,7 @@ class TestStore(base.StoreBaseTest):
         self.store._session.wait_for_task = mock.Mock()
 
         self.store.store_image_dir = (
-            VMWARE_DST['vmware_store_image_dir'])
+            VMWARE_DS['vmware_store_image_dir'])
         vm_store.Store._build_vim_cookie_header = mock.Mock()
 
     def test_get(self):
@@ -168,11 +168,11 @@ class TestStore(base.StoreBaseTest):
         with mock.patch('hashlib.md5') as md5:
             md5.return_value = hash_code
             expected_location = format_location(
-                VMWARE_DST['vmware_server_host'],
-                VMWARE_DST['vmware_store_image_dir'],
+                VMWARE_DS['vmware_server_host'],
+                VMWARE_DS['vmware_store_image_dir'],
                 expected_image_id,
-                VMWARE_DST['vmware_datacenter_path'],
-                VMWARE_DST['vmware_datastore_name'])
+                VMWARE_DS['vmware_datacenter_path'],
+                VMWARE_DS['vmware_datastore_name'])
             image = six.StringIO(expected_contents)
             with mock.patch('httplib.HTTPConnection') as HttpConn:
                 HttpConn.return_value = FakeHTTPConnection()
@@ -198,11 +198,11 @@ class TestStore(base.StoreBaseTest):
         with mock.patch('hashlib.md5') as md5:
             md5.return_value = hash_code
             expected_location = format_location(
-                VMWARE_DST['vmware_server_host'],
-                VMWARE_DST['vmware_store_image_dir'],
+                VMWARE_DS['vmware_server_host'],
+                VMWARE_DS['vmware_store_image_dir'],
                 expected_image_id,
-                VMWARE_DST['vmware_datacenter_path'],
-                VMWARE_DST['vmware_datastore_name'])
+                VMWARE_DS['vmware_datacenter_path'],
+                VMWARE_DS['vmware_datastore_name'])
             image = six.StringIO(expected_contents)
             with mock.patch('httplib.HTTPConnection') as HttpConn:
                 HttpConn.return_value = FakeHTTPConnection()

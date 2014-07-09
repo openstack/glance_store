@@ -27,8 +27,8 @@ import urlparse
 from oslo.config import cfg
 
 import glance.store
-import glance.store.driver
 from glance.store.common import utils
+import glance.store.driver
 from glance.store import exceptions
 from glance.store.i18n import _
 import glance.store.location
@@ -179,7 +179,7 @@ class Store(glance.store.driver.Store):
                         "'filesystem_store_datadirs' option"))
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="filesystem",
-                                                  reason=reason)
+                                                   reason=reason)
 
         if (self.conf.glance_store.filesystem_store_datadir and
                 self.conf.glance_store.filesystem_store_datadirs):
@@ -188,7 +188,7 @@ class Store(glance.store.driver.Store):
                         "'filesystem_store_datadirs' option"))
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="filesystem",
-                                                  reason=reason)
+                                                   reason=reason)
 
         self.multiple_datadirs = False
         directory_paths = set()
@@ -271,25 +271,28 @@ class Store(glance.store.driver.Store):
         return filepath, filesize
 
     def _get_metadata(self):
-        if self.conf.glance_store.filesystem_store_metadata_file is None:
+        metadata_file = self.conf.glance_store.filesystem_store_metadata_file
+
+        if metadata_file is None:
             return {}
 
         try:
-            with open(self.conf.glance_store.filesystem_store_metadata_file, 'r') as fptr:
+            with open(metadata_file, 'r') as fptr:
                 metadata = jsonutils.load(fptr)
+
             glance.store.check_location_metadata(metadata)
             return metadata
         except exceptions.BackendException as bee:
-            LOG.error(_('The JSON in the metadata file %s could not be used: '
-                        '%s  An empty dictionary will be returned '
-                        'to the client.')
-                      % (self.conf.glance_store.filesystem_store_metadata_file, str(bee)))
+            LOG.error(_('The JSON in the metadata file %(file)s could not '
+                        'be used: %(bee)s  An empty dictionary will be '
+                        'returned to the client.')
+                      % dict(file=metadata_file, bee=str(bee)))
             return {}
         except IOError as ioe:
-            LOG.error(_('The path for the metadata file %s could not be '
-                        'opened: %s  An empty dictionary will be returned '
+            LOG.error(_('The path for the metadata file %(file)s could not be '
+                        'opened: %(io)s  An empty dictionary will be returned '
                         'to the client.')
-                      % (self.conf.glance_store.filesystem_store_metadata_file, ioe))
+                      % dict(file=metadata_file, io=ioe))
             return {}
         except Exception as ex:
             LOG.exception(_('An error occurred processing the storage systems '
@@ -461,5 +464,6 @@ class Store(glance.store.driver.Store):
         try:
             os.unlink(filepath)
         except Exception as e:
-            msg = _('Unable to remove partial image data for image %s: %s')
-            LOG.error(msg % (iid, e))
+            msg = _('Unable to remove partial image '
+                    'data for image %(iid)s: %(e)s')
+            LOG.error(msg % dict(iid=iid, e=e))

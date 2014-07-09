@@ -27,14 +27,16 @@ import uuid
 import fixtures
 import six
 
-from glance.store import exceptions
 from glance.store._drivers.filesystem import ChunkedFile
 from glance.store._drivers.filesystem import Store
+from glance.store import exceptions
 from glance.store.location import get_location_from_uri
 from glance.store.openstack.common import units
 from glance.store.tests import base
 
+
 KB = 1024
+
 
 class TestStore(base.StoreBaseTest):
 
@@ -215,7 +217,6 @@ class TestStore(base.StoreBaseTest):
                               self.store.add,
                               image_id, image_file, 0)
             self.assertFalse(os.path.exists(path))
-
 
     def test_add_storage_full(self):
         """
@@ -408,4 +409,5 @@ class TestStore(base.StoreBaseTest):
             image_file = six.StringIO(expected_file_contents)
 
             self.assertRaises(exceptions.StorageFull, self.store.add,
-                              expected_image_id, image_file, expected_file_size)
+                              expected_image_id, image_file,
+                              expected_file_size)

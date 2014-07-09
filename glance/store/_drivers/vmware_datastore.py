@@ -177,9 +177,8 @@ class StoreLocation(location.StoreLocation):
         return '%s?%s' % (base_url, self.query)
 
     def _is_valid_path(self, path):
-        return path.startswith(
-            os.path.join(DS_URL_PREFIX,
-                         self.conf.glance_store.vmware_store_image_dir.strip('/')))
+        sdir = self.conf.glance_store.vmware_store_image_dir.strip('/')
+        return path.startswith(os.path.join(DS_URL_PREFIX, sdir))
 
     def parse_uri(self, uri):
         if not uri.startswith('%s://' % STORE_SCHEME):
@@ -308,14 +307,14 @@ class Store(glance.store.Store):
 
         if res.status == httplib.CONFLICT:
             raise exceptions.Duplicate(_("Image file %(image_id)s already "
-                                        "exists!") % {'image_id': image_id})
+                                         "exists!") % {'image_id': image_id})
 
         if res.status not in (httplib.CREATED, httplib.OK):
             msg = (_('Failed to upload content of image %(image)s') %
                    {'image': image_id})
             LOG.error(msg)
             raise exceptions.UnexpectedStatus(status=res.status,
-                                             body=res.read())
+                                              body=res.read())
 
         return (loc.get_uri(), image_file.size, checksum.hexdigest(), {})
 

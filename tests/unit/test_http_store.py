@@ -13,14 +13,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import httplib
 import mock
 
-from glance.store import exceptions
-from glance.store import delete_from_backend
-from glance.store import safe_delete_from_backend
 from glance.store._drivers import http
+from glance.store import delete_from_backend
+from glance.store import exceptions
 from glance.store.location import get_location_from_uri
+from glance.store import safe_delete_from_backend
 from glance.store.tests import base
 from glance.store.tests import utils
 

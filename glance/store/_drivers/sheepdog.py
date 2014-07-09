@@ -20,14 +20,14 @@ import logging
 
 from oslo.config import cfg
 
+import glance.store
+import glance.store.driver
 from glance.store import exceptions
 from glance.store.i18n import _
+import glance.store.location
 from glance.store.openstack.common import excutils
 from glance.store.openstack.common import processutils
 from glance.store.openstack.common import units
-import glance.store
-import glance.store.driver
-import glance.store.location
 
 
 LOG = logging.getLogger(__name__)
@@ -151,7 +151,7 @@ class StoreLocation(glance.store.location.StoreLocation):
     def parse_uri(self, uri):
         if not uri.startswith('sheepdog://'):
             raise exceptions.BadStoreUri(uri, "URI must start with %s://" %
-                                        'sheepdog')
+                                         'sheepdog')
         self.image = uri[11:]
 
 
@@ -198,7 +198,7 @@ class Store(glance.store.driver.Store):
             reason = _("Error in store configuration: %s") % e
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name='sheepdog',
-                                                  reason=reason)
+                                                   reason=reason)
 
         try:
             processutils.execute("collie", shell=True)
@@ -206,7 +206,7 @@ class Store(glance.store.driver.Store):
             reason = _("Error in store configuration: %s") % exc
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name='sheepdog',
-                                                  reason=reason)
+                                                   reason=reason)
 
     def get(self, location):
         """
@@ -224,7 +224,7 @@ class Store(glance.store.driver.Store):
                               self.chunk_size)
         if not image.exist():
             raise exceptions.NotFound(_("Sheepdog image %s does not exist")
-                                     % image.name)
+                                      % image.name)
         return (ImageIterator(image), image.get_size())
 
     def get_size(self, location):
@@ -243,7 +243,7 @@ class Store(glance.store.driver.Store):
                               self.chunk_size)
         if not image.exist():
             raise exceptions.NotFound(_("Sheepdog image %s does not exist")
-                                     % image.name)
+                                      % image.name)
         return image.get_size()
 
     def add(self, image_id, image_file, image_size):
@@ -265,7 +265,7 @@ class Store(glance.store.driver.Store):
                               self.chunk_size)
         if image.exist():
             raise exceptions.Duplicate(_("Sheepdog image %s already exists")
-                                      % image_id)
+                                       % image_id)
 
         location = StoreLocation({'image': image_id})
         checksum = hashlib.md5()
@@ -304,5 +304,5 @@ class Store(glance.store.driver.Store):
                               self.chunk_size)
         if not image.exist():
             raise exceptions.NotFound(_("Sheepdog image %s does not exist") %
-                                     loc.image)
+                                      loc.image)
         image.delete()

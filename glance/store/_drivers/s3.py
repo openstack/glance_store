@@ -24,14 +24,15 @@ import urlparse
 
 from oslo.config import cfg
 
+import glance.store
+from glance.store.common import utils
+import glance.store.driver
 from glance.store import exceptions
 from glance.store.i18n import _
-from glance.store.common import utils
-import glance.store
-import glance.store.driver
 import glance.store.location
 
 LOG = logging.getLogger(__name__)
+
 
 _S3_OPTS = [
     cfg.StrOpt('s3_store_host',
@@ -243,7 +244,8 @@ class Store(glance.store.driver.Store):
         else:  # Defaults http
             self.full_s3_host = 'http://' + self.s3_host
 
-        self.s3_store_object_buffer_dir = self.conf.glance_store.s3_store_object_buffer_dir
+        buffer_dir = self.conf.glance_store.s3_store_object_buffer_dir
+        self.s3_store_object_buffer_dir = buffer_dir
 
     def _option_get(self, param):
         result = getattr(self.conf.glance_store, param)
@@ -252,7 +254,7 @@ class Store(glance.store.driver.Store):
                         "options.") % {'param': param})
             LOG.debug(reason)
             raise exceptions.BadStoreConfiguration(store_name="s3",
-                                                  reason=reason)
+                                                   reason=reason)
         return result
 
     def get(self, location, offset=0, chunk_size=None, context=None):
@@ -370,8 +372,8 @@ class Store(glance.store.driver.Store):
         key = bucket_obj.get_key(obj_name)
         if key and key.exists():
             raise exceptions.Duplicate(message=_("S3 already has an image at "
-                                                "location %s") %
-                                      _sanitize(loc.get_uri()))
+                                                 "location %s") %
+                                       _sanitize(loc.get_uri()))
 
         msg = _("Adding image object to S3 using (s3_host=%(s3_host)s, "
                 "access_key=%(access_key)s, bucket=%(bucket)s, "
@@ -507,7 +509,8 @@ def create_bucket_if_missing(bucket, s3_conn):
     except S3ResponseError as e:
         if e.status == httplib.NOT_FOUND:
             if self.conf.glance_store.s3_store_create_bucket_on_put:
-                location = get_s3_location(self.conf.glance_store.s3_store_host)
+                host = self.conf.glance_store.s3_store_host
+                location = get_s3_location(host)
                 try:
                     s3_conn.create_bucket(bucket, location=location)
                 except S3ResponseError as e:
@@ -541,7 +544,9 @@ def get_key(bucket, obj):
     return key
 
 
-def get_calling_format(bucket_format=None, s3_store_bucket_url_format='subdomain'):
+def get_calling_format(bucket_format=None,
+                       s3_store_bucket_url_format='subdomain'):
+
     import boto.s3.connection
     if bucket_format is None:
         bucket_format = s3_store_bucket_url_format

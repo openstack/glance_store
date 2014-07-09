@@ -121,8 +121,10 @@ class BadStoreConfiguration(GlanceStoreException):
     message = _("Store %(store_name)s could not be configured correctly. "
                 "Reason: %(reason)s")
 
+
 class DriverLoadFailure(GlanceStoreException):
     message = _("Driver %(driver_name)s could not be loaded.")
+
 
 class BadDriverConfiguration(GlanceStoreException):
     message = _("Driver %(driver_name)s could not be configured correctly. "
@@ -184,6 +186,7 @@ class UnsupportedHeaderFeature(GlanceStoreException):
 class InUseByStore(GlanceStoreException):
     message = _("The image cannot be deleted because it is in use through "
                 "the backend store outside of Glance.")
+
 
 class ImageDataNotFound(NotFound):
     message = _("No image data could be found")

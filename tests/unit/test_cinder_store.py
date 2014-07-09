@@ -15,10 +15,9 @@
 
 import mock
 
-from cinderclient.v2 import client as cinderclient
 
-from glance.store import exceptions
 from glance.store._drivers import cinder
+from glance.store import exceptions
 from glance.store.location import get_location_from_uri
 from glance.store.tests import base
 
@@ -69,4 +68,4 @@ class TestCinderStore(base.StoreBaseTest):
             loc = get_location_from_uri(uri)
             image_size = self.store.get_size(loc, context=fake_context)
             self.assertEqual(image_size,
-                             fake_volumes.values()[0].size * (1024**3))
+                             fake_volumes.values()[0].size * (1024 ** 3))

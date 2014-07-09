@@ -17,8 +17,6 @@ import StringIO
 
 import mock
 
-from glance.store import exceptions
-from glance.store.common import utils
 from glance.store._drivers import gridfs as gfs
 from glance.store.tests import base
 
@@ -39,6 +37,7 @@ class FakeMongoClient(object):
 
     def __getitem__(self, key):
         return None
+
 
 class FakeGridFS(object):
     image_data = {}
@@ -65,7 +64,6 @@ class FakeGridFS(object):
     def delete(self, _id):
         self.called_commands.append('delete')
 
-
     def get(self, location):
         self.called_commands.append('get')
 
@@ -76,7 +74,9 @@ class FakeGridFS(object):
 
         return Image
 
+
 class TestStore(base.StoreBaseTest):
+
     def setUp(self):
         """Establish a clean test environment"""
         super(TestStore, self).setUp()

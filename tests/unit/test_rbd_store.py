@@ -17,11 +17,11 @@ import StringIO
 
 import mock
 
-from glance.store import exceptions
-from glance.store.common import utils
-from glance.store.location import Location
 from glance.store._drivers import rbd as rbd_store
+from glance.store import exceptions
+from glance.store.location import Location
 from glance.store.tests import base
+
 
 class MockRados(object):
 
@@ -214,7 +214,8 @@ class TestStore(base.StoreBaseTest):
         with mock.patch.object(MockRBD.RBD, 'remove') as remove_image:
             remove_image.side_effect = _fake_remove
 
-            self.store.delete(Location('test_rbd_store', rbd_store.StoreLocation,
+            self.store.delete(Location('test_rbd_store',
+                                       rbd_store.StoreLocation,
                                        self.location.get_uri()))
             self.called_commands_expected = ['remove']
 
