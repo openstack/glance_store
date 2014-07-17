@@ -176,9 +176,12 @@ class StoreLocation(location.StoreLocation):
 
         return '%s?%s' % (base_url, self.query)
 
-    def _is_valid_path(self, path):
-        sdir = self.conf.glance_store.vmware_store_image_dir.strip('/')
-        return path.startswith(os.path.join(DS_URL_PREFIX, sdir))
+    # NOTE(flaper87): Commenting out for now, it's probably better to do
+    # it during image add/get. This validation relies on a config param
+    # which doesn't make sense to have in the StoreLocation instance.
+    #def _is_valid_path(self, path):
+    #    sdir = self.conf.glance_store.vmware_store_image_dir.strip('/')
+    #    return path.startswith(os.path.join(DS_URL_PREFIX, sdir))
 
     def parse_uri(self, uri):
         if not uri.startswith('%s://' % STORE_SCHEME):
@@ -189,19 +192,14 @@ class StoreLocation(location.StoreLocation):
         (self.scheme, self.server_host,
          path, params, query, fragment) = urlparse.urlparse(uri)
         if not query:
-            path = path.split('?')
-            if self._is_valid_path(path[0]):
-                self.path = path[0]
-                self.query = path[1]
-                return
-        #elif self._is_valid_path(path):
-        else:
-            self.path = path
-            self.query = query
-            return
-        reason = 'Badly formed VMware datastore URI %(uri)s.' % {'uri': uri}
-        LOG.debug(reason)
-        raise exceptions.BadStoreUri(reason)
+            path, query = path.split('?')
+
+        self.path = path
+        self.query = query
+        # NOTE(flaper87): Read comment on `_is_valid_path`
+        #reason = 'Badly formed VMware datastore URI %(uri)s.' % {'uri': uri}
+        #LOG.debug(reason)
+        #raise exceptions.BadStoreUri(reason)
 
 
 class Store(glance.store.Store):
