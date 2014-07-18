@@ -2,9 +2,6 @@ oslo.config>=1.2.0
 oslo.i18n>=0.1.0
 stevedore>=0.12
 
-# For Swift storage backend.
-python-swiftclient>=1.5
-
 python-cinderclient>=1.0.6
 
 # Required by openstack.common libraries

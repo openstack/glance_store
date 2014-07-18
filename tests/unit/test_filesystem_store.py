@@ -348,7 +348,8 @@ class TestStore(base.StoreBaseTest):
                                [store_map[0] + ":100",
                                 store_map[1] + ":200"],
                                group='glance_store')
-        self.store.configure_add()
+
+        self.store.configure()
 
         """Test that we can add an image via the filesystem backend"""
         ChunkedFile.CHUNKSIZE = 1024
