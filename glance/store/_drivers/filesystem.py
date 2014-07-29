@@ -88,10 +88,9 @@ class ChunkedFile(object):
     something that can iterate over a large file
     """
 
-    CHUNKSIZE = 65536
-
-    def __init__(self, filepath):
+    def __init__(self, filepath, chunk_size=None):
         self.filepath = filepath
+        self.chunk_size = chunk_size
         self.fp = open(self.filepath, 'rb')
 
     def __iter__(self):
@@ -99,7 +98,7 @@ class ChunkedFile(object):
         try:
             if self.fp:
                 while True:
-                    chunk = self.fp.read(ChunkedFile.CHUNKSIZE)
+                    chunk = self.fp.read(self.chunk_size)
                     if chunk:
                         yield chunk
                     else:
@@ -117,6 +116,8 @@ class ChunkedFile(object):
 class Store(glance.store.driver.Store):
 
     OPTIONS = _FILESYSTEM_CONFIGS
+    READ_CHUNKSIZE = 64 * units.Ki
+    WRITE_CHUNKSIZE = READ_CHUNKSIZE
 
     def get_schemes(self):
         return ('file', 'filesystem')
@@ -313,7 +314,9 @@ class Store(glance.store.driver.Store):
         filepath, filesize = self._resolve_location(location)
         msg = _("Found image at %s. Returning in ChunkedFile.") % filepath
         LOG.debug(msg)
-        return (ChunkedFile(filepath), filesize)
+        return (ChunkedFile(filepath,
+                            chunk_size=chunk_size or self.READ_CHUNKSIZE),
+                filesize)
 
     def get_size(self, location, context=None):
         """
@@ -434,7 +437,7 @@ class Store(glance.store.driver.Store):
         try:
             with open(filepath, 'wb') as f:
                 for buf in utils.chunkreadable(image_file,
-                                               ChunkedFile.CHUNKSIZE):
+                                               self.WRITE_CHUNKSIZE):
                     bytes_written += len(buf)
                     checksum.update(buf)
                     f.write(buf)

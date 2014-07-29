@@ -30,6 +30,7 @@ import glance.store.driver
 from glance.store import exceptions
 from glance.store.i18n import _
 import glance.store.location
+from glance.store.openstack.common import units
 
 LOG = logging.getLogger(__name__)
 
@@ -173,17 +174,16 @@ class ChunkedFile(object):
     something that can iterate over a ``boto.s3.key.Key``
     """
 
-    CHUNKSIZE = 65536
-
-    def __init__(self, fp):
+    def __init__(self, fp, chunk_size):
         self.fp = fp
+        self.chunk_size = chunk_size
 
     def __iter__(self):
         """Return an iterator over the image file"""
         try:
             if self.fp:
                 while True:
-                    chunk = self.fp.read(ChunkedFile.CHUNKSIZE)
+                    chunk = self.fp.read(self.chunk_size)
                     if chunk:
                         yield chunk
                     else:
@@ -213,6 +213,9 @@ class Store(glance.store.driver.Store):
 
     OPTIONS = _S3_OPTS
     EXAMPLE_URL = "s3://<ACCESS_KEY>:<SECRET_KEY>@<S3_URL>/<BUCKET>/<OBJ>"
+
+    READ_CHUNKSIZE = 64 * units.Ki
+    WRITE_CHUNKSIZE = READ_CHUNKSIZE
 
     def get_schemes(self):
         return ('s3', 's3+http', 's3+https')
@@ -268,15 +271,15 @@ class Store(glance.store.driver.Store):
         :raises `glance.store.exceptions.NotFound` if image does not exist
         """
         key = self._retrieve_key(location)
-
-        key.BufferSize = self.CHUNKSIZE
+        cs = chunk_size or self.READ_CHUNKSIZE
+        key.BufferSize = cs
 
         class ChunkedIndexable(glance.store.Indexable):
             def another(self):
-                return (self.wrapped.fp.read(ChunkedFile.CHUNKSIZE)
+                return (self.wrapped.fp.read(cs)
                         if self.wrapped.fp else None)
 
-        return (ChunkedIndexable(ChunkedFile(key), key.size), key.size)
+        return (ChunkedIndexable(ChunkedFile(key, cs), key.size), key.size)
 
     def get_size(self, location, context=None):
         """
@@ -404,7 +407,7 @@ class Store(glance.store.driver.Store):
         tmpdir = self.s3_store_object_buffer_dir
         temp_file = tempfile.NamedTemporaryFile(dir=tmpdir)
         checksum = hashlib.md5()
-        for chunk in utils.chunkreadable(image_file, self.CHUNKSIZE):
+        for chunk in utils.chunkreadable(image_file, self.WRITE_CHUNKSIZE):
             checksum.update(chunk)
             temp_file.write(chunk)
         temp_file.flush()

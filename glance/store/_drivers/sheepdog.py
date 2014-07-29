@@ -192,6 +192,9 @@ class Store(glance.store.driver.Store):
 
         try:
             self.chunk_size = CONF.sheepdog_store_chunk_size * units.Mi
+            self.READ_CHUNKSIZE = self.chunk_size
+            self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
+
             self.addr = CONF.sheepdog_store_address
             self.port = CONF.sheepdog_store_port
         except cfg.ConfigFileValueError as e:
@@ -208,7 +211,7 @@ class Store(glance.store.driver.Store):
             raise exceptions.BadStoreConfiguration(store_name='sheepdog',
                                                    reason=reason)
 
-    def get(self, location):
+    def get(self, location, offset=0, chunk_size=None, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file, and returns a generator for reading
@@ -221,13 +224,13 @@ class Store(glance.store.driver.Store):
 
         loc = location.store_location
         image = SheepdogImage(self.addr, self.port, loc.image,
-                              self.chunk_size)
+                              chunk_size or self.READ_CHUNKSIZE)
         if not image.exist():
             raise exceptions.NotFound(_("Sheepdog image %s does not exist")
                                       % image.name)
         return (ImageIterator(image), image.get_size())
 
-    def get_size(self, location):
+    def get_size(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file and returns the image size
@@ -240,13 +243,13 @@ class Store(glance.store.driver.Store):
 
         loc = location.store_location
         image = SheepdogImage(self.addr, self.port, loc.image,
-                              self.chunk_size)
+                              self.READ_CHUNKSIZE)
         if not image.exist():
             raise exceptions.NotFound(_("Sheepdog image %s does not exist")
                                       % image.name)
         return image.get_size()
 
-    def add(self, image_id, image_file, image_size):
+    def add(self, image_id, image_file, image_size, context=None):
         """
         Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -262,7 +265,7 @@ class Store(glance.store.driver.Store):
         """
 
         image = SheepdogImage(self.addr, self.port, image_id,
-                              self.chunk_size)
+                              self.WRITE_CHUNKSIZE)
         if image.exist():
             raise exceptions.Duplicate(_("Sheepdog image %s already exists")
                                        % image_id)
@@ -288,7 +291,7 @@ class Store(glance.store.driver.Store):
 
         return (location.get_uri(), image_size, checksum.hexdigest(), {})
 
-    def delete(self, location):
+    def delete(self, location, context=None):
         """
         Takes a `glance.store.location.Location` object that indicates
         where to find the image file to delete
@@ -301,7 +304,7 @@ class Store(glance.store.driver.Store):
 
         loc = location.store_location
         image = SheepdogImage(self.addr, self.port, loc.image,
-                              self.chunk_size)
+                              self.WRITE_CHUNKSIZE)
         if not image.exist():
             raise exceptions.NotFound(_("Sheepdog image %s does not exist") %
                                       loc.image)

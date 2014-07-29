@@ -43,8 +43,8 @@ class TestStore(base.StoreBaseTest):
     def setUp(self):
         """Establish a clean test environment."""
         super(TestStore, self).setUp()
-        self.orig_chunksize = ChunkedFile.CHUNKSIZE
-        ChunkedFile.CHUNKSIZE = 10
+        self.orig_chunksize = Store.READ_CHUNKSIZE
+        Store.READ_CHUNKSIZE = 10
         self.store = Store(self.conf)
         self.config(filesystem_store_datadir=self.test_dir,
                     group="glance_store")

@@ -29,7 +29,7 @@ class TestHttpStore(base.StoreBaseTest):
     def setUp(self):
         super(TestHttpStore, self).setUp()
         self.config(default_store='http', group='glance_store')
-        http.Store.CHUNKSIZE = 2
+        http.Store.READ_CHUNKSIZE = 2
         self.store = http.Store(self.conf)
 
         response = mock.patch('httplib.HTTPConnection.getresponse')

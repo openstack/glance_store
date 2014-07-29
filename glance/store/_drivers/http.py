@@ -121,7 +121,8 @@ class Store(glance.store.driver.Store):
         """
         conn, resp, content_length = self._query(location, 'GET')
 
-        iterator = http_response_iterator(conn, resp, self.CHUNKSIZE)
+        cs = chunk_size or self.READ_CHUNKSIZE
+        iterator = http_response_iterator(conn, resp, cs)
 
         class ResponseIndexable(glance.store.Indexable):
             def another(self):

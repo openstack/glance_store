@@ -141,12 +141,12 @@ class ImageIterator(object):
     Reads data from an RBD image, one chunk at a time.
     """
 
-    def __init__(self, name, store):
+    def __init__(self, name, store, chunk_size=None):
         self.name = name
         self.pool = store.pool
         self.user = store.user
         self.conf_file = store.conf_file
-        self.chunk_size = store.chunk_size
+        self.chunk_size = chunk_size or store.chunk_size
 
     def __iter__(self):
         try:
@@ -188,6 +188,8 @@ class Store(driver.Store):
         try:
             chunk = self.conf.glance_store.rbd_store_chunk_size
             self.chunk_size = chunk * (1024 ^ 2)
+            self.READ_CHUNKSIZE = self.chunk_size
+            self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
 
             # these must not be unicode since they will be passed to a
             # non-unicode-aware C library
@@ -211,7 +213,8 @@ class Store(driver.Store):
         :raises `glance.store.exceptions.NotFound` if image does not exist
         """
         loc = location.store_location
-        return (ImageIterator(loc.image, self), self.get_size(location))
+        return (ImageIterator(loc.image, self),
+                self.get_size(location), chunk_size)
 
     def get_size(self, location, context=None):
         """
@@ -323,7 +326,7 @@ class Store(driver.Store):
             if hasattr(conn, 'get_fsid'):
                 fsid = conn.get_fsid()
             with conn.open_ioctx(self.pool) as ioctx:
-                order = int(math.log(self.chunk_size, 2))
+                order = int(math.log(self.WRITE_CHUNKSIZE, 2))
                 LOG.debug('creating image %s with order %d and size %d',
                           image_name, order, image_size)
                 if image_size == 0:
@@ -343,7 +346,7 @@ class Store(driver.Store):
                         bytes_written = 0
                         offset = 0
                         chunks = utils.chunkreadable(image_file,
-                                                     self.chunk_size)
+                                                     self.WRITE_CHUNKSIZE)
                         for chunk in chunks:
                             # If the image size provided is zero we need to do
                             # a resize for the amount we are writing. This will

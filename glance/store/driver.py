@@ -43,7 +43,8 @@ def _exception_to_unicode(exc):
 class Store(object):
 
     OPTIONS = None
-    CHUNKSIZE = 16 * (1024 * 1024)  # 16M
+    READ_CHUNKSIZE = 16 * (1024 * 1024)  # 16M
+    WRITE_CHUNKSIZE = READ_CHUNKSIZE
 
     def __init__(self, conf):
         """
