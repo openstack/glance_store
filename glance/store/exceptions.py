@@ -38,7 +38,7 @@ class GlanceStoreException(Exception):
 
     def __init__(self, **kwargs):
         msg = kwargs.pop('message', None)
-        msg = msg or self.message.format(**kwargs)
+        self.msg = msg or self.message.format(**kwargs)
         super(Exception, self).__init__(msg)
 
 
