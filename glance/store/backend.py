@@ -336,7 +336,9 @@ def store_add_to_backend(image_id, data, size, store, context=None):
         except exceptions.BackendException as e:
             e_msg = (_("A bad metadata structure was returned from the "
                        "%(driver)s storage driver: %(metadata)s.  %(e)s.") %
-                     dict(driver=str(store), metadata=str(metadata), e=str(e)))
+                     dict(driver=unicode(store),
+                          metadata=unicode(metadata),
+                          e=unicode(e)))
             LOG.error(e_msg)
             raise exceptions.BackendException(e_msg)
     return (location, size, checksum, metadata)
