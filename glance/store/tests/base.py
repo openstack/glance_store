@@ -14,19 +14,27 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import os
+import shutil
+
 import fixtures
 from oslo.config import cfg
-import testtools
+from oslotest import base
 
 import glance.store as store
 from glance.store import location
 
 
-class StoreBaseTest(testtools.TestCase):
+class StoreBaseTest(base.BaseTestCase):
+
+    #NOTE(flaper87): temporary until we
+    # can move to a fully-local lib.
+    # (Swift store's fault)
+    _CONF = cfg.ConfigOpts()
 
     def setUp(self):
         super(StoreBaseTest, self).setUp()
-        self.conf = cfg.ConfigOpts()
+        self.conf = self._CONF
         self.conf(args=[])
         store.register_opts(self.conf)
 
@@ -36,6 +44,13 @@ class StoreBaseTest(testtools.TestCase):
         store.create_stores(self.conf)
         self.addCleanup(setattr, location, 'SCHEME_TO_CLS_MAP', dict())
         self.test_dir = self.useFixture(fixtures.TempDir()).path
+        self.addCleanup(self.conf.reset)
+
+    def copy_data_file(self, file_name, dst_dir):
+        src_file_name = os.path.join('glance/store/tests/etc', file_name)
+        shutil.copy(src_file_name, dst_dir)
+        dst_file_name = os.path.join(dst_dir, file_name)
+        return dst_file_name
 
     def config(self, **kw):
         """Override some configuration values.
