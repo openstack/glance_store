@@ -7,9 +7,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: glance.store 2014.1.dev48.gad697aa\n"
+"Project-Id-Version: glance.store 0.0.1a1.1.ga360e0e\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2014-07-16 20:36+0200\n"
+"POT-Creation-Date: 2014-08-05 06:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -64,7 +64,7 @@ msgid ""
 " %(metadata)s.  %(e)s."
 msgstr ""
 
-#: glance/store/backend.py:369
+#: glance/store/backend.py:371
 msgid "Skipping store.set_acls... not implemented."
 msgstr ""
 
@@ -73,7 +73,7 @@ msgstr ""
 msgid "Caught '%(exception)s' exception."
 msgstr ""
 
-#: glance/store/driver.py:76
+#: glance/store/driver.py:77
 #, python-format
 msgid "Failed to configure store correctly: %s Disabling add method."
 msgstr ""
@@ -252,6 +252,21 @@ msgstr ""
 msgid ""
 "Image status transition from %(cur_status)s to %(new_status)s is not "
 "allowed"
+msgstr ""
+
+#: glance/store/common/auth.py:185 glance/store/common/auth.py:225
+#, python-format
+msgid "Unexpected response: %s"
+msgstr ""
+
+#: glance/store/common/auth.py:253
+#, python-format
+msgid "Unknown auth strategy '%s'"
+msgstr ""
+
+#: glance/store/common/auth.py:274
+#, python-format
+msgid "Encountered service with no \"type\": %s"
 msgstr ""
 
 #: glance/store/common/config.py:34
