@@ -105,7 +105,7 @@ class TestHttpStore(base.StoreBaseTest):
 
         uri = "http://netloc/path/to/file.tar.gz"
         loc = get_location_from_uri(uri)
-        self.assertRaises(exceptions.BadStoreUri, self.store.get, loc)
+        self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_http_delete_raise_error(self):
         uri = "https://netloc/path/to/file.tar.gz"

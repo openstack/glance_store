@@ -15,6 +15,7 @@
 
 import httplib
 import logging
+import socket
 import urlparse
 
 import glance.store.driver
@@ -145,9 +146,16 @@ class Store(glance.store.driver.Store):
                         from glance.store.location.get_location_from_uri()
         """
         try:
-            return self._query(location, 'HEAD')[2]
+            size = self._query(location, 'HEAD')[2]
+        except socket.error:
+            reason = _("The HTTP URL is invalid.")
+            LOG.info(reason)
+            raise exceptions.BadStoreUri(message=reason)
         except Exception:
+            # NOTE(flaper87): Catch more granular exceptions,
+            # keeping this branch for backwards compatibility.
             return 0
+        return size
 
     def _query(self, location, verb, depth=0):
         if depth > MAX_REDIRECTS:
@@ -163,6 +171,11 @@ class Store(glance.store.driver.Store):
 
         # Check for bad status codes
         if resp.status >= 400:
+            if resp.status == httplib.NOT_FOUND:
+                reason = _("HTTP datastore could not find image at URI.")
+                LOG.debug(reason)
+                raise exceptions.NotFound(message=reason)
+
             reason = (_("HTTP URL %(url)s returned a "
                         "%(status)s status code.") %
                       dict(url=loc.path, status=resp.status))
@@ -175,7 +188,7 @@ class Store(glance.store.driver.Store):
                 reason = (_("The HTTP URL %(url)s attempted to redirect "
                             "with an invalid %(status)s status code.") %
                           dict(url=loc.path, status=resp.status))
-                LOG.debug(reason)
+                LOG.info(reason)
                 raise exceptions.BadStoreUri(message=reason)
             location_class = glance.store.location.Location
             new_loc = location_class(location.store_name,
