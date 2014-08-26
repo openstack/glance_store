@@ -28,6 +28,7 @@ from oslo.config import cfg
 from glance.store.common import utils
 from glance.store import driver
 from glance.store import exceptions
+from glance.store import i18n
 from glance.store.i18n import _
 from glance.store import location
 
@@ -45,6 +46,7 @@ DEFAULT_CHUNKSIZE = 8  # in MiB
 DEFAULT_SNAPNAME = 'snap'
 
 LOG = logging.getLogger(__name__)
+_LI = i18n._LI
 
 _RBD_OPTS = [
     cfg.IntOpt('rbd_store_chunk_size', default=DEFAULT_CHUNKSIZE,
@@ -102,18 +104,18 @@ class StoreLocation(location.StoreLocation):
         prefix = 'rbd://'
         if not uri.startswith(prefix):
             reason = _('URI must start with rbd://')
-            msg = (_("Invalid URI: %(uri)s: %(reason)s") % {'uri': uri,
-                                                            'reason': reason})
-            LOG.debug(msg)
+            msg = _LI("Invalid URI: %s") % reason
+
+            LOG.info(msg)
             raise exceptions.BadStoreUri(message=reason)
         # convert to ascii since librbd doesn't handle unicode
         try:
             ascii_uri = str(uri)
         except UnicodeError:
             reason = _('URI contains non-ascii characters')
-            msg = (_("Invalid URI: %(uri)s: %(reason)s") % {'uri': uri,
-                                                            'reason': reason})
-            LOG.debug(msg)
+            msg = _LI("Invalid URI: %s") % reason
+
+            LOG.info(msg)
             raise exceptions.BadStoreUri(message=reason)
         pieces = ascii_uri[len(prefix):].split('/')
         if len(pieces) == 1:
@@ -124,15 +126,15 @@ class StoreLocation(location.StoreLocation):
                 map(urllib.unquote, pieces)
         else:
             reason = _('URI must have exactly 1 or 4 components')
-            msg = (_("Invalid URI: %(uri)s: %(reason)s") % {'uri': uri,
-                                                            'reason': reason})
-            LOG.debug(msg)
+            msg = _LI("Invalid URI: %s") % reason
+
+            LOG.info(msg)
             raise exceptions.BadStoreUri(message=reason)
         if any(map(lambda p: p == '', pieces)):
             reason = _('URI cannot contain empty components')
-            msg = (_("Invalid URI: %(uri)s: %(reason)s") % {'uri': uri,
-                                                            'reason': reason})
-            LOG.debug(msg)
+            msg = _LI("Invalid URI: %s") % reason
+
+            LOG.info(msg)
             raise exceptions.BadStoreUri(message=reason)
 
 

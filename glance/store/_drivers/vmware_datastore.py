@@ -187,8 +187,8 @@ class StoreLocation(location.StoreLocation):
         if not uri.startswith('%s://' % STORE_SCHEME):
             reason = (_("URI %(uri)s must start with %(scheme)s://") %
                       {'uri': uri, 'scheme': STORE_SCHEME})
-            LOG.error(reason)
-            raise exceptions.BadStoreUri(reason)
+            LOG.info(reason)
+            raise exceptions.BadStoreUri(message=reason)
         (self.scheme, self.server_host,
          path, params, query, fragment) = urlparse.urlparse(uri)
         if not query:
@@ -398,9 +398,9 @@ class Store(glance.store.Store):
                               {'image': location.image_id})
         if resp.status >= 400:
             if resp.status == httplib.NOT_FOUND:
-                msg = 'VMware datastore could not find image at URI.'
-                LOG.debug(msg)
-                raise exceptions.NotFound(message=msg)
+                reason = _('VMware datastore could not find image at URI.')
+                LOG.info(reason)
+                raise exceptions.NotFound(message=reason)
             msg = ('HTTP request returned a %(status)s status code.'
                    % {'status': resp.status})
             LOG.debug(msg)
@@ -408,11 +408,11 @@ class Store(glance.store.Store):
         location_header = resp.getheader('location')
         if location_header:
             if resp.status not in (301, 302):
-                msg = ("The HTTP URL %(path)s attempted to redirect "
-                       "with an invalid %(status)s status code."
-                       % {'path': loc.path, 'status': resp.status})
-                LOG.debug(msg)
-                raise exceptions.BadStoreUri(msg)
+                reason = (_("The HTTP URL %(path)s attempted to redirect "
+                            "with an invalid %(status)s status code.")
+                          % {'path': loc.path, 'status': resp.status})
+                LOG.info(reason)
+                raise exceptions.BadStoreUri(message=reason)
             location_class = glance.store.location.Location
             new_loc = location_class(location.store_name,
                                      location.store_location.__class__,

@@ -149,9 +149,10 @@ class StoreLocation(glance.store.location.StoreLocation):
         return "sheepdog://%s" % self.image
 
     def parse_uri(self, uri):
-        if not uri.startswith('sheepdog://'):
-            raise exceptions.BadStoreUri(uri, "URI must start with %s://" %
-                                         'sheepdog')
+        valid_schema = 'sheepdog://'
+        if not uri.startswith(valid_schema):
+            reason = _("URI must start with '%s://'") % valid_schema
+            raise exceptions.BadStoreUri(message=reason)
         self.image = uri[11:]
 
 
