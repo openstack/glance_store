@@ -179,7 +179,8 @@ class TestStore(base.StoreBaseTest):
                 location, size, checksum, _ = self.store.add(expected_image_id,
                                                              image,
                                                              expected_size)
-        self.assertEqual(expected_location, location)
+        self.assertEqual(utils.sort_url_by_qs_keys(expected_location),
+                         utils.sort_url_by_qs_keys(location))
         self.assertEqual(expected_size, size)
         self.assertEqual(expected_checksum, checksum)
 
@@ -208,7 +209,8 @@ class TestStore(base.StoreBaseTest):
                 HttpConn.return_value = FakeHTTPConnection()
                 location, size, checksum, _ = self.store.add(expected_image_id,
                                                              image, 0)
-        self.assertEqual(expected_location, location)
+        self.assertEqual(utils.sort_url_by_qs_keys(expected_location),
+                         utils.sort_url_by_qs_keys(location))
         self.assertEqual(expected_size, size)
         self.assertEqual(expected_checksum, checksum)
 
