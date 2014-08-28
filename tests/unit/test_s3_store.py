@@ -22,13 +22,13 @@ import uuid
 import boto.s3.connection
 import mock
 
-from glance.store import exceptions
-from glance.store.openstack.common import units
+from glance_store import exceptions
+from glance_store.openstack.common import units
 
-from glance.store._drivers import s3
-from glance.store.exceptions import UnsupportedBackend
-from glance.store.location import get_location_from_uri
-from glance.store.tests import base
+from glance_store._drivers import s3
+from glance_store.exceptions import UnsupportedBackend
+from glance_store.location import get_location_from_uri
+from glance_store.tests import base
 
 
 FAKE_UUID = str(uuid.uuid4())

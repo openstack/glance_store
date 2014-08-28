@@ -16,10 +16,10 @@
 import mock
 
 
-from glance.store._drivers import cinder
-from glance.store import exceptions
-from glance.store.location import get_location_from_uri
-from glance.store.tests import base
+from glance_store._drivers import cinder
+from glance_store import exceptions
+from glance_store.location import get_location_from_uri
+from glance_store.tests import base
 
 
 class FakeObject(object):

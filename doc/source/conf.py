@@ -24,7 +24,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'glance.store'
+project = u'glance_store'
 copyright = u'2014, OpenStack Foundation'
 
 # If true, '()' will be appended to :func: etc. cross-reference text.

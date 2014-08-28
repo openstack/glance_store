@@ -27,12 +27,12 @@ import uuid
 import fixtures
 import six
 
-from glance.store._drivers.filesystem import ChunkedFile
-from glance.store._drivers.filesystem import Store
-from glance.store import exceptions
-from glance.store.location import get_location_from_uri
-from glance.store.openstack.common import units
-from glance.store.tests import base
+from glance_store._drivers.filesystem import ChunkedFile
+from glance_store._drivers.filesystem import Store
+from glance_store import exceptions
+from glance_store.location import get_location_from_uri
+from glance_store.openstack.common import units
+from glance_store.tests import base
 
 
 KB = 1024

@@ -29,16 +29,16 @@ import six
 import stubout
 import swiftclient
 
-from glance.store._drivers.swift import store as swift
-from glance.store._drivers.swift import utils as sutils
-from glance.store import backend
-from glance.store import BackendException
-from glance.store.common import auth
-from glance.store import exceptions
-from glance.store.location import get_location_from_uri
-from glance.store.openstack.common import context
-from glance.store.openstack.common import units
-from glance.store.tests import base
+from glance_store._drivers.swift import store as swift
+from glance_store._drivers.swift import utils as sutils
+from glance_store import backend
+from glance_store import BackendException
+from glance_store.common import auth
+from glance_store import exceptions
+from glance_store.location import get_location_from_uri
+from glance_store.openstack.common import context
+from glance_store.openstack.common import units
+from glance_store.tests import base
 
 CONF = cfg.CONF
 

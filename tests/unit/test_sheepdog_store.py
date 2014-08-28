@@ -17,9 +17,9 @@ import StringIO
 
 import mock
 
-from glance.store._drivers import sheepdog
-from glance.store.openstack.common import processutils
-from glance.store.tests import base
+from glance_store._drivers import sheepdog
+from glance_store.openstack.common import processutils
+from glance_store.tests import base
 
 
 class TestSheepdogStore(base.StoreBaseTest):

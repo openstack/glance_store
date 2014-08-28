@@ -13,10 +13,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from glance import store
-from glance.store import driver
-from glance.store.openstack.common.gettextutils import _
-from glance.store.tests import base
+import glance_store as store
+from glance_store import driver
+from glance_store.openstack.common.gettextutils import _
+from glance_store.tests import base
 
 
 class TestStoreBase(base.StoreBaseTest):

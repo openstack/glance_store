@@ -17,8 +17,8 @@ import StringIO
 
 import mock
 
-from glance.store._drivers import gridfs as gfs
-from glance.store.tests import base
+from glance_store._drivers import gridfs as gfs
+from glance_store.tests import base
 
 try:
     import gridfs

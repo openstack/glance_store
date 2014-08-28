@@ -21,13 +21,13 @@ import uuid
 import mock
 import six
 
-import glance.store._drivers.vmware_datastore as vm_store
-from glance.store import backend
-from glance.store import exceptions
-from glance.store.location import get_location_from_uri
-from glance.store.openstack.common import units
-from glance.store.tests import base
-from glance.store.tests import utils
+import glance_store._drivers.vmware_datastore as vm_store
+from glance_store import backend
+from glance_store import exceptions
+from glance_store.location import get_location_from_uri
+from glance_store.openstack.common import units
+from glance_store.tests import base
+from glance_store.tests import utils
 
 
 FAKE_UUID = str(uuid.uuid4())
