@@ -55,6 +55,11 @@ class Store(object):
 
         try:
             if self.OPTIONS is not None:
+                # NOTE(flaper87): To be removed in k-2. This should
+                # give deployers enough time to migrate their systems
+                # and move configs under the new section.
+                for opt in self.OPTIONS:
+                    opt.deprecated_opts = [cfg.DeprecatedOpt(opt.name)]
                 self.conf.register_opts(self.OPTIONS, group='glance_store')
         except cfg.DuplicateOptError:
             pass
