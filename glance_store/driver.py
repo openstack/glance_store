@@ -59,7 +59,8 @@ class Store(object):
                 # give deployers enough time to migrate their systems
                 # and move configs under the new section.
                 for opt in self.OPTIONS:
-                    opt.deprecated_opts = [cfg.DeprecatedOpt(opt.name)]
+                    opt.deprecated_opts = [cfg.DeprecatedOpt(opt.name,
+                                                             group='DEFAULT')]
                 self.conf.register_opts(self.OPTIONS, group='glance_store')
         except cfg.DuplicateOptError:
             pass

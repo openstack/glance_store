@@ -43,7 +43,7 @@ _STORE_OPTS = [
 ]
 
 CONF = cfg.CONF
-_STORE_CFG_GROUP = "glance_store"
+_STORE_CFG_GROUP = 'glance_store'
 
 
 def _oslo_config_options():
@@ -53,10 +53,21 @@ def _oslo_config_options():
 def register_opts(conf):
     for opt, group in _oslo_config_options():
         conf.register_opt(opt, group=group)
+    register_store_opts(conf)
 
 
 def register_store_opts(conf):
-    list(_load_stores(conf))
+    for store_entry in set(conf.glance_store.stores):
+        store_cls = _load_store(conf, store_entry, False)
+
+        if store_cls.OPTIONS is not None:
+            # NOTE(flaper87): To be removed in k-2. This should
+            # give deployers enough time to migrate their systems
+            # and move configs under the new section.
+            for opt in store_cls.OPTIONS:
+                opt.deprecated_opts = [cfg.DeprecatedOpt(opt.name,
+                                                         group='DEFAULT')]
+                conf.register_opt(opt, group=_STORE_CFG_GROUP)
 
 
 class Indexable(object):
@@ -123,14 +134,14 @@ class Indexable(object):
         return self.size
 
 
-def _load_store(conf, store_entry):
+def _load_store(conf, store_entry, invoke_load=True):
     store_cls = None
     try:
         LOG.debug("Attempting to import store %s", store_entry)
         mgr = driver.DriverManager('glance_store.drivers',
                                    store_entry,
                                    invoke_args=[conf],
-                                   invoke_on_load=True)
+                                   invoke_on_load=invoke_load)
         return mgr.driver
     except RuntimeError as ex:
         LOG.warn("Failed to load driver %(driver)s."
