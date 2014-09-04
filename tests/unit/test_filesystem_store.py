@@ -82,6 +82,41 @@ class TestStore(base.StoreBaseTest):
         self.assertEqual(expected_data, data)
         self.assertEqual(expected_num_chunks, num_chunks)
 
+    def test_get_random_access(self):
+        """Test a "normal" retrieval of an image in chunks."""
+        # First add an image...
+        image_id = str(uuid.uuid4())
+        file_contents = "chunk00000remainder"
+        image_file = StringIO.StringIO(file_contents)
+
+        location, size, checksum, _ = self.store.add(image_id,
+                                                     image_file,
+                                                     len(file_contents))
+
+        # Now read it back...
+        uri = "file:///%s/%s" % (self.test_dir, image_id)
+        loc = get_location_from_uri(uri)
+
+        data = ""
+        for offset in range(len(file_contents)):
+            (image_file, image_size) = self.store.get(loc,
+                                                      offset=offset,
+                                                      chunk_size=1)
+            for chunk in image_file:
+                data += chunk
+
+        self.assertEqual(data, file_contents)
+
+        data = ""
+        (image_file, image_size) = self.store.get(loc,
+                                                  offset=5,
+                                                  chunk_size=5)
+        for chunk in image_file:
+            data += chunk
+
+        self.assertEqual(data, '00000')
+
+
     def test_get_non_existing(self):
         """
         Test that trying to retrieve a file that doesn't exist
