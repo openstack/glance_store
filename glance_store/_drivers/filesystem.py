@@ -88,10 +88,13 @@ class ChunkedFile(object):
     something that can iterate over a large file
     """
 
-    def __init__(self, filepath, chunk_size=None):
+    def __init__(self, filepath, offset=0, chunk_size=None, partial=False):
+        self.partial = partial
         self.filepath = filepath
         self.chunk_size = chunk_size
         self.fp = open(self.filepath, 'rb')
+        if offset:
+            self.fp.seek(offset)
 
     def __iter__(self):
         """Return an iterator over the image file"""
@@ -101,6 +104,9 @@ class ChunkedFile(object):
                     chunk = self.fp.read(self.chunk_size)
                     if chunk:
                         yield chunk
+
+                        if self.partial:
+                            break
                     else:
                         break
         finally:
@@ -315,7 +321,9 @@ class Store(glance_store.driver.Store):
         msg = _("Found image at %s. Returning in ChunkedFile.") % filepath
         LOG.debug(msg)
         return (ChunkedFile(filepath,
-                            chunk_size=chunk_size or self.READ_CHUNKSIZE),
+                            offset=offset,
+                            chunk_size=chunk_size or self.READ_CHUNKSIZE,
+                            partial=chunk_size is not None),
                 filesize)
 
     def get_size(self, location, context=None):
