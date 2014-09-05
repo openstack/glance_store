@@ -27,8 +27,8 @@ from glance_store import location
 LOG = logging.getLogger(__name__)
 
 _DEPRECATED_STORE_OPTS = [
-    cfg.DeprecatedOpt('known_stores'),
-    cfg.DeprecatedOpt('default_store')
+    cfg.DeprecatedOpt('known_stores', group='DEFAULT'),
+    cfg.DeprecatedOpt('default_store', group='DEFAULT')
 ]
 
 _STORE_OPTS = [
