@@ -65,7 +65,7 @@ def register_store_opts(conf):
             msg = _('Store %s not found') % store_entry
             raise exceptions.GlanceStoreException(message=msg)
 
-        if store_cls.OPTIONS is not None:
+        if getattr(store_cls, 'OPTIONS', None) is not None:
             # NOTE(flaper87): To be removed in k-2. This should
             # give deployers enough time to migrate their systems
             # and move configs under the new section.
