@@ -349,6 +349,8 @@ def Store(conf):
         return MultiTenantStore(conf)
     return SingleTenantStore(conf)
 
+Store.OPTIONS = _SWIFT_OPTS
+
 
 class BaseStore(driver.Store):
 

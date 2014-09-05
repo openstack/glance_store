@@ -51,7 +51,10 @@ LOG = logging.getLogger(__name__)
 
 
 CONF = cfg.CONF
-CONF.register_opts(swift_opts, group='glance_store')
+for opt in swift_opts:
+    opt.deprecated_opts = [cfg.DeprecatedOpt(opt.name,
+                                             group='DEFAULT')]
+    CONF.register_opt(opt, group='glance_store')
 
 
 def is_multiple_swift_store_accounts_enabled():
