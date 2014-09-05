@@ -58,7 +58,12 @@ def register_opts(conf):
 
 def register_store_opts(conf):
     for store_entry in set(conf.glance_store.stores):
+        LOG.debug("Registering options for %s" % store_entry)
         store_cls = _load_store(conf, store_entry, False)
+
+        if store_cls is None:
+            msg = _('Store %s not found') % store_entry
+            raise exceptions.GlanceStoreException(message=msg)
 
         if store_cls.OPTIONS is not None:
             # NOTE(flaper87): To be removed in k-2. This should
