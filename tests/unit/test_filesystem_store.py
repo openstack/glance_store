@@ -21,6 +21,7 @@ import hashlib
 import json
 import mock
 import os
+import stat
 import StringIO
 import uuid
 
@@ -446,3 +447,111 @@ class TestStore(base.StoreBaseTest):
             self.assertRaises(exceptions.StorageFull, self.store.add,
                               expected_image_id, image_file,
                               expected_file_size)
+
+    def test_configure_add_with_file_perm(self):
+        """
+        Tests filesystem specified by filesystem_store_file_perm
+        are parsed correctly.
+        """
+        store = self.useFixture(fixtures.TempDir()).path
+        self.conf.set_override('filesystem_store_datadir', store,
+                               group='glance_store')
+        self.conf.set_override('filesystem_store_file_perm', 700,  # -rwx------
+                               group='glance_store')
+        self.store.configure_add()
+        self.assertEqual(self.store.datadir, store)
+
+    def test_configure_add_with_unaccessible_file_perm(self):
+        """
+        Tests BadStoreConfiguration exception is raised if an invalid
+        file permission specified in filesystem_store_file_perm.
+        """
+        store = self.useFixture(fixtures.TempDir()).path
+        self.conf.set_override('filesystem_store_datadir', store,
+                               group='glance_store')
+        self.conf.set_override('filesystem_store_file_perm', 7,  # -------rwx
+                               group='glance_store')
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure_add)
+
+    def test_add_with_file_perm_for_group_other_users_access(self):
+        """
+        Test that we can add an image via the filesystem backend with a
+        required image file permission.
+        """
+        store = self.useFixture(fixtures.TempDir()).path
+        self.conf.set_override('filesystem_store_datadir', store,
+                               group='glance_store')
+        self.conf.set_override('filesystem_store_file_perm', 744,  # -rwxr--r--
+                               group='glance_store')
+
+        # -rwx------
+        os.chmod(store, 0o700)
+        self.assertEqual(0o700, stat.S_IMODE(os.stat(store)[stat.ST_MODE]))
+
+        self.store.configure_add()
+
+        Store.WRITE_CHUNKSIZE = 1024
+        expected_image_id = str(uuid.uuid4())
+        expected_file_size = 5 * units.Ki  # 5K
+        expected_file_contents = "*" * expected_file_size
+        expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_location = "file://%s/%s" % (store,
+                                              expected_image_id)
+        image_file = six.StringIO(expected_file_contents)
+
+        location, size, checksum, _ = self.store.add(expected_image_id,
+                                                     image_file,
+                                                     expected_file_size)
+
+        self.assertEqual(expected_location, location)
+        self.assertEqual(expected_file_size, size)
+        self.assertEqual(expected_checksum, checksum)
+
+        # -rwx--x--x for store directory
+        self.assertEqual(0o711, stat.S_IMODE(os.stat(store)[stat.ST_MODE]))
+        # -rwxr--r-- for image file
+        mode = os.stat(expected_location[len('file:/'):])[stat.ST_MODE]
+        perm = int(str(self.conf.glance_store.filesystem_store_file_perm), 8)
+        self.assertEqual(perm, stat.S_IMODE(mode))
+
+    def test_add_with_file_perm_for_owner_users_access(self):
+        """
+        Test that we can add an image via the filesystem backend with a
+        required image file permission.
+        """
+        store = self.useFixture(fixtures.TempDir()).path
+        self.conf.set_override('filesystem_store_datadir', store,
+                               group='glance_store')
+        self.conf.set_override('filesystem_store_file_perm', 600,  # -rw-------
+                               group='glance_store')
+
+        # -rwx------
+        os.chmod(store, 0o700)
+        self.assertEqual(0o700, stat.S_IMODE(os.stat(store)[stat.ST_MODE]))
+
+        self.store.configure_add()
+
+        Store.WRITE_CHUNKSIZE = 1024
+        expected_image_id = str(uuid.uuid4())
+        expected_file_size = 5 * units.Ki  # 5K
+        expected_file_contents = "*" * expected_file_size
+        expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_location = "file://%s/%s" % (store,
+                                              expected_image_id)
+        image_file = six.StringIO(expected_file_contents)
+
+        location, size, checksum, _ = self.store.add(expected_image_id,
+                                                     image_file,
+                                                     expected_file_size)
+
+        self.assertEqual(expected_location, location)
+        self.assertEqual(expected_file_size, size)
+        self.assertEqual(expected_checksum, checksum)
+
+        # -rwx------ for store directory
+        self.assertEqual(0o700, stat.S_IMODE(os.stat(store)[stat.ST_MODE]))
+        # -rw------- for image file
+        mode = os.stat(expected_location[len('file:/'):])[stat.ST_MODE]
+        perm = int(str(self.conf.glance_store.filesystem_store_file_perm), 8)
+        self.assertEqual(perm, stat.S_IMODE(mode))

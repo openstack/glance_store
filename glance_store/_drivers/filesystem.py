@@ -22,6 +22,7 @@ import errno
 import hashlib
 import logging
 import os
+import stat
 import urlparse
 
 from oslo.config import cfg
@@ -30,7 +31,7 @@ import glance_store
 from glance_store.common import utils
 import glance_store.driver
 from glance_store import exceptions
-from glance_store.i18n import _
+from glance_store import i18n
 import glance_store.location
 from glance_store.openstack.common import excutils
 from glance_store.openstack.common import jsonutils
@@ -39,6 +40,9 @@ from glance_store.openstack.common import units
 
 
 LOG = logging.getLogger(__name__)
+_ = i18n._
+_LE = i18n._LE
+_LW = i18n._LW
 
 _FILESYSTEM_CONFIGS = [
     cfg.StrOpt('filesystem_store_datadir',
@@ -51,7 +55,16 @@ _FILESYSTEM_CONFIGS = [
                help=_("The path to a file which contains the "
                       "metadata to be returned with any location "
                       "associated with this store.  The file must "
-                      "contain a valid JSON dict."))]
+                      "contain a valid JSON dict.")),
+    cfg.IntOpt('filesystem_store_file_perm',
+               default=0,
+               help=_("The required permission for created image file. "
+                      "In this way the user other service used, e.g. Nova, "
+                      "who consumes the image could be the exclusive member "
+                      "of the group that owns the files created. Assigning "
+                      "it less then or equal to zero means don't change the "
+                      "default permission of the file. This value will be "
+                      "decoded as an octal digit."))]
 
 
 class StoreLocation(glance_store.location.StoreLocation):
@@ -142,6 +155,35 @@ class Store(glance_store.driver.Store):
             raise exceptions.BadStoreConfiguration(
                 store_name="filesystem", reason=msg)
 
+    def _set_exec_permission(self, datadir):
+        """
+        Set the execution permission of owner-group and/or other-users to
+        image directory if the image file which contained needs relevant
+        access permissions.
+
+        :datadir is a directory path in which glance writes image files.
+        """
+
+        if self.conf.glance_store.filesystem_store_file_perm <= 0:
+            return
+
+        try:
+            mode = os.stat(datadir)[stat.ST_MODE]
+            perm = int(str(self.conf.glance_store.filesystem_store_file_perm),
+                       8)
+            if perm & stat.S_IRWXO > 0:
+                if not mode & stat.S_IXOTH:
+                    # chmod o+x
+                    mode |= stat.S_IXOTH
+                    os.chmod(datadir, mode)
+            if perm & stat.S_IRWXG > 0:
+                if not mode & stat.S_IXGRP:
+                    # chmod g+x
+                    os.chmod(datadir, mode | stat.S_IXGRP)
+        except (IOError, OSError):
+            LOG.warn(_LW("Unable to set execution permission of owner-group "
+                         "and/or other-users to datadir: %s") % datadir)
+
     def _create_image_directories(self, directory_paths):
         """
         Create directories to write image files if
@@ -153,6 +195,7 @@ class Store(glance_store.driver.Store):
         for datadir in directory_paths:
             if os.path.exists(datadir):
                 self._check_write_permission(datadir)
+                self._set_exec_permission(datadir)
             else:
                 msg = _("Directory to write image files does not exist "
                         "(%s). Creating.") % datadir
@@ -160,6 +203,7 @@ class Store(glance_store.driver.Store):
                 try:
                     os.makedirs(datadir)
                     self._check_write_permission(datadir)
+                    self._set_exec_permission(datadir)
                 except (IOError, OSError):
                     if os.path.exists(datadir):
                         # NOTE(markwash): If the path now exists, some other
@@ -167,6 +211,7 @@ class Store(glance_store.driver.Store):
                         # But it doesn't hurt, so we can safely ignore
                         # the error.
                         self._check_write_permission(datadir)
+                        self._set_exec_permission(datadir)
                         continue
                     reason = _("Unable to create datadir: %s") % datadir
                     LOG.error(reason)
@@ -196,6 +241,19 @@ class Store(glance_store.driver.Store):
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="filesystem",
                                                    reason=reason)
+
+        if self.conf.glance_store.filesystem_store_file_perm > 0:
+            perm = int(str(self.conf.glance_store.filesystem_store_file_perm),
+                       8)
+            if not perm & stat.S_IRUSR:
+                reason = _LE("Specified an invalid "
+                             "'filesystem_store_file_perm' option which "
+                             "could make image file to be unaccessible by "
+                             "glance service.")
+                LOG.error(reason)
+                reason = _("Invalid 'filesystem_store_file_perm' option.")
+                raise exceptions.BadStoreConfiguration(store_name="filesystem",
+                                                       reason=reason)
 
         self.multiple_datadirs = False
         directory_paths = set()
@@ -468,6 +526,16 @@ class Store(glance_store.driver.Store):
                   {'bytes_written': bytes_written,
                    'filepath': filepath,
                    'checksum_hex': checksum_hex})
+
+        if self.conf.glance_store.filesystem_store_file_perm > 0:
+            perm = int(str(self.conf.glance_store.filesystem_store_file_perm),
+                       8)
+            try:
+                os.chmod(filepath, perm)
+            except (IOError, OSError):
+                LOG.warn(_LW("Unable to set permission to image: %s") %
+                         filepath)
+
         return ('file://%s' % filepath, bytes_written, checksum_hex, metadata)
 
     @staticmethod

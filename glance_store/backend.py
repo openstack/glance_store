@@ -140,7 +140,6 @@ class Indexable(object):
 
 
 def _load_store(conf, store_entry, invoke_load=True):
-    store_cls = None
     try:
         LOG.debug("Attempting to import store %s", store_entry)
         mgr = driver.DriverManager('glance_store.drivers',
@@ -148,7 +147,7 @@ def _load_store(conf, store_entry, invoke_load=True):
                                    invoke_args=[conf],
                                    invoke_on_load=invoke_load)
         return mgr.driver
-    except RuntimeError as ex:
+    except RuntimeError:
         LOG.warn("Failed to load driver %(driver)s."
                  "The driver will be disabled" % dict(driver=driver))
 
@@ -176,7 +175,6 @@ def create_stores(conf=CONF):
     from the given config. Duplicates are not re-registered.
     """
     store_count = 0
-    store_classes = set()
 
     for (store_entry, store_instance) in _load_stores(conf):
         schemes = store_instance.get_schemes()
@@ -184,7 +182,7 @@ def create_stores(conf=CONF):
         if not schemes:
             raise exceptions.BackendException('Unable to register store %s. '
                                               'No schemes associated with it.'
-                                              % store_cls)
+                                              % store_entry)
         else:
             LOG.debug("Registering store %s with schemes %s",
                       store_entry, schemes)
