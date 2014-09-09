@@ -7,9 +7,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: glance_store 0.0.1a1.1.ga360e0e\n"
+"Project-Id-Version: glance_store 0.1.7.4.gf607390\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2014-08-05 06:00+0000\n"
+"POT-Creation-Date: 2014-09-09 06:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -28,43 +28,48 @@ msgid ""
 "by one of the stores defined by the 'stores' config option."
 msgstr ""
 
-#: glance_store/backend.py:194
+#: glance_store/backend.py:65
+#, python-format
+msgid "Store %s not found"
+msgstr ""
+
+#: glance_store/backend.py:208
 #, python-format
 msgid "Store for scheme %s not found"
 msgstr ""
 
-#: glance_store/backend.py:276
+#: glance_store/backend.py:290
 #, python-format
 msgid "Failed to delete image %s in store from URI"
 msgstr ""
 
-#: glance_store/backend.py:282
+#: glance_store/backend.py:296
 #, python-format
 msgid "Failed to delete image %(image_id)s from store (%(exc_type)s)"
 msgstr ""
 
-#: glance_store/backend.py:305
+#: glance_store/backend.py:319
 #, python-format
 msgid ""
 "The image metadata key %(key)s has an invalid type of %(type)s. Only "
 "dict, list, and unicode are supported."
 msgstr ""
 
-#: glance_store/backend.py:329
+#: glance_store/backend.py:343
 #, python-format
 msgid ""
 "The storage driver %(driver)s returned invalid  metadata %(metadata)s. "
 "This must be a dictionary type"
 msgstr ""
 
-#: glance_store/backend.py:337
+#: glance_store/backend.py:351
 #, python-format
 msgid ""
 "A bad metadata structure was returned from the %(driver)s storage driver:"
 " %(metadata)s.  %(e)s."
 msgstr ""
 
-#: glance_store/backend.py:371
+#: glance_store/backend.py:385
 msgid "Skipping store.set_acls... not implemented."
 msgstr ""
 
@@ -73,7 +78,7 @@ msgstr ""
 msgid "Caught '%(exception)s' exception."
 msgstr ""
 
-#: glance_store/driver.py:77
+#: glance_store/driver.py:83
 #, python-format
 msgid "Failed to configure store correctly: %s Disabling add method."
 msgstr ""
