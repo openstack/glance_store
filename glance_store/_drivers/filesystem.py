@@ -382,7 +382,7 @@ class Store(glance_store.driver.Store):
                             offset=offset,
                             chunk_size=chunk_size or self.READ_CHUNKSIZE,
                             partial=chunk_size is not None),
-                filesize)
+                chunk_size or filesize)
 
     def get_size(self, location, context=None):
         """

@@ -109,13 +109,15 @@ class TestStore(base.StoreBaseTest):
         self.assertEqual(data, file_contents)
 
         data = ""
+        chunk_size = 5
         (image_file, image_size) = self.store.get(loc,
-                                                  offset=5,
-                                                  chunk_size=5)
+                                                  offset=chunk_size,
+                                                  chunk_size=chunk_size)
         for chunk in image_file:
             data += chunk
 
         self.assertEqual(data, '00000')
+        self.assertEqual(image_size, chunk_size)
 
     def test_get_non_existing(self):
         """
