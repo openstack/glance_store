@@ -18,13 +18,16 @@ import sys
 
 from oslo.config import cfg
 from stevedore import driver
+from stevedore import extension
 
 from glance_store import exceptions
-from glance_store.i18n import _
+from glance_store import i18n
 from glance_store import location
 
 
 LOG = logging.getLogger(__name__)
+
+_ = i18n._
 
 _DEPRECATED_STORE_OPTS = [
     cfg.DeprecatedOpt('known_stores', group='DEFAULT'),
@@ -46,33 +49,38 @@ CONF = cfg.CONF
 _STORE_CFG_GROUP = 'glance_store'
 
 
-def _oslo_config_options():
-    return ((opt, _STORE_CFG_GROUP) for opt in _STORE_OPTS)
+def _list_opts():
+    driver_opts = []
+    mgr = extension.ExtensionManager('glance_store.drivers')
+    # NOTE(zhiyan): Handle available drivers entry_points provided
+    drivers = [ext.name for ext in mgr]
+    handled_drivers = []  # Used to handle backwards-compatible entries
+    for store_entry in drivers:
+        driver_cls = _load_store(None, store_entry, False)
+        if driver_cls and driver_cls not in handled_drivers:
+            if getattr(driver_cls, 'OPTIONS', None) is not None:
+                # NOTE(flaper87): To be removed in k-2. This should
+                # give deployers enough time to migrate their systems
+                # and move configs under the new section.
+                for opt in driver_cls.OPTIONS:
+                    opt.deprecated_opts = [cfg.DeprecatedOpt(opt.name,
+                                                             group='DEFAULT')]
+                    driver_opts.append(opt)
+            handled_drivers.append(driver_cls)
+
+    # NOTE(zhiyan): This separated approach could list
+    # store options before all driver ones, which easier
+    # to read and configure by operator.
+    return ([(_STORE_CFG_GROUP, _STORE_OPTS)] +
+            [(_STORE_CFG_GROUP, driver_opts)])
 
 
 def register_opts(conf):
-    for opt, group in _oslo_config_options():
-        conf.register_opt(opt, group=group)
-    register_store_opts(conf)
-
-
-def register_store_opts(conf):
-    for store_entry in set(conf.glance_store.stores):
-        LOG.debug("Registering options for %s" % store_entry)
-        store_cls = _load_store(conf, store_entry, False)
-
-        if store_cls is None:
-            msg = _('Store %s not found') % store_entry
-            raise exceptions.GlanceStoreException(message=msg)
-
-        if getattr(store_cls, 'OPTIONS', None) is not None:
-            # NOTE(flaper87): To be removed in k-2. This should
-            # give deployers enough time to migrate their systems
-            # and move configs under the new section.
-            for opt in store_cls.OPTIONS:
-                opt.deprecated_opts = [cfg.DeprecatedOpt(opt.name,
-                                                         group='DEFAULT')]
-                conf.register_opt(opt, group=_STORE_CFG_GROUP)
+    opts = _list_opts()
+    for group, opt_list in opts:
+        LOG.debug("Registering options for group %s" % group)
+        for opt in opt_list:
+            conf.register_opt(opt, group=group)
 
 
 class Indexable(object):
