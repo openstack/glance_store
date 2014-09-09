@@ -150,6 +150,7 @@ class TestStore(base.StoreBaseTest):
         rbd_store.rbd = MockRBD
 
         self.store = rbd_store.Store(self.conf)
+        self.store.configure()
         self.store.chunk_size = 2
         self.called_commands_actual = []
         self.called_commands_expected = []

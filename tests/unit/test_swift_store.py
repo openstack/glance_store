@@ -346,6 +346,7 @@ class SwiftTests(object):
             mock.Mock(return_value=False)
         reload(swift)
         self.store = Store(self.conf)
+        self.store.configure()
         expected_swift_size = FIVE_KB
         expected_swift_contents = "*" * expected_swift_size
         expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
@@ -382,6 +383,7 @@ class SwiftTests(object):
         self.config(**conf)
         reload(swift)
         self.store = Store(self.conf)
+        self.store.configure()
 
         expected_swift_size = FIVE_KB
         expected_swift_contents = "*" * expected_swift_size
@@ -430,6 +432,7 @@ class SwiftTests(object):
             self.config(**conf)
             reload(swift)
             self.store = Store(self.conf)
+            self.store.configure()
             location, size, checksum, _ = self.store.add(image_id, image_swift,
                                                          expected_swift_size)
 
@@ -459,6 +462,7 @@ class SwiftTests(object):
         reload(swift)
 
         self.store = Store(self.conf)
+        self.store.configure()
 
         image_swift = six.StringIO("nevergonnamakeit")
 
@@ -502,6 +506,7 @@ class SwiftTests(object):
         self.config(**conf)
         reload(swift)
         self.store = Store(self.conf)
+        self.store.configure()
         location, size, checksum, _ = self.store.add(expected_image_id,
                                                      image_swift,
                                                      expected_swift_size)
@@ -540,6 +545,7 @@ class SwiftTests(object):
         SWIFT_PUT_OBJECT_CALLS = 0
 
         self.store = Store(self.conf)
+        self.store.configure()
         orig_max_size = self.store.large_object_size
         orig_temp_size = self.store.large_object_chunk_size
         try:
@@ -594,6 +600,7 @@ class SwiftTests(object):
         # explicitly setting the image_length to 0
 
         self.store = Store(self.conf)
+        self.store.configure()
         orig_max_size = self.store.large_object_size
         orig_temp_size = self.store.large_object_chunk_size
         global MAX_SWIFT_OBJECT_SIZE
@@ -656,6 +663,7 @@ class SwiftTests(object):
                                         'authurl.com', 'user': '',
                                         'key': ''}}
         self.store = Store(self.conf)
+        self.store.configure()
         self.assertEqual(self.store.add, self.store.add_disabled)
 
     def test_no_auth_address(self):
@@ -667,6 +675,7 @@ class SwiftTests(object):
                                         'key': 'key1'}}
 
         self.store = Store(self.conf)
+        self.store.configure()
         self.assertEqual(self.store.add, self.store.add_disabled)
 
     def test_delete(self):
@@ -705,6 +714,7 @@ class SwiftTests(object):
         """
         self.config(swift_store_multi_tenant=True)
         store = Store(self.conf)
+        store.configure()
         uri = "swift+http://storeurl/glance/%s" % FAKE_UUID
         loc = get_location_from_uri(uri)
         ctxt = context.RequestContext()
@@ -720,6 +730,7 @@ class SwiftTests(object):
         """
         self.config(swift_store_multi_tenant=True)
         store = Store(self.conf)
+        store.configure()
         uri = "swift+http://storeurl/glance/%s" % FAKE_UUID
         loc = get_location_from_uri(uri)
         read_tenants = ['matt', 'mark']
@@ -736,6 +747,7 @@ class SwiftTests(object):
         """
         self.config(swift_store_multi_tenant=True)
         store = Store(self.conf)
+        store.configure()
         uri = "swift+http://storeurl/glance/%s" % FAKE_UUID
         loc = get_location_from_uri(uri)
         read_tenants = ['frank', 'jim']
@@ -829,6 +841,7 @@ class TestSingleTenantStoreConnections(base.StoreBaseTest):
         self.stubs = moxfixture.stubs
         self.stubs.Set(swiftclient, 'Connection', FakeConnection)
         self.store = swift.SingleTenantStore(self.conf)
+        self.store.configure()
         specs = {'scheme': 'swift',
                  'auth_or_store_url': 'example.com/v2/',
                  'user': 'tenant:user1',
@@ -1012,6 +1025,7 @@ class TestCreatingLocations(base.StoreBaseTest):
         reload(swift)
 
         store = swift.SingleTenantStore(self.conf)
+        store.configure()
         location = store.create_location('image-id')
         self.assertEqual(location.scheme, 'swift+https')
         self.assertEqual(location.swift_url, 'https://example.com')
@@ -1030,6 +1044,7 @@ class TestCreatingLocations(base.StoreBaseTest):
 
         swift.SWIFT_STORE_REF_PARAMS = sutils.SwiftParams().params
         store = swift.SingleTenantStore(self.conf)
+        store.configure()
         location = store.create_location('image-id')
         self.assertEqual(location.scheme, 'swift+http')
         self.assertEqual(location.swift_url, 'http://example.com')
@@ -1042,6 +1057,7 @@ class TestCreatingLocations(base.StoreBaseTest):
             user='user', tenant='tenant', auth_token='123',
             service_catalog={})
         store = swift.MultiTenantStore(self.conf)
+        store.configure()
         location = store.create_location('image-id', context=ctxt)
         self.assertEqual(location.scheme, 'swift+https')
         self.assertEqual(location.swift_url, 'https://some_endpoint')
@@ -1058,6 +1074,7 @@ class TestCreatingLocations(base.StoreBaseTest):
             user='user', tenant='tenant', auth_token='123',
             service_catalog={})
         store = swift.MultiTenantStore(self.conf)
+        store.configure()
         location = store.create_location('image-id', context=ctxt)
         self.assertEqual(location.scheme, 'swift+http')
         self.assertEqual(location.swift_url, 'http://some_endpoint')
@@ -1070,6 +1087,7 @@ class TestCreatingLocations(base.StoreBaseTest):
             user='user', tenant='tenant', auth_token='123',
             service_catalog={})
         store = swift.MultiTenantStore(self.conf)
+        store.configure()
         store._get_endpoint(ctxt)
         self.assertEqual(fake_get_endpoint.endpoint_region, 'WestCarolina')
 
@@ -1081,6 +1099,7 @@ class TestCreatingLocations(base.StoreBaseTest):
             user='user', tenant='tenant', auth_token='123',
             service_catalog={})
         store = swift.MultiTenantStore(self.conf)
+        store.configure()
         store._get_endpoint(ctxt)
         self.assertEqual(fake_get_endpoint.service_type, 'toy-store')
 
@@ -1092,6 +1111,7 @@ class TestCreatingLocations(base.StoreBaseTest):
             user='user', tenant='tenant', auth_token='123',
             service_catalog={})
         store = swift.MultiTenantStore(self.conf)
+        store.configure()
         store._get_endpoint(ctxt)
         self.assertEqual(fake_get_endpoint.endpoint_type, 'InternalURL')
 

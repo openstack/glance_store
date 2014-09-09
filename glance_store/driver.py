@@ -65,8 +65,6 @@ class Store(object):
         except cfg.DuplicateOptError:
             pass
 
-        self.configure()
-
     def configure(self):
         """
         Configure the Store to use the stored configuration options
