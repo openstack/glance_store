@@ -86,7 +86,7 @@ class TestStore(base.StoreBaseTest):
 
         vm_store.Store.CHUNKSIZE = 2
         self.config(default_store='vmware', stores=['vmware'])
-        backend.register_store_opts(self.conf)
+        backend.register_opts(self.conf)
         self.config(group='glance_store',
                     vmware_server_username='admin',
                     vmware_server_password='admin',
