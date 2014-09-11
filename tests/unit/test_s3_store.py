@@ -290,6 +290,7 @@ class TestStore(base.StoreBaseTest):
 
             self.config(**new_conf)
             self.store = s3.Store(self.conf)
+            self.store.configure()
             location, size, checksum, _ = self.store.add(expected_image_id,
                                                          image_s3,
                                                          expected_s3_size)
@@ -323,6 +324,7 @@ class TestStore(base.StoreBaseTest):
         try:
             self.config(**conf)
             self.store = s3.Store(self.conf)
+            self.store.configure()
             return self.store.add == self.store.add_disabled
         except Exception:
             return False
