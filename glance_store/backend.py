@@ -185,8 +185,11 @@ def create_stores(conf=CONF):
     store_count = 0
 
     for (store_entry, store_instance) in _load_stores(conf):
-        schemes = store_instance.get_schemes()
-        store_instance.configure()
+        try:
+            schemes = store_instance.get_schemes()
+            store_instance.configure()
+        except NotImplementedError:
+            continue
         if not schemes:
             raise exceptions.BackendException('Unable to register store %s. '
                                               'No schemes associated with it.'
