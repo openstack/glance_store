@@ -36,9 +36,7 @@ DEFAULT_ADDR = 'localhost'
 DEFAULT_PORT = 7000
 DEFAULT_CHUNKSIZE = 64  # in MiB
 
-LOG = logging.getLogger(__name__)
-
-sheepdog_opts = [
+_SHEEPDOG_OPTS = [
     cfg.IntOpt('sheepdog_store_chunk_size', default=DEFAULT_CHUNKSIZE,
                help=_('Images will be chunked into objects of this size '
                       '(in megabytes). For best performance, this should be '
@@ -48,9 +46,6 @@ sheepdog_opts = [
     cfg.StrOpt('sheepdog_store_address', default=DEFAULT_ADDR,
                help=_('IP address of sheep daemon.'))
 ]
-
-CONF = cfg.CONF
-CONF.register_opts(sheepdog_opts)
 
 
 class SheepdogImage:
@@ -178,6 +173,7 @@ class ImageIterator(object):
 class Store(glance_store.driver.Store):
     """Sheepdog backend adapter."""
 
+    OPTIONS = _SHEEPDOG_OPTS
     EXAMPLE_URL = "sheepdog://image"
 
     def get_schemes(self):
@@ -192,12 +188,13 @@ class Store(glance_store.driver.Store):
         """
 
         try:
-            self.chunk_size = CONF.sheepdog_store_chunk_size * units.Mi
+            chunk_size = self.conf.glance_store.sheepdog_store_chunk_size
+            self.chunk_size = chunk_size * units.Mi
             self.READ_CHUNKSIZE = self.chunk_size
             self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
 
-            self.addr = CONF.sheepdog_store_address
-            self.port = CONF.sheepdog_store_port
+            self.addr = self.conf.glance_store.sheepdog_store_address
+            self.port = self.conf.glance_store.sheepdog_store_port
         except cfg.ConfigFileValueError as e:
             reason = _("Error in store configuration: %s") % e
             LOG.error(reason)
