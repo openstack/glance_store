@@ -45,7 +45,7 @@ VMWARE_DS = {
     'vmware_datacenter_path': 'dc1',
     'vmware_datastore_name': 'ds1',
     'vmware_store_image_dir': '/openstack_glance',
-    'vmware_api_insecure': 'True'
+    'vmware_api_insecure': 'True',
 }
 
 
@@ -305,3 +305,49 @@ class TestStore(base.StoreBaseTest):
         self.assertEqual(expected_checksum, reader.checksum.hexdigest())
         self.assertEqual(image.len, reader.size)
         self.assertTrue(reader.closed)
+
+    def test_sanity_check_api_retry_count(self):
+        """Test that sanity check raises if api_retry_count is <= 0."""
+        self.store.conf.glance_store.vmware_api_retry_count = -1
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store._sanity_check)
+        self.store.conf.glance_store.vmware_api_retry_count = 0
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store._sanity_check)
+        self.store.conf.glance_store.vmware_api_retry_count = 1
+        try:
+            self.store._sanity_check()
+        except exceptions.BadStoreConfiguration:
+            self.fail()
+
+    def test_sanity_check_task_poll_interval(self):
+        """Test that sanity check raises if task_poll_interval is <= 0."""
+        self.store.conf.glance_store.vmware_task_poll_interval = -1
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store._sanity_check)
+        self.store.conf.glance_store.vmware_task_poll_interval = 0
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store._sanity_check)
+        self.store.conf.glance_store.vmware_task_poll_interval = 1
+        try:
+            self.store._sanity_check()
+        except exceptions.BadStoreConfiguration:
+            self.fail()
+
+    def test_retry_count(self):
+        expected_image_id = str(uuid.uuid4())
+        expected_size = FIVE_KB
+        expected_contents = "*" * expected_size
+        image = six.StringIO(expected_contents)
+        self.store._create_session = mock.Mock()
+        with mock.patch('httplib.HTTPConnection') as HttpConn:
+            HttpConn.return_value = FakeHTTPConnection(status=401)
+            try:
+                location, size, checksum, _ = self.store.add(expected_image_id,
+                                                             image,
+                                                             expected_size)
+            except exceptions.NotAuthenticated:
+                pass
+        self.assertEqual(
+            self.store.conf.glance_store.vmware_api_retry_count + 1,
+            self.store._create_session.call_count)
