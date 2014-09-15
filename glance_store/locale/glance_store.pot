@@ -7,9 +7,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: glance_store 0.1.7.4.gf607390\n"
+"Project-Id-Version: glance_store 0.1.7.14.g783a1c8\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2014-09-09 06:10+0000\n"
+"POT-Creation-Date: 2014-09-15 06:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,58 +18,53 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 1.3\n"
 
-#: glance_store/backend.py:36
+#: glance_store/backend.py:39
 msgid "List of stores enabled"
 msgstr ""
 
-#: glance_store/backend.py:39
+#: glance_store/backend.py:42
 msgid ""
 "Default scheme to use to store image data. The scheme must be registered "
 "by one of the stores defined by the 'stores' config option."
 msgstr ""
 
-#: glance_store/backend.py:65
-#, python-format
-msgid "Store %s not found"
-msgstr ""
-
-#: glance_store/backend.py:208
+#: glance_store/backend.py:216
 #, python-format
 msgid "Store for scheme %s not found"
 msgstr ""
 
-#: glance_store/backend.py:290
+#: glance_store/backend.py:298
 #, python-format
 msgid "Failed to delete image %s in store from URI"
 msgstr ""
 
-#: glance_store/backend.py:296
+#: glance_store/backend.py:304
 #, python-format
 msgid "Failed to delete image %(image_id)s from store (%(exc_type)s)"
 msgstr ""
 
-#: glance_store/backend.py:319
+#: glance_store/backend.py:327
 #, python-format
 msgid ""
 "The image metadata key %(key)s has an invalid type of %(type)s. Only "
 "dict, list, and unicode are supported."
 msgstr ""
 
-#: glance_store/backend.py:343
+#: glance_store/backend.py:351
 #, python-format
 msgid ""
 "The storage driver %(driver)s returned invalid  metadata %(metadata)s. "
 "This must be a dictionary type"
 msgstr ""
 
-#: glance_store/backend.py:351
+#: glance_store/backend.py:359
 #, python-format
 msgid ""
 "A bad metadata structure was returned from the %(driver)s storage driver:"
 " %(metadata)s.  %(e)s."
 msgstr ""
 
-#: glance_store/backend.py:385
+#: glance_store/backend.py:393
 msgid "Skipping store.set_acls... not implemented."
 msgstr ""
 
@@ -78,7 +73,7 @@ msgstr ""
 msgid "Caught '%(exception)s' exception."
 msgstr ""
 
-#: glance_store/driver.py:83
+#: glance_store/driver.py:81
 #, python-format
 msgid "Failed to configure store correctly: %s Disabling add method."
 msgstr ""
