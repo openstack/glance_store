@@ -340,10 +340,11 @@ class SwiftTests(object):
                           self.store.get,
                           loc)
 
+    @mock.patch('glance_store._drivers.swift.utils'
+                '.is_multiple_swift_store_accounts_enabled',
+                mock.Mock(return_value=False))
     def test_add(self):
         """Test that we can add an image via the swift backend"""
-        sutils.is_multiple_swift_store_accounts_enabled = \
-            mock.Mock(return_value=False)
         reload(swift)
         self.store = Store(self.conf)
         self.store.configure()
@@ -400,13 +401,14 @@ class SwiftTests(object):
                                                        expected_swift_size)
         self.assertEqual(expected_location, location)
 
+    @mock.patch('glance_store._drivers.swift.utils'
+                '.is_multiple_swift_store_accounts_enabled',
+                mock.Mock(return_value=True))
     def test_add_auth_url_variations(self):
         """
         Test that we can add an image via the swift backend with
         a variety of different auth_address values
         """
-        sutils.is_multiple_swift_store_accounts_enabled = \
-            mock.Mock(return_value=True)
         conf = copy.deepcopy(SWIFT_CONF)
         self.config(**conf)
 
@@ -482,13 +484,14 @@ class SwiftTests(object):
         self.assertTrue(exception_caught)
         self.assertEqual(SWIFT_PUT_OBJECT_CALLS, 0)
 
+    @mock.patch('glance_store._drivers.swift.utils'
+                '.is_multiple_swift_store_accounts_enabled',
+                mock.Mock(return_value=True))
     def test_add_no_container_and_create(self):
         """
         Tests that adding an image with a non-existing container
         creates the container automatically if flag is set
         """
-        sutils.is_multiple_swift_store_accounts_enabled = \
-            mock.Mock(return_value=True)
         expected_swift_size = FIVE_KB
         expected_swift_contents = "*" * expected_swift_size
         expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
@@ -524,6 +527,9 @@ class SwiftTests(object):
         self.assertEqual(expected_swift_contents, new_image_contents)
         self.assertEqual(expected_swift_size, new_image_swift_size)
 
+    @mock.patch('glance_store._drivers.swift.utils'
+                '.is_multiple_swift_store_accounts_enabled',
+                mock.Mock(return_value=True))
     def test_add_large_object(self):
         """
         Tests that adding a very large image. We simulate the large
@@ -531,8 +537,6 @@ class SwiftTests(object):
         and then verify that there have been a number of calls to
         put_object()...
         """
-        sutils.is_multiple_swift_store_accounts_enabled = \
-            mock.Mock(return_value=True)
         expected_swift_size = FIVE_KB
         expected_swift_contents = "*" * expected_swift_size
         expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
@@ -638,6 +642,7 @@ class SwiftTests(object):
         Tests that adding an image with an existing identifier
         raises an appropriate exception
         """
+        self.store.configure()
         image_swift = six.StringIO("nevergonnamakeit")
         self.assertRaises(exceptions.Duplicate,
                           self.store.add,
