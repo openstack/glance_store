@@ -78,7 +78,7 @@ class FakeGridFS(object):
 class TestStore(base.StoreBaseTest):
 
     def setUp(self):
-        """Establish a clean test environment"""
+        """Establish a clean test environment."""
         super(TestStore, self).setUp()
 
         if pymongo is not None:

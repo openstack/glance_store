@@ -269,7 +269,7 @@ class SwiftTests(object):
         self.assertEqual(size, 5120)
 
     def test_get(self):
-        """Test a "normal" retrieval of an image in chunks"""
+        """Test a "normal" retrieval of an image in chunks."""
         uri = "swift://%s:key@auth_address/glance/%s" % (
             self.swift_store_user, FAKE_UUID)
         loc = get_location_from_uri(uri)
@@ -344,7 +344,7 @@ class SwiftTests(object):
                 '.is_multiple_swift_store_accounts_enabled',
                 mock.Mock(return_value=False))
     def test_add(self):
-        """Test that we can add an image via the swift backend"""
+        """Test that we can add an image via the swift backend."""
         reload(swift)
         self.store = Store(self.conf)
         self.store.configure()
@@ -775,7 +775,7 @@ class TestStoreAuthV1(base.StoreBaseTest, SwiftTests):
         return conf
 
     def setUp(self):
-        """Establish a clean test environment"""
+        """Establish a clean test environment."""
         super(TestStoreAuthV1, self).setUp()
         conf = self.getConfig()
 

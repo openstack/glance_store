@@ -132,7 +132,7 @@ class Indexable(object):
         return self.chunk
 
     def another(self):
-        """Implemented by subclasses to return the next element"""
+        """Implemented by subclasses to return the next element."""
         raise NotImplementedError
 
     def getvalue(self):
@@ -222,7 +222,7 @@ def verify_default_store():
 
 
 def get_known_schemes():
-    """Returns list of known schemes"""
+    """Returns list of known schemes."""
     return location.SCHEME_TO_CLS_MAP.keys()
 
 
@@ -249,7 +249,7 @@ def get_store_from_uri(uri):
 
 
 def get_from_backend(uri, offset=0, chunk_size=None, context=None):
-    """Yields chunks of data from backend specified by uri"""
+    """Yields chunks of data from backend specified by uri."""
 
     loc = location.get_location_from_uri(uri)
     store = get_store_from_uri(uri)
@@ -263,7 +263,7 @@ def get_from_backend(uri, offset=0, chunk_size=None, context=None):
 
 
 def get_size_from_backend(uri, context=None):
-    """Retrieves image size from backend specified by uri"""
+    """Retrieves image size from backend specified by uri."""
 
     loc = location.get_location_from_uri(uri)
     store = get_store_from_uri(uri)
@@ -272,7 +272,7 @@ def get_size_from_backend(uri, context=None):
 
 
 def delete_from_backend(uri, context=None):
-    """Removes chunks of data from backend specified by uri"""
+    """Removes chunks of data from backend specified by uri."""
     loc = location.get_location_from_uri(uri)
     store = get_store_from_uri(uri)
 

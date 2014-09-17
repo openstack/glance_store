@@ -130,7 +130,7 @@ class TestStore(base.StoreBaseTest):
                           loc)
 
     def test_add(self):
-        """Test that we can add an image via the filesystem backend"""
+        """Test that we can add an image via the filesystem backend."""
         ChunkedFile.CHUNKSIZE = 1024
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * KB  # 5K
