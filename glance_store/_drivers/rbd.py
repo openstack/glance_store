@@ -189,7 +189,7 @@ class Store(driver.Store):
         """
         try:
             chunk = self.conf.glance_store.rbd_store_chunk_size
-            self.chunk_size = chunk * (1024 ^ 2)
+            self.chunk_size = chunk * (1024 ** 2)
             self.READ_CHUNKSIZE = self.chunk_size
             self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
 
