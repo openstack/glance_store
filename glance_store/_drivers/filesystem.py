@@ -26,6 +26,7 @@ import stat
 import urlparse
 
 from oslo.config import cfg
+from oslo.serialization import jsonutils
 
 import glance_store
 from glance_store.common import utils
@@ -34,7 +35,6 @@ from glance_store import exceptions
 from glance_store import i18n
 import glance_store.location
 from glance_store.openstack.common import excutils
-from glance_store.openstack.common import jsonutils
 from glance_store.openstack.common import processutils
 from glance_store.openstack.common import units
 

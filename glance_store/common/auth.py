@@ -31,10 +31,10 @@ Keystone (an identity management system).
 import httplib2
 import logging
 
+from oslo.serialization import jsonutils
 import six.moves.urllib.parse as urlparse
 
 from glance_store import exceptions
-from glance_store.openstack.common import jsonutils
 
 
 LOG = logging.getLogger(__name__)
