@@ -192,6 +192,7 @@ class Store(glance_store.driver.Store):
             location_class = glance_store.location.Location
             new_loc = location_class(location.store_name,
                                      location.store_location.__class__,
+                                     self.conf,
                                      uri=location_header,
                                      image_id=location.image_id,
                                      store_specs=location.store_specs)

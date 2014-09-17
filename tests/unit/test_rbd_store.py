@@ -156,7 +156,8 @@ class TestStore(base.StoreBaseTest):
         self.called_commands_expected = []
         self.store_specs = {'image': 'fake_image',
                             'snapshot': 'fake_snapshot'}
-        self.location = rbd_store.StoreLocation(self.store_specs)
+        self.location = rbd_store.StoreLocation(self.store_specs,
+                                                self.conf)
         # Provide enough data to get more than one chunk iteration.
         self.data_len = 3 * 1024
         self.data_iter = StringIO.StringIO('*' * self.data_len)
@@ -217,7 +218,8 @@ class TestStore(base.StoreBaseTest):
 
             self.store.delete(Location('test_rbd_store',
                                        rbd_store.StoreLocation,
-                                       self.location.get_uri()))
+                                       self.conf,
+                                       uri=self.location.get_uri()))
             self.called_commands_expected = ['remove']
 
     def test_delete_image(self):

@@ -40,20 +40,24 @@ credentials and is **not** user-facing.
 import logging
 import urlparse
 
+from oslo.config import cfg
+
 from glance_store import exceptions
 
+CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 
 SCHEME_TO_CLS_MAP = {}
 
 
-def get_location_from_uri(uri):
+def get_location_from_uri(uri, conf=CONF):
     """
     Given a URI, return a Location object that has had an appropriate
     store parse the URI.
 
     :param uri: A URI that could come from the end-user in the Location
-                attribute/header
+                attribute/header.
+    :param conf: The global configuration.
 
     Example URIs:
         https://user:pass@example.com:80/images/some-id
@@ -70,8 +74,8 @@ def get_location_from_uri(uri):
     if pieces.scheme not in SCHEME_TO_CLS_MAP.keys():
         raise exceptions.UnknownScheme(scheme=pieces.scheme)
     scheme_info = SCHEME_TO_CLS_MAP[pieces.scheme]
-    return Location(pieces.scheme, uri=uri,
-                    store_location_class=scheme_info['location_class'])
+    return Location(pieces.scheme, scheme_info['location_class'],
+                    conf, uri=uri)
 
 
 def register_scheme_map(scheme_map):
@@ -93,7 +97,7 @@ class Location(object):
     Class describing the location of an image that Glance knows about
     """
 
-    def __init__(self, store_name, store_location_class,
+    def __init__(self, store_name, store_location_class, conf,
                  uri=None, image_id=None, store_specs=None):
         """
         Create a new Location object.
@@ -111,7 +115,8 @@ class Location(object):
         self.store_name = store_name
         self.image_id = image_id
         self.store_specs = store_specs or {}
-        self.store_location = store_location_class(self.store_specs)
+        self.conf = conf
+        self.store_location = store_location_class(self.store_specs, conf)
         if uri:
             self.store_location.parse_uri(uri)
 
@@ -132,7 +137,8 @@ class StoreLocation(object):
     Base class that must be implemented by each store
     """
 
-    def __init__(self, store_specs):
+    def __init__(self, store_specs, conf):
+        self.conf = conf
         self.specs = store_specs
         if self.specs:
             self.process_specs()

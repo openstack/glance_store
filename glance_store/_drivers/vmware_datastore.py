@@ -311,7 +311,7 @@ class Store(glance_store.Store):
                              'image_dir': self.store_image_dir,
                              'datacenter_path': self.datacenter_path,
                              'datastore_name': self.datastore_name,
-                             'image_id': image_id})
+                             'image_id': image_id}, self.conf)
         # NOTE(arnaud): use a decorator when the config is not tied to self
         for i in range(self.api_retry_count + 1):
             cookie = self._build_vim_cookie_header(

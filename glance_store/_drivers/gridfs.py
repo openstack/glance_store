@@ -174,7 +174,7 @@ class Store(glance_store.driver.Store):
         :raises `glance_store.exceptions.Duplicate` if the image already
                 existed
         """
-        loc = StoreLocation({'image_id': image_id})
+        loc = StoreLocation({'image_id': image_id}, self.conf)
 
         if self.fs.exists(image_id):
             raise exceptions.Duplicate(_("GridFS already has an image at "

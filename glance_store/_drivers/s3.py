@@ -352,7 +352,7 @@ class Store(glance_store.driver.Store):
                              'key': image_id,
                              's3serviceurl': self.full_s3_host,
                              'accesskey': self.access_key,
-                             'secretkey': self.secret_key})
+                             'secretkey': self.secret_key}, self.conf)
 
         uformat = self.conf.glance_store.s3_store_bucket_url_format
         calling_format = get_calling_format(s3_store_bucket_url_format=uformat)
