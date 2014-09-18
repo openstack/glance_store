@@ -33,6 +33,7 @@ from glance_store._drivers.swift import utils as sutils
 from glance_store import backend
 from glance_store import BackendException
 from glance_store.common import auth
+from glance_store.common import utils
 from glance_store import exceptions
 from glance_store.location import get_location_from_uri
 from glance_store.openstack.common import context
@@ -479,7 +480,7 @@ class SwiftTests(object):
         except BackendException as e:
             exception_caught = True
             self.assertIn("container noexist does not exist "
-                          "in Swift", unicode(e))
+                          "in Swift", utils.exception_to_str(e))
         self.assertTrue(exception_caught)
         self.assertEqual(SWIFT_PUT_OBJECT_CALLS, 0)
 

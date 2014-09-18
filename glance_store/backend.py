@@ -20,6 +20,7 @@ from oslo.config import cfg
 from stevedore import driver
 from stevedore import extension
 
+from glance_store.common import utils
 from glance_store import exceptions
 from glance_store import i18n
 from glance_store import location
@@ -173,7 +174,7 @@ def _load_stores(conf):
 
             yield (store_entry, store_instance)
 
-        except exceptions.BadStoreConfiguration as e:
+        except exceptions.BadStoreConfiguration:
             continue
 
 
@@ -301,7 +302,7 @@ def safe_delete_from_backend(uri, image_id, context=None):
         msg = _('Failed to delete image %s in store from URI')
         LOG.warn(msg % image_id)
     except exceptions.StoreDeleteNotSupported as e:
-        LOG.warn(str(e))
+        LOG.warn(utils.exception_to_str(e))
     except exceptions.UnsupportedBackend:
         exc_type = sys.exc_info()[0].__name__
         msg = (_('Failed to delete image %(image_id)s '
@@ -361,9 +362,9 @@ def store_add_to_backend(image_id, data, size, store, context=None):
         except exceptions.BackendException as e:
             e_msg = (_("A bad metadata structure was returned from the "
                        "%(driver)s storage driver: %(metadata)s.  %(e)s.") %
-                     dict(driver=unicode(store),
-                          metadata=unicode(metadata),
-                          e=unicode(e)))
+                     dict(driver=utils.exception_to_str(store),
+                          metadata=utils.exception_to_str(metadata),
+                          e=utils.exception_to_str(e)))
             LOG.error(e_msg)
             raise exceptions.BackendException(e_msg)
     return (location, size, checksum, metadata)

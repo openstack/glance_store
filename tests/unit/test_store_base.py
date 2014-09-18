@@ -14,8 +14,6 @@
 #    under the License.
 
 import glance_store as store
-from glance_store import driver
-from glance_store.openstack.common.gettextutils import _
 from glance_store.tests import base
 
 
@@ -24,27 +22,6 @@ class TestStoreBase(base.StoreBaseTest):
     def setUp(self):
         super(TestStoreBase, self).setUp()
         self.config(default_store='file', group='glance_store')
-
-    def test_exception_to_unicode(self):
-        class FakeException(Exception):
-            def __str__(self):
-                raise UnicodeError()
-
-        exc = Exception('error message')
-        ret = driver._exception_to_unicode(exc)
-        self.assertIsInstance(ret, unicode)
-        self.assertEqual(ret, 'error message')
-
-        exc = Exception('\xa5 error message')
-        ret = driver._exception_to_unicode(exc)
-        self.assertIsInstance(ret, unicode)
-        self.assertEqual(ret, ' error message')
-
-        exc = FakeException('\xa5 error message')
-        ret = driver._exception_to_unicode(exc)
-        self.assertIsInstance(ret, unicode)
-        self.assertEqual(ret, _("Caught '%(exception)s' exception.") %
-                         {'exception': 'FakeException'})
 
     def test_create_store_exclude_unconfigurable_drivers(self):
         self.config(stores=["no_conf", "file"], group='glance_store')

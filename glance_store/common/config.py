@@ -26,6 +26,7 @@ from oslo.config import cfg
 from paste import deploy
 
 from glance.version import version_info as version
+from glance_store.common import utils
 
 paste_deploy_opts = [
     cfg.StrOpt('flavor',
@@ -213,6 +214,6 @@ def load_paste_app(app_name, flavor=None, conf_file=None):
                  "configuration file %(conf_file)s."
                  "\nGot: %(e)r") % {'app_name': app_name,
                                     'conf_file': conf_file,
-                                    'e': e})
+                                    'e': utils.exception_to_str(e)})
         logger.error(msg)
         raise RuntimeError(msg)

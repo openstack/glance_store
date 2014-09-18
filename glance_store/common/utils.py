@@ -25,6 +25,9 @@ try:
     from eventlet import sleep
 except ImportError:
     from time import sleep
+import six
+
+from glance_store.openstack.common import strutils
 
 
 LOG = logging.getLogger(__name__)
@@ -137,3 +140,15 @@ class CooperativeReader(object):
 
     def __iter__(self):
         return cooperative_iter(self.fd.__iter__())
+
+
+def exception_to_str(exc):
+    try:
+        error = six.text_type(exc)
+    except UnicodeError:
+        try:
+            error = str(exc)
+        except UnicodeError:
+            error = ("Caught '%(exception)s' exception." %
+                     {"exception": exc.__class__.__name__})
+    return strutils.safe_encode(error, errors='ignore')
