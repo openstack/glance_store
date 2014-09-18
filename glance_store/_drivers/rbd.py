@@ -148,7 +148,7 @@ class ImageIterator(object):
         self.pool = store.pool
         self.user = store.user
         self.conf_file = store.conf_file
-        self.chunk_size = chunk_size or store.chunk_size
+        self.chunk_size = chunk_size or store.READ_CHUNKSIZE
 
     def __iter__(self):
         try:
@@ -215,8 +215,8 @@ class Store(driver.Store):
         :raises `glance_store.exceptions.NotFound` if image does not exist
         """
         loc = location.store_location
-        return (ImageIterator(loc.image, self),
-                self.get_size(location), chunk_size)
+        return (ImageIterator(loc.image, self, chunk_size=chunk_size),
+                chunk_size or self.get_size(location))
 
     def get_size(self, location, context=None):
         """
