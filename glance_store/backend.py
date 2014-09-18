@@ -14,7 +14,6 @@
 #    under the License.
 
 import logging
-import sys
 
 from oslo.config import cfg
 from stevedore import driver
@@ -292,30 +291,6 @@ def get_store_from_location(uri):
     """
     loc = location.get_location_from_uri(uri)
     return loc.store_name
-
-
-def safe_delete_from_backend(uri, image_id, context=None):
-    """Given a uri, delete an image from the store."""
-    try:
-        return delete_from_backend(uri, context=context)
-    except exceptions.NotFound:
-        msg = _('Failed to delete image %s in store from URI')
-        LOG.warn(msg % image_id)
-    except exceptions.StoreDeleteNotSupported as e:
-        LOG.warn(utils.exception_to_str(e))
-    except exceptions.UnsupportedBackend:
-        exc_type = sys.exc_info()[0].__name__
-        msg = (_('Failed to delete image %(image_id)s '
-                 'from store (%(exc_type)s)') %
-               dict(image_id=image_id, exc_type=exc_type))
-        LOG.error(msg)
-
-
-def _delete_image_from_backend(context, store_api, image_id, uri):
-    if CONF.delayed_delete:
-        store_api.schedule_delayed_delete_from_backend(context, uri, image_id)
-    else:
-        store_api.safe_delete_from_backend(context, uri, image_id)
 
 
 def check_location_metadata(val, key=''):
