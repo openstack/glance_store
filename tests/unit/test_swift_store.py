@@ -26,7 +26,6 @@ import uuid
 from oslo.config import cfg
 from oslotest import moxstubout
 import six
-import stubout
 import swiftclient
 
 from glance_store._drivers.swift import store as swift
@@ -783,12 +782,12 @@ class TestStoreAuthV1(base.StoreBaseTest, SwiftTests):
         self.swift_config_file = self.copy_data_file(conf_file, self.test_dir)
         conf.update({'swift_store_config_file': self.swift_config_file})
 
-        self.stubs = stubout.StubOutForTesting()
+        moxfixture = self.useFixture(moxstubout.MoxStubout())
+        self.stubs = moxfixture.stubs
         stub_out_swiftclient(self.stubs, conf['swift_store_auth_version'])
         self.store = Store(self.conf)
         self.config(**conf)
         self.store.configure()
-        self.addCleanup(self.stubs.UnsetAll)
         self.register_store_schemes(self.store)
         swift.SWIFT_STORE_REF_PARAMS = sutils.SwiftParams().params
         self.addCleanup(self.conf.reset)
