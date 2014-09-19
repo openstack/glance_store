@@ -265,14 +265,10 @@ class TestStore(base.StoreBaseTest):
         """
         variations = ['http://localhost:80',
                       'http://localhost',
-                      'http://localhost/v1',
-                      'http://localhost/v1/',
                       'https://localhost',
                       'https://localhost:8080',
-                      'https://localhost/v1',
-                      'https://localhost/v1/',
                       'localhost',
-                      'localhost:8080/v1']
+                      'localhost:8080']
         for variation in variations:
             expected_image_id = str(uuid.uuid4())
             expected_s3_size = FIVE_KB
