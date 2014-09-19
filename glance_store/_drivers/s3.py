@@ -362,7 +362,7 @@ class Store(glance_store.driver.Store):
                                is_secure=(loc.scheme == 's3+https'),
                                calling_format=calling_format)
 
-        create_bucket_if_missing(self.bucket, s3_conn)
+        create_bucket_if_missing(self.conf, self.bucket, s3_conn)
 
         bucket_obj = get_bucket(s3_conn, self.bucket)
         obj_name = str(image_id)
@@ -498,11 +498,12 @@ def get_s3_location(s3_host):
     return locations.get(key, Location.DEFAULT)
 
 
-def create_bucket_if_missing(bucket, s3_conn):
+def create_bucket_if_missing(conf, bucket, s3_conn):
     """
     Creates a missing bucket in S3 if the
     ``s3_store_create_bucket_on_put`` option is set.
 
+    :param conf: Configuration
     :param bucket: Name of bucket to create
     :param s3_conn: Connection to S3
     """
@@ -511,8 +512,8 @@ def create_bucket_if_missing(bucket, s3_conn):
         s3_conn.get_bucket(bucket)
     except S3ResponseError as e:
         if e.status == httplib.NOT_FOUND:
-            if self.conf.glance_store.s3_store_create_bucket_on_put:
-                host = self.conf.glance_store.s3_store_host
+            if conf.glance_store.s3_store_create_bucket_on_put:
+                host = conf.glance_store.s3_store_host
                 location = get_s3_location(host)
                 try:
                     s3_conn.create_bucket(bucket, location=location)

@@ -33,6 +33,7 @@ import logging
 
 import six.moves.urllib.parse as urlparse
 
+from glance_store import exceptions
 from glance_store.openstack.common import jsonutils
 
 
@@ -84,14 +85,14 @@ class KeystoneStrategy(BaseStrategy):
         for required in ('username', 'password', 'auth_url',
                          'strategy'):
             if self.creds.get(required) is None:
-                raise exception.MissingCredentialError(required=required)
+                raise exceptions.MissingCredentialError(required=required)
         if self.creds['strategy'] != 'keystone':
-            raise exception.BadAuthStrategy(expected='keystone',
-                                            received=self.creds['strategy'])
+            raise exceptions.BadAuthStrategy(expected='keystone',
+                                             received=self.creds['strategy'])
         # For v2.0 also check tenant is present
         if self.creds['auth_url'].rstrip('/').endswith('v2.0'):
             if self.creds.get("tenant") is None:
-                raise exception.MissingCredentialError(required='tenant')
+                raise exceptions.MissingCredentialError(required='tenant')
 
     def authenticate(self):
         """Authenticate with the Keystone service.
@@ -125,10 +126,10 @@ class KeystoneStrategy(BaseStrategy):
         for _ in range(self.MAX_REDIRECTS):
             try:
                 _authenticate(auth_url)
-            except exception.AuthorizationRedirect as e:
+            except exceptions.AuthorizationRedirect as e:
                 # 2. Keystone may redirect us
                 auth_url = e.url
-            except exception.AuthorizationFailure:
+            except exceptions.AuthorizationFailure:
                 # 3. In some configurations nova makes redirection to
                 # v2.0 keystone endpoint. Also, new location does not
                 # contain real endpoint, only hostname and port.
@@ -141,7 +142,7 @@ class KeystoneStrategy(BaseStrategy):
                 break
         else:
             # Guard against a redirection loop
-            raise exception.MaxRedirectsExceeded(redirects=self.MAX_REDIRECTS)
+            raise exceptions.MaxRedirectsExceeded(redirects=self.MAX_REDIRECTS)
 
     def _v1_auth(self, token_url):
         creds = self.creds
@@ -172,15 +173,15 @@ class KeystoneStrategy(BaseStrategy):
                     self.management_url = _management_url(self, resp)
                 self.auth_token = resp['x-auth-token']
             except KeyError:
-                raise exception.AuthorizationFailure()
+                raise exceptions.AuthorizationFailure()
         elif resp.status == 305:
-            raise exception.AuthorizationRedirect(uri=resp['location'])
+            raise exceptions.AuthorizationRedirect(uri=resp['location'])
         elif resp.status == 400:
-            raise exception.AuthBadRequest(url=token_url)
+            raise exceptions.AuthBadRequest(url=token_url)
         elif resp.status == 401:
-            raise exception.NotAuthenticated()
+            raise exceptions.NotAuthenticated()
         elif resp.status == 404:
-            raise exception.AuthUrlNotFound(url=token_url)
+            raise exceptions.AuthUrlNotFound(url=token_url)
         else:
             raise Exception(_('Unexpected response: %s') % resp.status)
 
@@ -214,13 +215,13 @@ class KeystoneStrategy(BaseStrategy):
                 self.management_url = endpoint
             self.auth_token = resp_auth['token']['id']
         elif resp.status == 305:
-            raise exception.RedirectException(resp['location'])
+            raise exceptions.RedirectException(resp['location'])
         elif resp.status == 400:
-            raise exception.AuthBadRequest(url=token_url)
+            raise exceptions.AuthBadRequest(url=token_url)
         elif resp.status == 401:
-            raise exception.NotAuthenticated()
+            raise exceptions.NotAuthenticated()
         elif resp.status == 404:
-            raise exception.AuthUrlNotFound(url=token_url)
+            raise exceptions.AuthUrlNotFound(url=token_url)
         else:
             raise Exception(_('Unexpected response: %s') % resp.status)
 
@@ -280,9 +281,10 @@ def get_endpoint(service_catalog, service_type='image', endpoint_region=None,
                 if endpoint_region is None or endpoint_region == ep['region']:
                     if endpoint is not None:
                         # This is a second match, abort
-                        raise exception.RegionAmbiguity(region=endpoint_region)
+                        exc = exceptions.RegionAmbiguity
+                        raise exc(region=endpoint_region)
                     endpoint = ep
     if endpoint and endpoint.get(endpoint_type):
         return endpoint[endpoint_type]
     else:
-        raise exception.NoServiceEndpoint()
+        raise exceptions.NoServiceEndpoint()

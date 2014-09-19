@@ -15,7 +15,11 @@
 
 """Glance Store exception subclasses"""
 
-from glance_store.i18n import _
+import six.moves.urllib.parse as urlparse
+
+from glance_store import i18n
+
+_ = i18n._
 
 
 class BackendException(Exception):
@@ -24,6 +28,11 @@ class BackendException(Exception):
 
 class UnsupportedBackend(BackendException):
     pass
+
+
+class RedirectException(Exception):
+    def __init__(self, url):
+        self.url = urlparse.urlparse(url)
 
 
 class GlanceStoreException(Exception):
@@ -49,6 +58,10 @@ class MissingCredentialError(GlanceStoreException):
 class BadAuthStrategy(GlanceStoreException):
     message = _("Incorrect auth strategy, expected \"%(expected)s\" but "
                 "received \"%(received)s\"")
+
+
+class AuthorizationRedirect(GlanceStoreException):
+    message = _("Redirecting to %(uri)s for authorization.")
 
 
 class NotFound(GlanceStoreException):
