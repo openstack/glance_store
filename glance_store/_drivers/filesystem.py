@@ -545,4 +545,4 @@ class Store(glance_store.driver.Store):
         except Exception as e:
             msg = _('Unable to remove partial image '
                     'data for image %(iid)s: %(e)s')
-            LOG.error(msg % dict(iid=iid, e=e))
+            LOG.error(msg % dict(iid=iid, e=utils.exception_to_str(e)))

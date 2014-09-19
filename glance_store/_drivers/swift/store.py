@@ -28,6 +28,7 @@ import urllib
 import glance_store
 from glance_store._drivers.swift import utils as sutils
 from glance_store.common import auth
+from glance_store.common import utils as cutils
 from glance_store import driver
 from glance_store import exceptions
 from glance_store import i18n
@@ -118,7 +119,8 @@ def swift_retry_iter(resp_iter, length, store, location, context):
                 yield chunk
                 bytes_read += len(chunk)
         except swiftclient.ClientException as e:
-            LOG.warn(_(u"Swift exception raised %s") % unicode(e))
+            LOG.warn(_("Swift exception raised %s") %
+                     cutils.exception_to_str(e))
 
         if bytes_read != length:
             if retries == store.conf.glance_store.swift_store_retry_get_count:
@@ -578,7 +580,7 @@ class BaseStore(driver.Store):
                 raise exceptions.Duplicate(message=msg)
 
             msg = (_(u"Failed to add object to Swift.\n"
-                     "Got error from Swift: %s") % unicode(e))
+                     "Got error from Swift: %s.") % cutils.exception_to_str(e))
             LOG.error(msg)
             raise glance_store.BackendException(msg)
 
@@ -643,7 +645,8 @@ class BaseStore(driver.Store):
                         connection.put_container(container)
                     except swiftclient.ClientException as e:
                         msg = (_("Failed to add container to Swift.\n"
-                                 "Got error from Swift: %(e)s") % {'e': e})
+                                 "Got error from Swift: %s.") %
+                               cutils.exception_to_str(e))
                         raise glance_store.BackendException(msg)
                 else:
                     msg = (_("The container %(container)s does not exist in "

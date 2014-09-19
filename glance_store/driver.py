@@ -20,24 +20,12 @@ import logging
 
 from oslo.config import cfg
 
+from glance_store.common import utils
 from glance_store import exceptions
 from glance_store.i18n import _
 from glance_store.openstack.common import importutils
-from glance_store.openstack.common import strutils
 
 LOG = logging.getLogger(__name__)
-
-
-def _exception_to_unicode(exc):
-    try:
-        return unicode(exc)
-    except UnicodeError:
-        try:
-            return strutils.safe_decode(str(exc), errors='ignore')
-        except UnicodeError:
-            msg = (_("Caught '%(exception)s' exception.") %
-                   {"exception": exc.__class__.__name__})
-            return strutils.safe_decode(msg, errors='ignore')
 
 
 class Store(object):
@@ -79,7 +67,7 @@ class Store(object):
             self._add = self.add
             self.add = self.add_disabled
             msg = (_(u"Failed to configure store correctly: %s "
-                     "Disabling add method.") % _exception_to_unicode(e))
+                     "Disabling add method.") % utils.exception_to_str(e))
             LOG.warn(msg)
 
     def get_schemes(self):
