@@ -143,7 +143,7 @@ class MockRBD(object):
 
 class TestStore(base.StoreBaseTest):
     def setUp(self):
-        """Establish a clean test environment"""
+        """Establish a clean test environment."""
         super(TestStore, self).setUp()
 
         rbd_store.rados = MockRados

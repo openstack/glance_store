@@ -19,7 +19,7 @@ from glance_store.common import utils
 
 
 class TestUtils(base.BaseTestCase):
-    """Test routines in glance_store.common.utils"""
+    """Test routines in glance_store.common.utils."""
 
     def test_exception_to_str(self):
         class FakeException(Exception):

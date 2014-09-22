@@ -148,7 +148,7 @@ def format_s3_location(user, key, authurl, bucket, obj):
 class TestStore(base.StoreBaseTest):
 
     def setUp(self):
-        """Establish a clean test environment"""
+        """Establish a clean test environment."""
         super(TestStore, self).setUp()
         self.store = s3.Store(self.conf)
         self.config(**S3_CONF)
@@ -168,7 +168,7 @@ class TestStore(base.StoreBaseTest):
         self.addCleanup(bucket.stop)
 
     def test_get(self):
-        """Test a "normal" retrieval of an image in chunks"""
+        """Test a "normal" retrieval of an image in chunks."""
         loc = get_location_from_uri(
             "s3://user:key@auth_address/glance/%s" % FAKE_UUID)
         (image_s3, image_size) = self.store.get(loc)
@@ -183,7 +183,7 @@ class TestStore(base.StoreBaseTest):
         self.assertEqual(expected_data, data)
 
     def test_get_calling_format_path(self):
-        """Test a "normal" retrieval of an image in chunks"""
+        """Test a "normal" retrieval of an image in chunks."""
         self.config(s3_store_bucket_url_format='path')
 
         def fake_S3Connection_init(*args, **kwargs):
@@ -199,7 +199,7 @@ class TestStore(base.StoreBaseTest):
             (image_s3, image_size) = self.store.get(loc)
 
     def test_get_calling_format_default(self):
-        """Test a "normal" retrieval of an image in chunks"""
+        """Test a "normal" retrieval of an image in chunks."""
 
         def fake_S3Connection_init(*args, **kwargs):
             expected_cls = boto.s3.connection.SubdomainCallingFormat
@@ -227,7 +227,7 @@ class TestStore(base.StoreBaseTest):
         self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_add(self):
-        """Test that we can add an image via the s3 backend"""
+        """Test that we can add an image via the s3 backend."""
         expected_image_id = str(uuid.uuid4())
         expected_s3_size = FIVE_KB
         expected_s3_contents = "*" * expected_s3_size

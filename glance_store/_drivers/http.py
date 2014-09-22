@@ -31,7 +31,7 @@ MAX_REDIRECTS = 5
 
 class StoreLocation(glance_store.location.StoreLocation):
 
-    """Class describing an HTTP(S) URI"""
+    """Class describing an HTTP(S) URI."""
 
     def process_specs(self):
         self.scheme = self.specs.get('scheme', 'http')

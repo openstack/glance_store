@@ -179,7 +179,7 @@ class ChunkedFile(object):
         self.chunk_size = chunk_size
 
     def __iter__(self):
-        """Return an iterator over the image file"""
+        """Return an iterator over the image file."""
         try:
             if self.fp:
                 while True:

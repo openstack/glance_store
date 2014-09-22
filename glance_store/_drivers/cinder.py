@@ -102,7 +102,7 @@ def get_cinderclient(conf, context):
 
 class StoreLocation(glance_store.location.StoreLocation):
 
-    """Class describing a Cinder URI"""
+    """Class describing a Cinder URI."""
 
     def process_specs(self):
         self.scheme = self.specs.get('scheme', 'cinder')

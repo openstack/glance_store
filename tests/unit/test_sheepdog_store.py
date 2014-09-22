@@ -25,7 +25,7 @@ from glance_store.tests import base
 class TestSheepdogStore(base.StoreBaseTest):
 
     def setUp(self):
-        """Establish a clean test environment"""
+        """Establish a clean test environment."""
         super(TestSheepdogStore, self).setUp()
 
         def _fake_execute(*cmd, **kwargs):

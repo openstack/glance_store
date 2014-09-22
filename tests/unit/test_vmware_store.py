@@ -81,7 +81,7 @@ class TestStore(base.StoreBaseTest):
 
     @mock.patch('oslo.vmware.api.VMwareAPISession', auptospec=True)
     def setUp(self, mock_session):
-        """Establish a clean test environment"""
+        """Establish a clean test environment."""
         super(TestStore, self).setUp()
 
         vm_store.Store.CHUNKSIZE = 2
@@ -131,7 +131,7 @@ class TestStore(base.StoreBaseTest):
         vm_store.Store._build_vim_cookie_header = mock.Mock()
 
     def test_get(self):
-        """Test a "normal" retrieval of an image in chunks"""
+        """Test a "normal" retrieval of an image in chunks."""
         expected_image_size = 31
         expected_returns = ['I ', 'am', ' a', ' t', 'ea', 'po', 't,', ' s',
                             'ho', 'rt', ' a', 'nd', ' s', 'to', 'ut', '\n']
@@ -158,7 +158,7 @@ class TestStore(base.StoreBaseTest):
 
     @mock.patch.object(vm_store._Reader, 'size')
     def test_add(self, fake_size):
-        """Test that we can add an image via the VMware backend"""
+        """Test that we can add an image via the VMware backend."""
         expected_image_id = str(uuid.uuid4())
         expected_size = FIVE_KB
         expected_contents = "*" * expected_size
@@ -215,7 +215,7 @@ class TestStore(base.StoreBaseTest):
         self.assertEqual(expected_checksum, checksum)
 
     def test_delete(self):
-        """Test we can delete an existing image in the VMware store"""
+        """Test we can delete an existing image in the VMware store."""
         loc = get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s?"
             "dsName=ds1&dcPath=dc1" % FAKE_UUID)
@@ -228,7 +228,9 @@ class TestStore(base.StoreBaseTest):
             self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_get_size(self):
-        """Test we can get the size of an existing image in the VMware store"""
+        """
+        Test we can get the size of an existing image in the VMware store
+        """
         loc = get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s"
             "?dsName=ds1&dcPath=dc1" % FAKE_UUID)
