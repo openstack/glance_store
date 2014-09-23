@@ -610,8 +610,13 @@ class BaseStore(driver.Store):
                     # since we're simply sending off parallelizable requests
                     # to Swift to delete stuff. It's not like we're going to
                     # be hogging up network or file I/O here...
-                    connection.delete_object(obj_container,
-                                             segment['name'])
+                    try:
+                        connection.delete_object(obj_container,
+                                                 segment['name'])
+                    except swiftclient.ClientException as e:
+                        msg = _('Unable to delete segment %(segment_name)s')
+                        msg = msg % {'segment_name': segment['name']}
+                        LOG.exception(msg)
 
             # Delete object (or, in segmented case, the manifest)
             connection.delete_object(location.container, location.obj)
