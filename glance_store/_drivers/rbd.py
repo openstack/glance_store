@@ -143,9 +143,10 @@ class ImageIterator(object):
     Reads data from an RBD image, one chunk at a time.
     """
 
-    def __init__(self, name, store, chunk_size=None):
+    def __init__(self, pool, name, snapshot, store, chunk_size=None):
+        self.pool = pool or store.pool
         self.name = name
-        self.pool = store.pool
+        self.snapshot = snapshot
         self.user = store.user
         self.conf_file = store.conf_file
         self.chunk_size = chunk_size or store.READ_CHUNKSIZE
@@ -155,7 +156,8 @@ class ImageIterator(object):
             with rados.Rados(conffile=self.conf_file,
                              rados_id=self.user) as conn:
                 with conn.open_ioctx(self.pool) as ioctx:
-                    with rbd.Image(ioctx, self.name) as image:
+                    with rbd.Image(ioctx, self.name,
+                                   snapshot=self.snapshot) as image:
                         img_info = image.stat()
                         size = img_info['size']
                         bytes_left = size
@@ -215,7 +217,8 @@ class Store(driver.Store):
         :raises `glance_store.exceptions.NotFound` if image does not exist
         """
         loc = location.store_location
-        return (ImageIterator(loc.image, self, chunk_size=chunk_size),
+        return (ImageIterator(loc.pool, loc.image, loc.snapshot,
+                              self, chunk_size=chunk_size),
                 chunk_size or self.get_size(location))
 
     def get_size(self, location, context=None):
@@ -228,9 +231,12 @@ class Store(driver.Store):
         :raises `glance_store.exceptions.NotFound` if image does not exist
         """
         loc = location.store_location
+        # if there is a pool specific in the location, use it; otherwise
+        # we fall back to the default pool specified in the config
+        target_pool = loc.pool or self.pool
         with rados.Rados(conffile=self.conf_file,
                          rados_id=self.user) as conn:
-            with conn.open_ioctx(self.pool) as ioctx:
+            with conn.open_ioctx(target_pool) as ioctx:
                 try:
                     with rbd.Image(ioctx, loc.image,
                                    snapshot=loc.snapshot) as image:
@@ -266,7 +272,8 @@ class Store(driver.Store):
             librbd.create(ioctx, image_name, size, order, old_format=True)
             return StoreLocation({'image': image_name})
 
-    def _delete_image(self, image_name, snapshot_name=None, context=None):
+    def _delete_image(self, target_pool, image_name,
+                      snapshot_name=None, context=None):
         """
         Delete RBD image and snapshot.
 
@@ -277,7 +284,7 @@ class Store(driver.Store):
                 InUseByStore if image is in use or snapshot unprotect failed
         """
         with rados.Rados(conffile=self.conf_file, rados_id=self.user) as conn:
-            with conn.open_ioctx(self.pool) as ioctx:
+            with conn.open_ioctx(target_pool) as ioctx:
                 try:
                     # First remove snapshot.
                     if snapshot_name is not None:
@@ -395,4 +402,5 @@ class Store(driver.Store):
                 InUseByStore if image is in use or snapshot unprotect failed
         """
         loc = location.store_location
-        self._delete_image(loc.image, loc.snapshot)
+        target_pool = loc.pool or self.pool
+        self._delete_image(target_pool, loc.image, loc.snapshot)
