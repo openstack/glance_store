@@ -19,7 +19,6 @@ from glance_store._drivers import http
 from glance_store import delete_from_backend
 from glance_store import exceptions
 from glance_store.location import get_location_from_uri
-from glance_store import safe_delete_from_backend
 from glance_store.tests import base
 from glance_store.tests import utils
 
@@ -113,10 +112,3 @@ class TestHttpStore(base.StoreBaseTest):
         self.assertRaises(NotImplementedError, self.store.delete, loc)
         self.assertRaises(exceptions.StoreDeleteNotSupported,
                           delete_from_backend, uri, {})
-
-    def test_http_schedule_delete_swallows_error(self):
-        uri = "https://netloc/path/to/file.tar.gz"
-        try:
-            safe_delete_from_backend(uri, 'image_id', {})
-        except exceptions.StoreDeleteNotSupported:
-            self.fail('StoreDeleteNotSupported should be swallowed')
