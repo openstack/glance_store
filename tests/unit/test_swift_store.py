@@ -1127,7 +1127,7 @@ class TestChunkReader(base.StoreBaseTest):
     def setUp(self):
         super(TestChunkReader, self).setUp()
         conf = copy.deepcopy(SWIFT_CONF)
-        store = Store(self.conf)
+        Store(self.conf)
         self.config(**conf)
 
     def test_read_all_data(self):
