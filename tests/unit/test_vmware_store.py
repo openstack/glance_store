@@ -133,8 +133,7 @@ class TestStore(base.StoreBaseTest):
     def test_get(self):
         """Test a "normal" retrieval of an image in chunks."""
         expected_image_size = 31
-        expected_returns = ['I ', 'am', ' a', ' t', 'ea', 'po', 't,', ' s',
-                            'ho', 'rt', ' a', 'nd', ' s', 'to', 'ut', '\n']
+        expected_returns = ['I am a teapot, short and stout\n']
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s"
             "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
@@ -143,7 +142,7 @@ class TestStore(base.StoreBaseTest):
             (image_file, image_size) = self.store.get(loc)
         self.assertEqual(image_size, expected_image_size)
         chunks = [c for c in image_file]
-        self.assertEqual(chunks, expected_returns)
+        self.assertEqual(expected_returns, chunks)
 
     def test_get_non_existing(self):
         """
@@ -252,7 +251,43 @@ class TestStore(base.StoreBaseTest):
             HttpConn.return_value = FakeHTTPConnection(status=404)
             self.assertRaises(exceptions.NotFound, self.store.get_size, loc)
 
-    def test_reader_image_fits_in_blocksize(self):
+    def test_reader_full(self):
+        content = 'XXX'
+        image = six.StringIO(content)
+        expected_checksum = hashlib.md5(content).hexdigest()
+        reader = vm_store._Reader(image)
+        ret = reader.read()
+        self.assertEqual(content, ret)
+        self.assertEqual(expected_checksum, reader.checksum.hexdigest())
+        self.assertEqual(len(content), reader.size)
+
+    def test_reader_partial(self):
+        content = 'XXX'
+        image = six.StringIO(content)
+        expected_checksum = hashlib.md5('X').hexdigest()
+        reader = vm_store._Reader(image)
+        ret = reader.read(1)
+        self.assertEqual('X', ret)
+        self.assertEqual(expected_checksum, reader.checksum.hexdigest())
+        self.assertEqual(1, reader.size)
+
+    def test_rewind(self):
+        content = 'XXX'
+        image = six.StringIO(content)
+        expected_checksum = hashlib.md5(content).hexdigest()
+        reader = vm_store._Reader(image)
+        reader.read(1)
+        ret = reader.read()
+        self.assertEqual('XX', ret)
+        self.assertEqual(expected_checksum, reader.checksum.hexdigest())
+        self.assertEqual(len(content), reader.size)
+        reader.rewind()
+        ret = reader.read()
+        self.assertEqual(content, ret)
+        self.assertEqual(expected_checksum, reader.checksum.hexdigest())
+        self.assertEqual(len(content), reader.size)
+
+    def test_chunkreader_image_fits_in_blocksize(self):
         """
         Test that the image file reader returns the expected chunk of data
         when the block size is larger than the image.
@@ -260,8 +295,7 @@ class TestStore(base.StoreBaseTest):
         content = 'XXX'
         image = six.StringIO(content)
         expected_checksum = hashlib.md5(content).hexdigest()
-        checksum = hashlib.md5()
-        reader = vm_store._Reader(image, checksum)
+        reader = vm_store._ChunkReader(image)
         ret = reader.read()
         expected_chunk = '%x\r\n%s\r\n' % (len(content), content)
         last_chunk = '0\r\n\r\n'
@@ -275,7 +309,7 @@ class TestStore(base.StoreBaseTest):
         self.assertTrue(reader.closed)
         self.assertEqual('', ret)
 
-    def test_reader_image_larger_blocksize(self):
+    def test_chunkreader_image_larger_blocksize(self):
         """
         Test that the image file reader returns the expected chunks when
         the block size specified is smaller than the image.
@@ -283,9 +317,8 @@ class TestStore(base.StoreBaseTest):
         content = 'XXX'
         image = six.StringIO(content)
         expected_checksum = hashlib.md5(content).hexdigest()
-        checksum = hashlib.md5()
         last_chunk = '0\r\n\r\n'
-        reader = vm_store._Reader(image, checksum, blocksize=1)
+        reader = vm_store._ChunkReader(image, blocksize=1)
         ret = reader.read()
         expected_chunk = '1\r\nX\r\n'
         self.assertEqual('%s%s%s%s' % (expected_chunk, expected_chunk,
@@ -294,13 +327,12 @@ class TestStore(base.StoreBaseTest):
         self.assertEqual(image.len, reader.size)
         self.assertTrue(reader.closed)
 
-    def test_reader_size(self):
+    def test_chunkreader_size(self):
         """Test that the image reader takes into account the specified size."""
         content = 'XXX'
         image = six.StringIO(content)
         expected_checksum = hashlib.md5(content).hexdigest()
-        checksum = hashlib.md5()
-        reader = vm_store._Reader(image, checksum, blocksize=1)
+        reader = vm_store._ChunkReader(image, blocksize=1)
         ret = reader.read(size=3)
         self.assertEqual('1\r\n', ret)
         ret = reader.read(size=1)
