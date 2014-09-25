@@ -22,12 +22,10 @@ import uuid
 import boto.s3.connection
 import mock
 
-from glance_store import exceptions
-from glance_store.openstack.common import units
-
 from glance_store._drivers import s3
-from glance_store.exceptions import UnsupportedBackend
-from glance_store.location import get_location_from_uri
+from glance_store import exceptions
+from glance_store import location
+from glance_store.openstack.common import units
 from glance_store.tests import base
 
 
@@ -118,7 +116,7 @@ def fakers():
     def fake_connection_constructor(self, *args, **kwargs):
         host = kwargs.get('host')
         if host.startswith('http://') or host.startswith('https://'):
-            raise UnsupportedBackend(host)
+            raise exceptions.UnsupportedBackend(host)
 
     def fake_get_bucket(bucket_id):
         bucket = fixture_buckets.get(bucket_id)
@@ -169,8 +167,9 @@ class TestStore(base.StoreBaseTest):
 
     def test_get(self):
         """Test a "normal" retrieval of an image in chunks."""
-        loc = get_location_from_uri(
-            "s3://user:key@auth_address/glance/%s" % FAKE_UUID)
+        loc = location.get_location_from_uri(
+            "s3://user:key@auth_address/glance/%s" % FAKE_UUID,
+            conf=self.conf)
         (image_s3, image_size) = self.store.get(loc)
 
         self.assertEqual(image_size, FIVE_KB)
@@ -194,8 +193,9 @@ class TestStore(base.StoreBaseTest):
         with mock.patch.object(s3_connection, '__init__') as m:
             m.side_effect = fake_S3Connection_init
 
-            loc = get_location_from_uri(
-                "s3://user:key@auth_address/glance/%s" % FAKE_UUID)
+            loc = location.get_location_from_uri(
+                "s3://user:key@auth_address/glance/%s" % FAKE_UUID,
+                conf=self.conf)
             (image_s3, image_size) = self.store.get(loc)
 
     def test_get_calling_format_default(self):
@@ -209,8 +209,9 @@ class TestStore(base.StoreBaseTest):
         with mock.patch.object(s3_connection, '__init__') as m:
             m.side_effect = fake_S3Connection_init
 
-            loc = get_location_from_uri(
-                "s3://user:key@auth_address/glance/%s" % FAKE_UUID)
+            loc = location.get_location_from_uri(
+                "s3://user:key@auth_address/glance/%s" % FAKE_UUID,
+                conf=self.conf)
             (image_s3, image_size) = self.store.get(loc)
 
     def test_get_non_existing(self):
@@ -219,11 +220,11 @@ class TestStore(base.StoreBaseTest):
         raises an error
         """
         uri = "s3://user:key@auth_address/badbucket/%s" % FAKE_UUID
-        loc = get_location_from_uri(uri)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
         self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
         uri = "s3://user:key@auth_address/glance/noexist"
-        loc = get_location_from_uri(uri)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
         self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_add(self):
@@ -240,15 +241,16 @@ class TestStore(base.StoreBaseTest):
             expected_image_id)
         image_s3 = StringIO.StringIO(expected_s3_contents)
 
-        location, size, checksum, _ = self.store.add(expected_image_id,
-                                                     image_s3,
-                                                     expected_s3_size)
+        loc, size, checksum, _ = self.store.add(expected_image_id,
+                                                image_s3,
+                                                expected_s3_size)
 
-        self.assertEqual(expected_location, location)
+        self.assertEqual(expected_location, loc)
         self.assertEqual(expected_s3_size, size)
         self.assertEqual(expected_checksum, checksum)
 
-        loc = get_location_from_uri(expected_location)
+        loc = location.get_location_from_uri(expected_location,
+                                             conf=self.conf)
         (new_image_s3, new_image_size) = self.store.get(loc)
         new_image_contents = StringIO.StringIO()
         for chunk in new_image_s3:
@@ -291,15 +293,16 @@ class TestStore(base.StoreBaseTest):
             self.config(**new_conf)
             self.store = s3.Store(self.conf)
             self.store.configure()
-            location, size, checksum, _ = self.store.add(expected_image_id,
-                                                         image_s3,
-                                                         expected_s3_size)
+            loc, size, checksum, _ = self.store.add(expected_image_id,
+                                                    image_s3,
+                                                    expected_s3_size)
 
-            self.assertEqual(expected_location, location)
+            self.assertEqual(expected_location, loc)
             self.assertEqual(expected_s3_size, size)
             self.assertEqual(expected_checksum, checksum)
 
-            loc = get_location_from_uri(expected_location)
+            loc = location.get_location_from_uri(expected_location,
+                                                 conf=self.conf)
             (new_image_s3, new_image_size) = self.store.get(loc)
             new_image_contents = new_image_s3.getvalue()
             new_image_s3_size = len(new_image_s3)
@@ -353,7 +356,7 @@ class TestStore(base.StoreBaseTest):
         Test we can delete an existing image in the s3 store
         """
         uri = "s3://user:key@auth_address/glance/%s" % FAKE_UUID
-        loc = get_location_from_uri(uri)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
         self.store.delete(loc)
 
         self.assertRaises(exceptions.NotFound, self.store.get, loc)
@@ -364,7 +367,7 @@ class TestStore(base.StoreBaseTest):
         raises an error
         """
         uri = "s3://user:key@auth_address/glance/noexist"
-        loc = get_location_from_uri(uri)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
         self.assertRaises(exceptions.NotFound, self.store.delete, loc)
 
     def _do_test_get_s3_location(self, host, loc):

@@ -102,10 +102,6 @@ _SWIFT_OPTS = [
                       'before the request fails.'))
 ]
 
-CONF = cfg.CONF
-
-SWIFT_STORE_REF_PARAMS = sutils.SwiftParams().params
-
 
 def swift_retry_iter(resp_iter, length, store, location, context):
     length = length if length else (resp_iter.len
@@ -139,9 +135,9 @@ def swift_retry_iter(resp_iter, length, store, location, context):
                           'max_retries': retry_count,
                           'start': bytes_read,
                           'end': length})
-                (resp_headers, resp_iter) = store._get_object(location, None,
-                                                              bytes_read,
-                                                              context=context)
+                (_resp_headers, resp_iter) = store._get_object(location, None,
+                                                               bytes_read,
+                                                               context=context)
         else:
             break
 
@@ -194,7 +190,7 @@ class StoreLocation(location.StoreLocation):
         if not credentials_included:
             #Used only in case of an add
             #Get the current store from config
-            store = CONF.glance_store.default_swift_reference
+            store = self.conf.glance_store.default_swift_reference
 
             return '%s://%s/%s/%s' % ('swift+config', store, container, obj)
         if self.scheme == 'swift+config':
@@ -209,9 +205,10 @@ class StoreLocation(location.StoreLocation):
 
     def _get_conf_value_from_account_ref(self, netloc):
         try:
-            self.user = SWIFT_STORE_REF_PARAMS[netloc]['user']
-            self.key = SWIFT_STORE_REF_PARAMS[netloc]['key']
-            netloc = SWIFT_STORE_REF_PARAMS[netloc]['auth_address']
+            ref_params = sutils.SwiftParams(self.conf).params
+            self.user = ref_params[netloc]['user']
+            self.key = ref_params[netloc]['key']
+            netloc = ref_params[netloc]['auth_address']
             self.ssl_enabled = True
             if netloc != '':
                 if netloc.startswith('http://'):
@@ -308,7 +305,7 @@ class StoreLocation(location.StoreLocation):
         path = pieces.path.lstrip('/')
 
         # NOTE(Sridevi): Fix to map the account reference to the
-        # corresponding CONF value
+        # corresponding configuration value
         if self.scheme == 'swift+config':
             netloc = self._get_conf_value_from_account_ref(netloc)
         else:
@@ -343,7 +340,8 @@ class StoreLocation(location.StoreLocation):
 
 def Store(conf):
     try:
-        conf.register_opts(_SWIFT_OPTS, group='glance_store')
+        conf.register_opts(_SWIFT_OPTS + sutils.swift_opts,
+                           group='glance_store')
     except cfg.DuplicateOptError:
         pass
 
@@ -351,13 +349,13 @@ def Store(conf):
         return MultiTenantStore(conf)
     return SingleTenantStore(conf)
 
-Store.OPTIONS = _SWIFT_OPTS
+Store.OPTIONS = _SWIFT_OPTS + sutils.swift_opts
 
 
 class BaseStore(driver.Store):
 
     CHUNKSIZE = 65536
-    OPTIONS = _SWIFT_OPTS
+    OPTIONS = _SWIFT_OPTS + sutils.swift_opts
 
     def get_schemes(self):
         return ('swift+https', 'swift', 'swift+http', 'swift+config')
@@ -567,7 +565,7 @@ class BaseStore(driver.Store):
             # image data. We *really* should consider NOT returning
             # the location attribute from GET /images/<ID> and
             # GET /images/details
-            if sutils.is_multiple_swift_store_accounts_enabled():
+            if sutils.is_multiple_swift_store_accounts_enabled(self.conf):
                 include_creds = False
             else:
                 include_creds = True
@@ -668,14 +666,17 @@ class BaseStore(driver.Store):
 class SingleTenantStore(BaseStore):
     EXAMPLE_URL = "swift://<USER>:<KEY>@<AUTH_ADDRESS>/<CONTAINER>/<FILE>"
 
+    def __init__(self, conf):
+        super(SingleTenantStore, self).__init__(conf)
+        self.ref_params = sutils.SwiftParams(self.conf).params
+
     def configure(self):
         super(SingleTenantStore, self).configure()
         self.auth_version = self._option_get('swift_store_auth_version')
 
     def configure_add(self):
-        default_swift_reference = \
-            SWIFT_STORE_REF_PARAMS.get(
-                self.conf.glance_store.default_swift_reference)
+        default_ref = self.conf.glance_store.default_swift_reference
+        default_swift_reference = self.ref_params.get(default_ref)
         if default_swift_reference:
             self.auth_address = default_swift_reference.get('auth_address')
         if (not default_swift_reference) or (not self.auth_address):
@@ -704,7 +705,7 @@ class SingleTenantStore(BaseStore):
                  'auth_or_store_url': self.auth_address,
                  'user': self.user,
                  'key': self.key}
-        return StoreLocation(specs)
+        return StoreLocation(specs, self.conf)
 
     def get_connection(self, location, context=None):
         if not location.user:
@@ -814,7 +815,7 @@ class MultiTenantStore(BaseStore):
                  'container': self.container + '_' + str(image_id),
                  'obj': str(image_id),
                  'auth_or_store_url': ep}
-        return StoreLocation(specs)
+        return StoreLocation(specs, self.conf)
 
     def get_connection(self, location, context=None):
         return swiftclient.Connection(

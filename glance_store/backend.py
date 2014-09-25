@@ -25,6 +25,7 @@ from glance_store import i18n
 from glance_store import location
 
 
+CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 
 _ = i18n._
@@ -45,7 +46,6 @@ _STORE_OPTS = [
                deprecated_opts=[_DEPRECATED_STORE_OPTS[1]])
 ]
 
-CONF = cfg.CONF
 _STORE_CFG_GROUP = 'glance_store'
 
 
@@ -212,7 +212,7 @@ def create_stores(conf=CONF):
 
 
 def verify_default_store():
-    scheme = cfg.CONF.glance_store.default_store
+    scheme = CONF.glance_store.default_store
     try:
         get_store_from_scheme(scheme)
     except exceptions.UnknownScheme:
@@ -250,7 +250,7 @@ def get_store_from_uri(uri):
 def get_from_backend(uri, offset=0, chunk_size=None, context=None):
     """Yields chunks of data from backend specified by uri."""
 
-    loc = location.get_location_from_uri(uri)
+    loc = location.get_location_from_uri(uri, conf=CONF)
     store = get_store_from_uri(uri)
 
     try:
@@ -264,7 +264,7 @@ def get_from_backend(uri, offset=0, chunk_size=None, context=None):
 def get_size_from_backend(uri, context=None):
     """Retrieves image size from backend specified by uri."""
 
-    loc = location.get_location_from_uri(uri)
+    loc = location.get_location_from_uri(uri, conf=CONF)
     store = get_store_from_uri(uri)
 
     return store.get_size(loc, context=context)
@@ -272,7 +272,8 @@ def get_size_from_backend(uri, context=None):
 
 def delete_from_backend(uri, context=None):
     """Removes chunks of data from backend specified by uri."""
-    loc = location.get_location_from_uri(uri)
+
+    loc = location.get_location_from_uri(uri, conf=CONF)
     store = get_store_from_uri(uri)
 
     try:
@@ -289,7 +290,7 @@ def get_store_from_location(uri):
 
     :param uri: Location to check for the store
     """
-    loc = location.get_location_from_uri(uri)
+    loc = location.get_location_from_uri(uri, conf=CONF)
     return loc.store_name
 
 
@@ -361,7 +362,7 @@ def set_acls(location_uri, public=False, read_tenants=[],
     if write_tenants is None:
         write_tenants = []
 
-    loc = location.get_location_from_uri(location_uri)
+    loc = location.get_location_from_uri(location_uri, conf=CONF)
     scheme = get_store_from_location(location_uri)
     store = get_store_from_scheme(scheme)
     try:

@@ -50,22 +50,16 @@ CONFIG = ConfigParser.SafeConfigParser(dict_type=OrderedDict)
 LOG = logging.getLogger(__name__)
 
 
-CONF = cfg.CONF
-for opt in swift_opts:
-    opt.deprecated_opts = [cfg.DeprecatedOpt(opt.name,
-                                             group='DEFAULT')]
-    CONF.register_opt(opt, group='glance_store')
-
-
-def is_multiple_swift_store_accounts_enabled():
-    if CONF.glance_store.swift_store_config_file is None:
+def is_multiple_swift_store_accounts_enabled(conf):
+    if conf.glance_store.swift_store_config_file is None:
         return False
     return True
 
 
 class SwiftParams(object):
-    def __init__(self):
-        if is_multiple_swift_store_accounts_enabled():
+    def __init__(self, conf):
+        self.conf = conf
+        if is_multiple_swift_store_accounts_enabled(self.conf):
             self.params = self._load_config()
         else:
             self.params = self._form_default_params()
@@ -74,12 +68,12 @@ class SwiftParams(object):
         default = {}
 
         if (
-            CONF.glance_store.swift_store_user and
-            CONF.glance_store.swift_store_key and
-            CONF.glance_store.swift_store_auth_address
+            self.conf.glance_store.swift_store_user and
+            self.conf.glance_store.swift_store_key and
+            self.conf.glance_store.swift_store_auth_address
         ):
 
-            glance_store = CONF.glance_store
+            glance_store = self.conf.glance_store
             default['user'] = glance_store.swift_store_user
             default['key'] = glance_store.swift_store_key
             default['auth_address'] = glance_store.swift_store_auth_address
@@ -88,13 +82,13 @@ class SwiftParams(object):
 
     def _load_config(self):
         try:
-            scf = CONF.glance_store.swift_store_config_file
-            conf_file = CONF.find_file(scf)
+            scf = self.conf.glance_store.swift_store_config_file
+            conf_file = self.conf.find_file(scf)
             CONFIG.read(conf_file)
         except Exception as e:
             msg = (i18n._("swift config file "
-                          "%(conf_file)s:%(exc)s not found") %
-                   {'conf_file': CONF.glance_store.swift_store_config_file,
+                          "%(conf)s:%(exc)s not found") %
+                   {'conf': self.conf.glance_store.swift_store_config_file,
                     'exc': e})
             LOG.error(msg)
             raise exceptions.BadStoreConfiguration(store_name='swift',

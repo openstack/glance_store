@@ -261,10 +261,10 @@ class Store(driver.Store):
                 'pool': self.pool,
                 'image': image_name,
                 'snapshot': DEFAULT_SNAPNAME,
-            })
+            }, self.conf)
         else:
             librbd.create(ioctx, image_name, size, order, old_format=True)
-            return StoreLocation({'image': image_name})
+            return StoreLocation({'image': image_name}, self.conf)
 
     def _delete_image(self, image_name, snapshot_name=None, context=None):
         """

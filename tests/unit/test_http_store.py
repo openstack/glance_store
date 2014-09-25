@@ -18,7 +18,7 @@ import mock
 from glance_store._drivers import http
 from glance_store import delete_from_backend
 from glance_store import exceptions
-from glance_store.location import get_location_from_uri
+from glance_store import location
 from glance_store.tests import base
 from glance_store.tests import utils
 
@@ -45,7 +45,7 @@ class TestHttpStore(base.StoreBaseTest):
         uri = "http://netloc/path/to/file.tar.gz"
         expected_returns = ['I ', 'am', ' a', ' t', 'ea', 'po', 't,', ' s',
                             'ho', 'rt', ' a', 'nd', ' s', 'to', 'ut', '\n']
-        loc = get_location_from_uri(uri)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
         (image_file, image_size) = self.store.get(loc)
         self.assertEqual(image_size, 31)
         chunks = [c for c in image_file]
@@ -69,7 +69,7 @@ class TestHttpStore(base.StoreBaseTest):
         expected_returns = ['I ', 'am', ' a', ' t', 'ea', 'po', 't,', ' s',
                             'ho', 'rt', ' a', 'nd', ' s', 'to', 'ut', '\n']
 
-        loc = get_location_from_uri(uri)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
         (image_file, image_size) = self.store.get(loc)
         self.assertEqual(image_size, 31)
 
@@ -86,7 +86,7 @@ class TestHttpStore(base.StoreBaseTest):
         self.response.side_effect = getresponse
 
         uri = "http://netloc/path/to/file.tar.gz"
-        loc = get_location_from_uri(uri)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
         self.assertRaises(exceptions.MaxRedirectsExceeded, self.store.get, loc)
 
     def test_http_get_redirect_invalid(self):
@@ -95,7 +95,7 @@ class TestHttpStore(base.StoreBaseTest):
         self.response.return_value = redirect_resp
 
         uri = "http://netloc/path/to/file.tar.gz"
-        loc = get_location_from_uri(uri)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
         self.assertRaises(exceptions.BadStoreUri, self.store.get, loc)
 
     def test_http_get_not_found(self):
@@ -103,12 +103,12 @@ class TestHttpStore(base.StoreBaseTest):
         self.response.return_value = fake
 
         uri = "http://netloc/path/to/file.tar.gz"
-        loc = get_location_from_uri(uri)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
         self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_http_delete_raise_error(self):
         uri = "https://netloc/path/to/file.tar.gz"
-        loc = get_location_from_uri(uri)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
         self.assertRaises(NotImplementedError, self.store.delete, loc)
         self.assertRaises(exceptions.StoreDeleteNotSupported,
                           delete_from_backend, uri, {})

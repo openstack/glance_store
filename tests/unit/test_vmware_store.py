@@ -24,7 +24,7 @@ import six
 import glance_store._drivers.vmware_datastore as vm_store
 from glance_store import backend
 from glance_store import exceptions
-from glance_store.location import get_location_from_uri
+from glance_store import location
 from glance_store.openstack.common import units
 from glance_store.tests import base
 from glance_store.tests import utils
@@ -135,9 +135,9 @@ class TestStore(base.StoreBaseTest):
         expected_image_size = 31
         expected_returns = ['I ', 'am', ' a', ' t', 'ea', 'po', 't,', ' s',
                             'ho', 'rt', ' a', 'nd', ' s', 'to', 'ut', '\n']
-        loc = get_location_from_uri(
+        loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s"
-            "?dsName=ds1&dcPath=dc1" % FAKE_UUID)
+            "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
         with mock.patch('httplib.HTTPConnection') as HttpConn:
             HttpConn.return_value = FakeHTTPConnection()
             (image_file, image_size) = self.store.get(loc)
@@ -150,8 +150,9 @@ class TestStore(base.StoreBaseTest):
         Test that trying to retrieve an image that doesn't exist
         raises an error
         """
-        loc = get_location_from_uri("vsphere://127.0.0.1/folder/openstack_glan"
-                                    "ce/%s?dsName=ds1&dcPath=dc1" % FAKE_UUID)
+        loc = location.get_location_from_uri(
+            "vsphere://127.0.0.1/folder/openstack_glan"
+            "ce/%s?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
         with mock.patch('httplib.HTTPConnection') as HttpConn:
             HttpConn.return_value = FakeHTTPConnection(status=404)
             self.assertRaises(exceptions.NotFound, self.store.get, loc)
@@ -216,9 +217,9 @@ class TestStore(base.StoreBaseTest):
 
     def test_delete(self):
         """Test we can delete an existing image in the VMware store."""
-        loc = get_location_from_uri(
+        loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s?"
-            "dsName=ds1&dcPath=dc1" % FAKE_UUID)
+            "dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
         with mock.patch('httplib.HTTPConnection') as HttpConn:
             HttpConn.return_value = FakeHTTPConnection()
             vm_store.Store._service_content = mock.Mock()
@@ -231,9 +232,9 @@ class TestStore(base.StoreBaseTest):
         """
         Test we can get the size of an existing image in the VMware store
         """
-        loc = get_location_from_uri(
+        loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s"
-            "?dsName=ds1&dcPath=dc1" % FAKE_UUID)
+            "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
         with mock.patch('httplib.HTTPConnection') as HttpConn:
             HttpConn.return_value = FakeHTTPConnection()
             image_size = self.store.get_size(loc)
@@ -244,8 +245,9 @@ class TestStore(base.StoreBaseTest):
         Test that trying to retrieve an image size that doesn't exist
         raises an error
         """
-        loc = get_location_from_uri("vsphere://127.0.0.1/folder/openstack_glan"
-                                    "ce/%s?dsName=ds1&dcPath=dc1" % FAKE_UUID)
+        loc = location.get_location_from_uri(
+            "vsphere://127.0.0.1/folder/openstack_glan"
+            "ce/%s?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
         with mock.patch('httplib.HTTPConnection') as HttpConn:
             HttpConn.return_value = FakeHTTPConnection(status=404)
             self.assertRaises(exceptions.NotFound, self.store.get_size, loc)

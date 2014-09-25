@@ -268,7 +268,7 @@ class Store(glance_store.driver.Store):
             raise exceptions.Duplicate(_("Sheepdog image %s already exists")
                                        % image_id)
 
-        location = StoreLocation({'image': image_id})
+        location = StoreLocation({'image': image_id}, self.conf)
         checksum = hashlib.md5()
 
         image.create(image_size)
