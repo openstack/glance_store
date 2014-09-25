@@ -7,9 +7,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: glance_store 0.1.7.14.g783a1c8\n"
+"Project-Id-Version: glance_store 0.1.7.34.g692a6cd\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2014-09-15 06:10+0000\n"
+"POT-Creation-Date: 2014-09-22 06:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,386 +18,386 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 1.3\n"
 
-#: glance_store/backend.py:39
+#: glance_store/backend.py:40
 msgid "List of stores enabled"
 msgstr ""
 
-#: glance_store/backend.py:42
+#: glance_store/backend.py:43
 msgid ""
 "Default scheme to use to store image data. The scheme must be registered "
 "by one of the stores defined by the 'stores' config option."
 msgstr ""
 
-#: glance_store/backend.py:216
+#: glance_store/backend.py:220
 #, python-format
 msgid "Store for scheme %s not found"
 msgstr ""
 
-#: glance_store/backend.py:298
+#: glance_store/backend.py:302
 #, python-format
 msgid "Failed to delete image %s in store from URI"
 msgstr ""
 
-#: glance_store/backend.py:304
+#: glance_store/backend.py:308
 #, python-format
 msgid "Failed to delete image %(image_id)s from store (%(exc_type)s)"
 msgstr ""
 
-#: glance_store/backend.py:327
+#: glance_store/backend.py:331
 #, python-format
 msgid ""
 "The image metadata key %(key)s has an invalid type of %(type)s. Only "
 "dict, list, and unicode are supported."
 msgstr ""
 
-#: glance_store/backend.py:351
+#: glance_store/backend.py:355
 #, python-format
 msgid ""
 "The storage driver %(driver)s returned invalid  metadata %(metadata)s. "
 "This must be a dictionary type"
 msgstr ""
 
-#: glance_store/backend.py:359
+#: glance_store/backend.py:363
 #, python-format
 msgid ""
 "A bad metadata structure was returned from the %(driver)s storage driver:"
 " %(metadata)s.  %(e)s."
 msgstr ""
 
-#: glance_store/backend.py:393
+#: glance_store/backend.py:397
 msgid "Skipping store.set_acls... not implemented."
 msgstr ""
 
-#: glance_store/driver.py:38
-#, python-format
-msgid "Caught '%(exception)s' exception."
-msgstr ""
-
-#: glance_store/driver.py:81
+#: glance_store/driver.py:69
 #, python-format
 msgid "Failed to configure store correctly: %s Disabling add method."
 msgstr ""
 
-#: glance_store/exceptions.py:46
+#: glance_store/exceptions.py:55
 #, python-format
 msgid "Missing required credential: %(required)s"
 msgstr ""
 
-#: glance_store/exceptions.py:50
+#: glance_store/exceptions.py:59
 #, python-format
 msgid ""
 "Incorrect auth strategy, expected \"%(expected)s\" but received "
 "\"%(received)s\""
 msgstr ""
 
-#: glance_store/exceptions.py:55
+#: glance_store/exceptions.py:64
+#, python-format
+msgid "Redirecting to %(uri)s for authorization."
+msgstr ""
+
+#: glance_store/exceptions.py:68
 #, python-format
 msgid "Image %(image)s not found"
 msgstr ""
 
-#: glance_store/exceptions.py:59
+#: glance_store/exceptions.py:72
 #, python-format
 msgid "Unknown scheme '%(scheme)s' found in URI"
 msgstr ""
 
-#: glance_store/exceptions.py:63
+#: glance_store/exceptions.py:76
 msgid "The Store URI was malformed: %(uri)"
 msgstr ""
 
-#: glance_store/exceptions.py:67
+#: glance_store/exceptions.py:80
 #, python-format
 msgid "Image %(image)s already exists"
 msgstr ""
 
-#: glance_store/exceptions.py:71
+#: glance_store/exceptions.py:84
 msgid "An object with the same identifier is currently being operated on."
 msgstr ""
 
-#: glance_store/exceptions.py:76
+#: glance_store/exceptions.py:89
 msgid "There is not enough disk space on the image storage media."
 msgstr ""
 
-#: glance_store/exceptions.py:80
+#: glance_store/exceptions.py:93
 #, python-format
 msgid ""
 "The size of the data %(image_size)s will exceed the limit. %(remaining)s "
 "bytes remaining."
 msgstr ""
 
-#: glance_store/exceptions.py:85
+#: glance_store/exceptions.py:98
 msgid "Permission to write image storage media denied."
 msgstr ""
 
-#: glance_store/exceptions.py:89
+#: glance_store/exceptions.py:102
 #, python-format
 msgid "Connect error/bad request to Auth service at URL %(url)s."
 msgstr ""
 
-#: glance_store/exceptions.py:93
+#: glance_store/exceptions.py:106
 #, python-format
 msgid "Auth service at URL %(url)s not found."
 msgstr ""
 
-#: glance_store/exceptions.py:97
+#: glance_store/exceptions.py:110
 msgid "Authorization failed."
 msgstr ""
 
-#: glance_store/exceptions.py:101
+#: glance_store/exceptions.py:114
 msgid "You are not authenticated."
 msgstr ""
 
-#: glance_store/exceptions.py:105 glance_store/exceptions.py:109
+#: glance_store/exceptions.py:118 glance_store/exceptions.py:122
 msgid "You are not authorized to complete this action."
-msgstr ""
-
-#: glance_store/exceptions.py:113
-#, python-format
-msgid "Image %(image_id)s is protected and cannot be deleted."
-msgstr ""
-
-#: glance_store/exceptions.py:117
-msgid "Data supplied was not valid."
-msgstr ""
-
-#: glance_store/exceptions.py:121
-#, python-format
-msgid "Store %(store_name)s could not be configured correctly. Reason: %(reason)s"
 msgstr ""
 
 #: glance_store/exceptions.py:126
 #, python-format
-msgid "Driver %(driver_name)s could not be loaded."
+msgid "Image %(image_id)s is protected and cannot be deleted."
 msgstr ""
 
 #: glance_store/exceptions.py:130
+msgid "Data supplied was not valid."
+msgstr ""
+
+#: glance_store/exceptions.py:134
+#, python-format
+msgid "Store %(store_name)s could not be configured correctly. Reason: %(reason)s"
+msgstr ""
+
+#: glance_store/exceptions.py:139
+#, python-format
+msgid "Driver %(driver_name)s could not be loaded."
+msgstr ""
+
+#: glance_store/exceptions.py:143
 #, python-format
 msgid ""
 "Driver %(driver_name)s could not be configured correctly. Reason: "
 "%(reason)s"
 msgstr ""
 
-#: glance_store/exceptions.py:135
+#: glance_store/exceptions.py:148
 msgid "Deleting images from this store is not supported."
 msgstr ""
 
-#: glance_store/exceptions.py:139
+#: glance_store/exceptions.py:152
 msgid "Getting images from this store is not supported."
 msgstr ""
 
-#: glance_store/exceptions.py:143
+#: glance_store/exceptions.py:156
 msgid "Adding images to this store is not supported."
 msgstr ""
 
-#: glance_store/exceptions.py:147
+#: glance_store/exceptions.py:160
 msgid "Configuration for store failed. Adding images to this store is disabled."
 msgstr ""
 
-#: glance_store/exceptions.py:152
+#: glance_store/exceptions.py:165
 #, python-format
 msgid "Maximum redirects (%(redirects)s) was exceeded."
 msgstr ""
 
-#: glance_store/exceptions.py:156
+#: glance_store/exceptions.py:169
 msgid "Received invalid HTTP redirect."
 msgstr ""
 
-#: glance_store/exceptions.py:160
+#: glance_store/exceptions.py:173
 msgid "Response from Keystone does not contain a Glance endpoint."
 msgstr ""
 
-#: glance_store/exceptions.py:164
+#: glance_store/exceptions.py:177
 #, python-format
 msgid ""
 "Multiple 'image' service matches for region %(region)s. This generally "
 "means that a region is required and you have not supplied one."
 msgstr ""
 
-#: glance_store/exceptions.py:170
+#: glance_store/exceptions.py:183
 #, python-format
 msgid "Server worker creation failed: %(reason)s."
 msgstr ""
 
-#: glance_store/exceptions.py:174
+#: glance_store/exceptions.py:187
 #, python-format
 msgid "Unable to load schema: %(reason)s"
 msgstr ""
 
-#: glance_store/exceptions.py:178
+#: glance_store/exceptions.py:191
 #, python-format
 msgid "Provided object does not match schema '%(schema)s': %(reason)s"
 msgstr ""
 
-#: glance_store/exceptions.py:183
+#: glance_store/exceptions.py:196
 #, python-format
 msgid "Provided header feature is unsupported: %(feature)s"
 msgstr ""
 
-#: glance_store/exceptions.py:187
+#: glance_store/exceptions.py:200
 msgid ""
 "The image cannot be deleted because it is in use through the backend "
 "store outside of Glance."
 msgstr ""
 
-#: glance_store/exceptions.py:192
+#: glance_store/exceptions.py:205
 msgid "No image data could be found"
 msgstr ""
 
-#: glance_store/exceptions.py:196
+#: glance_store/exceptions.py:209
 #, python-format
 msgid "Invalid value '%(value)s' for parameter '%(param)s': %(extra_msg)s"
 msgstr ""
 
-#: glance_store/exceptions.py:201
+#: glance_store/exceptions.py:214
 #, python-format
 msgid ""
 "Image status transition from %(cur_status)s to %(new_status)s is not "
 "allowed"
 msgstr ""
 
-#: glance_store/common/auth.py:185 glance_store/common/auth.py:225
+#: glance_store/common/auth.py:186 glance_store/common/auth.py:226
 #, python-format
 msgid "Unexpected response: %s"
 msgstr ""
 
-#: glance_store/common/auth.py:253
+#: glance_store/common/auth.py:254
 #, python-format
 msgid "Unknown auth strategy '%s'"
 msgstr ""
 
-#: glance_store/common/auth.py:274
+#: glance_store/common/auth.py:275
 #, python-format
 msgid "Encountered service with no \"type\": %s"
 msgstr ""
 
-#: glance_store/common/config.py:34
+#: glance_store/common/config.py:33
 msgid ""
 "Partial name of a pipeline in your paste configuration file with the "
 "service name removed. For example, if your paste section name is "
 "[pipeline:glance-api-keystone] use the value \"keystone\""
 msgstr ""
 
-#: glance_store/common/config.py:40
+#: glance_store/common/config.py:39
 msgid "Name of the paste configuration file."
 msgstr ""
 
-#: glance_store/common/config.py:45
+#: glance_store/common/config.py:44
 msgid "Supported values for the 'container_format' image attribute"
 msgstr ""
 
-#: glance_store/common/config.py:52
+#: glance_store/common/config.py:51
 msgid "Supported values for the 'disk_format' image attribute"
 msgstr ""
 
-#: glance_store/common/config.py:60
+#: glance_store/common/config.py:59
 msgid "Time in hours for which a task lives after, either succeeding or failing"
 msgstr ""
 
-#: glance_store/common/config.py:67
+#: glance_store/common/config.py:66
 msgid ""
 "Whether to allow users to specify image properties beyond what the image "
 "schema provides"
 msgstr ""
 
-#: glance_store/common/config.py:70
+#: glance_store/common/config.py:69
 msgid ""
 "Maximum number of image members per image. Negative values evaluate to "
 "unlimited."
 msgstr ""
 
-#: glance_store/common/config.py:73
+#: glance_store/common/config.py:72
 msgid ""
 "Maximum number of properties allowed on an image. Negative values "
 "evaluate to unlimited."
 msgstr ""
 
-#: glance_store/common/config.py:76
+#: glance_store/common/config.py:75
 msgid ""
 "Maximum number of tags allowed on an image. Negative values evaluate to "
 "unlimited."
 msgstr ""
 
-#: glance_store/common/config.py:79
+#: glance_store/common/config.py:78
 msgid ""
 "Maximum number of locations allowed on an image. Negative values evaluate"
 " to unlimited."
 msgstr ""
 
-#: glance_store/common/config.py:82
+#: glance_store/common/config.py:81
 msgid "Python module path of data access API"
 msgstr ""
 
-#: glance_store/common/config.py:84
+#: glance_store/common/config.py:83
 msgid ""
 "Default value for the number of items returned by a request if not "
 "specified explicitly in the request"
 msgstr ""
 
-#: glance_store/common/config.py:87
+#: glance_store/common/config.py:86
 msgid "Maximum permissible number of items that could be returned by a request"
 msgstr ""
 
-#: glance_store/common/config.py:90
+#: glance_store/common/config.py:89
 msgid ""
 "Whether to include the backend image storage location in image "
 "properties. Revealing storage location can be a security risk, so use "
 "this setting with caution!"
 msgstr ""
 
-#: glance_store/common/config.py:95
+#: glance_store/common/config.py:94
 msgid ""
 "Whether to include the backend image locations in image properties. "
 "Revealing storage location can be a security risk, so use this setting "
 "with caution!  The overrides show_image_direct_url."
 msgstr ""
 
-#: glance_store/common/config.py:100
+#: glance_store/common/config.py:99
 msgid ""
 "Maximum size of image a user can upload in bytes. Defaults to "
 "1099511627776 bytes (1 TB)."
 msgstr ""
 
-#: glance_store/common/config.py:103
+#: glance_store/common/config.py:102
 msgid ""
 "Set a system wide quota for every user.  This value is the total number "
 "of bytes that a user can use across all storage systems.  A value of 0 "
 "means unlimited."
 msgstr ""
 
-#: glance_store/common/config.py:107
+#: glance_store/common/config.py:106
 msgid "Deploy the v1 OpenStack Images API."
 msgstr ""
 
-#: glance_store/common/config.py:109
+#: glance_store/common/config.py:108
 msgid "Deploy the v2 OpenStack Images API."
 msgstr ""
 
-#: glance_store/common/config.py:111
+#: glance_store/common/config.py:110
 msgid "The hostname/IP of the pydev process listening for debug connections"
 msgstr ""
 
-#: glance_store/common/config.py:114
+#: glance_store/common/config.py:113
 msgid "The port on which a pydev process is listening for connections."
 msgstr ""
 
-#: glance_store/common/config.py:117
+#: glance_store/common/config.py:116
 msgid ""
 "Key used for encrypting sensitive metadata while talking to the registry "
 "or database."
 msgstr ""
 
-#: glance_store/common/config.py:203
+#: glance_store/common/config.py:202
 #, python-format
 msgid "Loading %(app_name)s from %(conf_file)s"
 msgstr ""
 
-#: glance_store/common/config.py:214
+#: glance_store/common/config.py:213
 #, python-format
 msgid ""
 "Unable to load %(app_name)s from configuration file %(conf_file)s.\n"
 "Got: %(e)r"
 msgstr ""
 
-#: glance_store/common/utils.py:84
+#: glance_store/common/utils.py:87
 #, python-format
 msgid "Error: cooperative_iter exception %s"
 msgstr ""
