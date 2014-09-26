@@ -26,6 +26,7 @@ import urlparse
 import boto.exception
 import eventlet
 from oslo.config import cfg
+from oslo.utils import netutils
 import six
 
 import glance_store
@@ -34,7 +35,6 @@ import glance_store.driver
 from glance_store import exceptions
 from glance_store.i18n import _
 import glance_store.location
-from glance_store.openstack.common import network_utils
 from glance_store.openstack.common import units
 
 LOG = logging.getLogger(__name__)
@@ -402,7 +402,7 @@ class Store(glance_store.driver.Store):
 
     def _retrieve_key(self, location):
         loc = location.store_location
-        s3host, s3port = network_utils.parse_host_port(loc.s3serviceurl, 80)
+        s3host, s3port = netutils.parse_host_port(loc.s3serviceurl, 80)
         from boto.s3.connection import S3Connection
 
         uformat = self.conf.glance_store.s3_store_bucket_url_format
@@ -459,7 +459,7 @@ class Store(glance_store.driver.Store):
                              'accesskey': self.access_key,
                              'secretkey': self.secret_key}, self.conf)
 
-        s3host, s3port = network_utils.parse_host_port(loc.s3serviceurl, 80)
+        s3host, s3port = netutils.parse_host_port(loc.s3serviceurl, 80)
         uformat = self.conf.glance_store.s3_store_bucket_url_format
         calling_format = get_calling_format(s3_store_bucket_url_format=uformat)
 
@@ -662,7 +662,7 @@ class Store(glance_store.driver.Store):
         :raises NotFound if image does not exist
         """
         loc = location.store_location
-        s3host, s3port = network_utils.parse_host_port(loc.s3serviceurl, 80)
+        s3host, s3port = netutils.parse_host_port(loc.s3serviceurl, 80)
         from boto.s3.connection import S3Connection
 
         uformat = self.conf.glance_store.s3_store_bucket_url_format
