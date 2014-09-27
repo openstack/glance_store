@@ -98,8 +98,11 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
         if fixture_key not in fixture_headers:
             if kwargs.get('headers'):
                 etag = kwargs['headers']['ETag']
+                manifest = kwargs.get('headers').get('X-Object-Manifest')
                 fixture_headers[fixture_key] = {'manifest': True,
-                                                'etag': etag}
+                                                'etag': etag,
+                                                'x-object-manifest': manifest}
+                fixture_objects[fixture_key] = None
                 return etag
             if hasattr(contents, 'read'):
                 fixture_object = six.StringIO()
@@ -714,6 +717,50 @@ class SwiftTests(object):
             "swift://%s:key@authurl/glance/noexist" % (self.swift_store_user),
             conf=self.conf)
         self.assertRaises(exceptions.NotFound, self.store.delete, loc)
+
+    def test_delete_with_some_segments_failing(self):
+        """
+        Tests that delete of a segmented object recovers from error(s) while
+        deleting one or more segments.
+        To test this we add a segmented object first and then delete it, while
+        simulating errors on one or more segments.
+        """
+
+        test_image_id = str(uuid.uuid4())
+
+        def fake_head_object(container, object_name):
+            object_manifest = '/'.join([container, object_name]) + '-'
+            return {'x-object-manifest': object_manifest}
+
+        def fake_get_container(container, **kwargs):
+            # Returning 5 fake segments
+            return None, [{'name': '%s-%05d' % (test_image_id, x)}
+                          for x in range(1, 6)]
+
+        def fake_delete_object(container, object_name):
+            # Simulate error on 1st and 3rd segments
+            global SWIFT_DELETE_OBJECT_CALLS
+            SWIFT_DELETE_OBJECT_CALLS += 1
+            if object_name.endswith('001') or object_name.endswith('003'):
+                raise swiftclient.ClientException('Object DELETE failed')
+            else:
+                pass
+
+        loc_uri = "swift+https://%s:key@localhost:8080/glance/%s"
+        loc_uri = loc_uri % (self.swift_store_user, test_image_id)
+        loc = location.get_location_from_uri(loc_uri)
+
+        conn = self.store.get_connection(loc.store_location)
+        conn.delete_object = fake_delete_object
+        conn.head_object = fake_head_object
+        conn.get_container = fake_get_container
+
+        global SWIFT_DELETE_OBJECT_CALLS
+        SWIFT_DELETE_OBJECT_CALLS = 0
+
+        self.store.delete(loc, connection=conn)
+        # Expecting 6 delete calls, 5 for the segments and 1 for the manifest
+        self.assertEqual(SWIFT_DELETE_OBJECT_CALLS, 6)
 
     def test_read_acl_public(self):
         """
