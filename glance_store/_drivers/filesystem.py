@@ -27,6 +27,8 @@ import urlparse
 
 from oslo.config import cfg
 from oslo.serialization import jsonutils
+from oslo.utils import excutils
+from oslo.utils import units
 
 import glance_store
 from glance_store.common import utils
@@ -34,9 +36,7 @@ import glance_store.driver
 from glance_store import exceptions
 from glance_store import i18n
 import glance_store.location
-from glance_store.openstack.common import excutils
 from glance_store.openstack.common import processutils
-from glance_store.openstack.common import units
 
 
 LOG = logging.getLogger(__name__)

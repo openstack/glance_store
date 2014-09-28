@@ -26,13 +26,13 @@ import StringIO
 import uuid
 
 import fixtures
+from oslo.utils import units
 import six
 
 from glance_store._drivers.filesystem import ChunkedFile
 from glance_store._drivers.filesystem import Store
 from glance_store import exceptions
 from glance_store import location
-from glance_store.openstack.common import units
 from glance_store.tests import base
 
 

@@ -22,6 +22,8 @@ import os
 import socket
 
 from oslo.config import cfg
+from oslo.utils import excutils
+from oslo.utils import units
 from oslo.vmware import api
 import six.moves.urllib.parse as urlparse
 
@@ -30,8 +32,7 @@ from glance_store import exceptions
 from glance_store.i18n import _
 from glance_store.i18n import _LE
 from glance_store import location
-from glance_store.openstack.common import excutils
-from glance_store.openstack.common import units
+
 
 LOG = logging.getLogger(__name__)
 

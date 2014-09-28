@@ -21,6 +21,7 @@ import logging
 import math
 
 from oslo.config import cfg
+from oslo.utils import excutils
 import six.moves.urllib.parse as urlparse
 import swiftclient
 import urllib
@@ -33,7 +34,7 @@ from glance_store import driver
 from glance_store import exceptions
 from glance_store import i18n
 from glance_store import location
-from glance_store.openstack.common import excutils
+
 
 _ = i18n._
 LOG = logging.getLogger(__name__)

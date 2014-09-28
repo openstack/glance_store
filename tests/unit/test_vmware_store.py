@@ -19,13 +19,13 @@ import hashlib
 import uuid
 
 import mock
+from oslo.utils import units
 import six
 
 import glance_store._drivers.vmware_datastore as vm_store
 from glance_store import backend
 from glance_store import exceptions
 from glance_store import location
-from glance_store.openstack.common import units
 from glance_store.tests import base
 from glance_store.tests import utils
 

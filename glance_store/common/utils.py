@@ -25,9 +25,8 @@ try:
     from eventlet import sleep
 except ImportError:
     from time import sleep
+from oslo.utils import encodeutils
 import six
-
-from glance_store.openstack.common import strutils
 
 
 LOG = logging.getLogger(__name__)
@@ -151,4 +150,4 @@ def exception_to_str(exc):
         except UnicodeError:
             error = ("Caught '%(exception)s' exception." %
                      {"exception": exc.__class__.__name__})
-    return strutils.safe_encode(error, errors='ignore')
+    return encodeutils.safe_encode(error, errors='ignore')

@@ -20,12 +20,12 @@ import logging
 import urlparse
 
 from oslo.config import cfg
+from oslo.utils import excutils
 
 import glance_store.driver
 from glance_store import exceptions
 from glance_store.i18n import _
 import glance_store.location
-from glance_store.openstack.common import excutils
 
 try:
     import gridfs

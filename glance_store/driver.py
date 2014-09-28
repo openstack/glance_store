@@ -19,11 +19,11 @@
 import logging
 
 from oslo.config import cfg
+from oslo.utils import importutils
 
 from glance_store.common import utils
 from glance_store import exceptions
 from glance_store.i18n import _
-from glance_store.openstack.common import importutils
 
 LOG = logging.getLogger(__name__)
 

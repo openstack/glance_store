@@ -24,6 +24,7 @@ import tempfile
 import uuid
 
 from oslo.config import cfg
+from oslo.utils import units
 from oslotest import moxstubout
 import six
 import swiftclient
@@ -36,7 +37,6 @@ from glance_store.common import utils
 from glance_store import exceptions
 from glance_store import location
 from glance_store.openstack.common import context
-from glance_store.openstack.common import units
 from glance_store.tests import base
 
 CONF = cfg.CONF
