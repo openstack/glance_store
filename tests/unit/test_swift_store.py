@@ -515,6 +515,122 @@ class SwiftTests(object):
     @mock.patch('glance_store._drivers.swift.utils'
                 '.is_multiple_swift_store_accounts_enabled',
                 mock.Mock(return_value=True))
+    def test_add_no_container_and_multiple_containers_create(self):
+        """
+        Tests that adding an image with a non-existing container while using
+        multi containers will create the container automatically if flag is set
+        """
+        expected_swift_size = FIVE_KB
+        expected_swift_contents = "*" * expected_swift_size
+        expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
+        expected_image_id = str(uuid.uuid4())
+        container = 'randomname_' + expected_image_id[:2]
+        loc = 'swift+config://ref1/%s/%s'
+        expected_location = loc % (container, expected_image_id)
+        image_swift = six.StringIO(expected_swift_contents)
+
+        global SWIFT_PUT_OBJECT_CALLS
+        SWIFT_PUT_OBJECT_CALLS = 0
+        conf = copy.deepcopy(SWIFT_CONF)
+        conf['swift_store_user'] = 'tenant:user'
+        conf['swift_store_create_container_on_put'] = True
+        conf['swift_store_container'] = 'randomname'
+        conf['swift_store_multiple_containers_seed'] = 2
+        self.config(**conf)
+        reload(swift)
+        self.store = Store(self.conf)
+        self.store.configure()
+        loc, size, checksum, _ = self.store.add(expected_image_id,
+                                                image_swift,
+                                                expected_swift_size)
+
+        self.assertEqual(expected_location, loc)
+        self.assertEqual(expected_swift_size, size)
+        self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(SWIFT_PUT_OBJECT_CALLS, 1)
+
+        loc = location.get_location_from_uri(expected_location, conf=self.conf)
+        (new_image_swift, new_image_size) = self.store.get(loc)
+        new_image_contents = ''.join([chunk for chunk in new_image_swift])
+        new_image_swift_size = len(new_image_swift)
+
+        self.assertEqual(expected_swift_contents, new_image_contents)
+        self.assertEqual(expected_swift_size, new_image_swift_size)
+
+    @mock.patch('glance_store._drivers.swift.utils'
+                '.is_multiple_swift_store_accounts_enabled',
+                mock.Mock(return_value=True))
+    def test_add_no_container_and_multiple_containers_no_create(self):
+        """
+        Tests that adding an image with a non-existing container while using
+        multiple containers raises an appropriate exception
+        """
+        conf = copy.deepcopy(SWIFT_CONF)
+        conf['swift_store_user'] = 'tenant:user'
+        conf['swift_store_create_container_on_put'] = False
+        conf['swift_store_container'] = 'randomname'
+        conf['swift_store_multiple_containers_seed'] = 2
+        self.config(**conf)
+        reload(swift)
+
+        expected_image_id = str(uuid.uuid4())
+        expected_container = 'randomname_' + expected_image_id[:2]
+
+        self.store = Store(self.conf)
+        self.store.configure()
+
+        image_swift = six.StringIO("nevergonnamakeit")
+
+        global SWIFT_PUT_OBJECT_CALLS
+        SWIFT_PUT_OBJECT_CALLS = 0
+
+        # We check the exception text to ensure the container
+        # missing text is found in it, otherwise, we would have
+        # simply used self.assertRaises here
+        exception_caught = False
+        try:
+            self.store.add(expected_image_id, image_swift, 0)
+        except BackendException as e:
+            exception_caught = True
+            expected_msg = "container %s does not exist in Swift"
+            expected_msg = expected_msg % expected_container
+            self.assertIn(expected_msg, utils.exception_to_str(e))
+        self.assertTrue(exception_caught)
+        self.assertEqual(SWIFT_PUT_OBJECT_CALLS, 0)
+
+    @mock.patch('glance_store._drivers.swift.utils'
+                '.is_multiple_swift_store_accounts_enabled',
+                mock.Mock(return_value=False))
+    def test_multi_container_doesnt_impact_multi_tenant_add(self):
+        expected_swift_size = FIVE_KB
+        expected_swift_contents = "*" * expected_swift_size
+        expected_image_id = str(uuid.uuid4())
+        expected_container = 'container_' + expected_image_id
+        loc = 'swift+https://some_endpoint/%s/%s'
+        expected_location = loc % (expected_container, expected_image_id)
+        image_swift = six.StringIO(expected_swift_contents)
+
+        global SWIFT_PUT_OBJECT_CALLS
+        SWIFT_PUT_OBJECT_CALLS = 0
+
+        self.config(swift_store_container='container')
+        self.config(swift_store_create_container_on_put=True)
+        self.config(swift_store_multiple_containers_seed=2)
+        fake_get_endpoint = FakeGetEndpoint('https://some_endpoint')
+        self.stubs.Set(auth, 'get_endpoint', fake_get_endpoint)
+        ctxt = context.RequestContext(
+            user='user', tenant='tenant', auth_token='123',
+            service_catalog={})
+        store = swift.MultiTenantStore(self.conf)
+        store.configure()
+        location, size, checksum, _ = store.add(expected_image_id, image_swift,
+                                                expected_swift_size,
+                                                context=ctxt)
+        self.assertEqual(expected_location, location)
+
+    @mock.patch('glance_store._drivers.swift.utils'
+                '.is_multiple_swift_store_accounts_enabled',
+                mock.Mock(return_value=True))
     def test_add_large_object(self):
         """
         Tests that adding a very large image. We simulate the large
@@ -1252,3 +1368,79 @@ class TestChunkReader(base.StoreBaseTest):
                 break
         self.assertEqual(1024, bytes_read)
         data_file.close()
+
+
+class TestMultipleContainers(base.StoreBaseTest):
+    _CONF = cfg.CONF
+
+    def setUp(self):
+        super(TestMultipleContainers, self).setUp()
+        self.config(swift_store_multiple_containers_seed=3)
+        self.store = swift.SingleTenantStore(self.conf)
+        self.store.configure()
+
+    def test_get_container_name_happy_path_with_seed_three(self):
+
+        test_image_id = 'fdae39a1-bac5-4238-aba4-69bcc726e848'
+        actual = self.store.get_container_name(test_image_id,
+                                               'default_container')
+        expected = 'default_container_fda'
+        self.assertEqual(expected, actual)
+
+    def test_get_container_name_with_negative_seed(self):
+        self.config(swift_store_multiple_containers_seed=-1)
+        self.store = swift.SingleTenantStore(self.conf)
+
+        test_image_id = 'random_id'
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.get_container_name, test_image_id,
+                          'default_container')
+
+    def test_get_container_name_with_seed_beyond_max(self):
+        self.config(swift_store_multiple_containers_seed=33)
+        self.store = swift.SingleTenantStore(self.conf)
+
+        test_image_id = 'random_id'
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.get_container_name, test_image_id,
+                          'default_container')
+
+    def test_get_container_name_with_max_seed(self):
+        self.config(swift_store_multiple_containers_seed=32)
+        self.store = swift.SingleTenantStore(self.conf)
+
+        test_image_id = 'fdae39a1-bac5-4238-aba4-69bcc726e848'
+        actual = self.store.get_container_name(test_image_id,
+                                               'default_container')
+        expected = 'default_container_' + test_image_id
+        self.assertEqual(expected, actual)
+
+    def test_get_container_name_with_dash(self):
+        self.config(swift_store_multiple_containers_seed=10)
+        self.store = swift.SingleTenantStore(self.conf)
+
+        test_image_id = 'fdae39a1-bac5-4238-aba4-69bcc726e848'
+        actual = self.store.get_container_name(test_image_id,
+                                               'default_container')
+        expected = 'default_container_' + 'fdae39a1-ba'
+        self.assertEqual(expected, actual)
+
+    def test_get_container_name_with_min_seed(self):
+        self.config(swift_store_multiple_containers_seed=1)
+        self.store = swift.SingleTenantStore(self.conf)
+
+        test_image_id = 'fdae39a1-bac5-4238-aba4-69bcc726e848'
+        actual = self.store.get_container_name(test_image_id,
+                                               'default_container')
+        expected = 'default_container_' + 'f'
+        self.assertEqual(expected, actual)
+
+    def test_get_container_name_with_multiple_containers_turned_off(self):
+        self.config(swift_store_multiple_containers_seed=0)
+        self.store.configure()
+
+        test_image_id = 'random_id'
+        actual = self.store.get_container_name(test_image_id,
+                                               'default_container')
+        expected = 'default_container'
+        self.assertEqual(expected, actual)

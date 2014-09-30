@@ -72,7 +72,9 @@ _SWIFT_OPTS = [
     cfg.StrOpt('swift_store_container',
                default=DEFAULT_CONTAINER,
                help=_('Container within the account that the account should '
-                      'use for storing images in Swift.')),
+                      'use for storing images in Swift when using single '
+                      'container mode. In multiple container mode, this will '
+                      'be the prefix for all containers.')),
     cfg.IntOpt('swift_store_large_object_size',
                default=DEFAULT_LARGE_OBJECT_SIZE,
                help=_('The size, in MB, that Glance will start chunking image '
@@ -89,6 +91,18 @@ _SWIFT_OPTS = [
                 help=_('If set to True, enables multi-tenant storage '
                        'mode which causes Glance images to be stored in '
                        'tenant specific Swift accounts.')),
+    cfg.IntOpt('swift_store_multiple_containers_seed',
+               default=0,
+               help=_('When set to 0, a single-tenant store will only use one '
+                      'container to store all images. When set to an integer '
+                      'value between 1 and 32, a single-tenant store will use '
+                      'multiple containers to store images, and this value '
+                      'will determine how many containers are created.'
+                      'Used only when swift_store_multi_tenant is disabled. '
+                      'The total number of containers that will be used is '
+                      'equal to 16^N, so if this config option is set to 2, '
+                      'then 16^2=256 containers will be used to store images.'
+                      )),
     cfg.ListOpt('swift_store_admin_tenants', default=[],
                 help=_('A list of tenants that will be granted read/write '
                        'access on all Swift containers created by Glance in '
@@ -699,13 +713,50 @@ class SingleTenantStore(BaseStore):
                                                    reason=reason)
 
     def create_location(self, image_id, context=None):
+        container_name = self.get_container_name(image_id, self.container)
         specs = {'scheme': self.scheme,
-                 'container': self.container,
+                 'container': container_name,
                  'obj': str(image_id),
                  'auth_or_store_url': self.auth_address,
                  'user': self.user,
                  'key': self.key}
         return StoreLocation(specs, self.conf)
+
+    def get_container_name(self, image_id, default_image_container):
+        """
+        Returns appropriate container name depending upon value of
+        ``swift_store_multiple_containers_seed``. In single-container mode,
+        which is a seed value of 0, simply returns default_image_container.
+        In multiple-container mode, returns default_image_container as the
+        prefix plus a suffix determined by the multiple container seed
+
+        examples:
+            single-container mode:  'glance'
+            multiple-container mode: 'glance_3a1' for image uuid 3A1xxxxxxx...
+
+        :param image_id: UUID of image
+        :param default_image_container: container name from
+               ``swift_store_container``
+        """
+        seed_num_chars = \
+            self.conf.glance_store.swift_store_multiple_containers_seed
+        if seed_num_chars is None \
+                or seed_num_chars < 0 or seed_num_chars > 32:
+            reason = _("An integer value between 0 and 32 is required for"
+                       " swift_store_multiple_containers_seed.")
+            LOG.error(reason)
+            raise exceptions.BadStoreConfiguration(store_name="swift",
+                                                   reason=reason)
+        elif seed_num_chars > 0:
+            image_id = str(image_id).lower()
+
+            num_dashes = image_id[:seed_num_chars].count('-')
+            num_chars = seed_num_chars + num_dashes
+            name_suffix = image_id[:num_chars]
+            new_container_name = default_image_container + '_' + name_suffix
+            return new_container_name
+        else:
+            return default_image_container
 
     def get_connection(self, location, context=None):
         if not location.user:
