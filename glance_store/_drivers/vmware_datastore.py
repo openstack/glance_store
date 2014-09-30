@@ -231,6 +231,17 @@ class Store(glance_store.Store):
 
     OPTIONS = _VMWARE_OPTS
     WRITE_CHUNKSIZE = units.Mi
+    # FIXME(arnaud): re-visit this code once the store API is cleaned up.
+    _VMW_SESSION = None
+
+    def reset_session(self, force=False):
+        if Store._VMW_SESSION is None or force:
+            Store._VMW_SESSION = api.VMwareAPISession(
+                self.server_host, self.server_username, self.server_password,
+                self.api_retry_count, self.tpoll_interval)
+        return Store._VMW_SESSION
+
+    session = property(reset_session)
 
     def get_schemes(self):
         return (STORE_SCHEME,)
@@ -247,12 +258,6 @@ class Store(glance_store.Store):
             raise exceptions.BadStoreConfiguration(
                 store_name='vmware_datastore', reason=msg)
 
-    def _create_session(self):
-        self._session = api.VMwareAPISession(
-            self.server_host, self.server_username, self.server_password,
-            self.api_retry_count, self.tpoll_interval)
-        self._service_content = self._session.vim.service_content
-
     def configure(self):
         self._sanity_check()
         self.scheme = STORE_SCHEME
@@ -262,7 +267,6 @@ class Store(glance_store.Store):
         self.api_retry_count = self.conf.glance_store.vmware_api_retry_count
         self.tpoll_interval = self.conf.glance_store.vmware_task_poll_interval
         self.api_insecure = self.conf.glance_store.vmware_api_insecure
-        self._create_session()
         super(Store, self).configure()
 
     def configure_add(self):
@@ -270,14 +274,14 @@ class Store(glance_store.Store):
         self.datastore_name = self._option_get('vmware_datastore_name')
         global _datastore_info_valid
         if not _datastore_info_valid:
-            search_index_moref = self._service_content.searchIndex
+            search_index_moref = (
+                self.session.vim.service_content.searchIndex)
 
             inventory_path = ('%s/datastore/%s'
                               % (self.datacenter_path, self.datastore_name))
-            ds_moref = self._session.invoke_api(self._session.vim,
-                                                'FindByInventoryPath',
-                                                search_index_moref,
-                                                inventoryPath=inventory_path)
+            ds_moref = self.session.invoke_api(
+                self.session.vim, 'FindByInventoryPath',
+                search_index_moref, inventoryPath=inventory_path)
             if ds_moref is None:
                 msg = (_("Could not find datastore %(ds_name)s "
                          "in datacenter %(dc_path)s")
@@ -339,7 +343,7 @@ class Store(glance_store.Store):
         # NOTE(arnaud): use a decorator when the config is not tied to self
         for i in range(self.api_retry_count + 1):
             cookie = self._build_vim_cookie_header(
-                self._session.vim.client.options.transport.cookiejar)
+                self.session.vim.client.options.transport.cookiejar)
             headers = dict(headers.items() + {'Cookie': cookie}.items())
             try:
                 conn = self._get_http_conn('PUT', loc, headers,
@@ -351,7 +355,7 @@ class Store(glance_store.Store):
                                       '%(image)s'), {'image': image_id})
 
             if res.status == httplib.UNAUTHORIZED:
-                self._create_session()
+                self.reset_session(force=True)
                 image_file.rewind()
                 continue
 
@@ -412,19 +416,18 @@ class Store(glance_store.Store):
         file_path = '[%s] %s' % (
             self.datastore_name,
             location.store_location.path[len(DS_URL_PREFIX):])
-        search_index_moref = self._service_content.searchIndex
-        dc_moref = self._session.invoke_api(self._session.vim,
-                                            'FindByInventoryPath',
-                                            search_index_moref,
-                                            inventoryPath=self.datacenter_path)
-        delete_task = self._session.invoke_api(
-            self._session.vim,
+        search_index_moref = self.session.vim.service_content.searchIndex
+        dc_moref = self.session.invoke_api(
+            self.session.vim, 'FindByInventoryPath', search_index_moref,
+            inventoryPath=self.datacenter_path)
+        delete_task = self.session.invoke_api(
+            self.session.vim,
             'DeleteDatastoreFile_Task',
-            self._service_content.fileManager,
+            self.session.vim.service_content.fileManager,
             name=file_path,
             datacenter=dc_moref)
         try:
-            self._session.wait_for_task(delete_task)
+            self.session.wait_for_task(delete_task)
         except Exception:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE('Failed to delete image %(image)s '
@@ -440,7 +443,7 @@ class Store(glance_store.Store):
         # NOTE(arnaud): use a decorator when the config is not tied to self
         for i in range(self.api_retry_count + 1):
             cookie = self._build_vim_cookie_header(
-                self._session.vim.client.options.transport.cookiejar)
+                self.session.vim.client.options.transport.cookiejar)
             headers = {'Cookie': cookie}
             try:
                 conn = self._get_http_conn(method, loc, headers)
@@ -452,7 +455,7 @@ class Store(glance_store.Store):
                                                      location.image_id})
             if resp.status >= 400:
                 if resp.status == httplib.UNAUTHORIZED:
-                    self._create_session()
+                    self.reset_session(force=True)
                     continue
                 if resp.status == httplib.NOT_FOUND:
                     reason = _('VMware datastore could not find image at URI.')

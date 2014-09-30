@@ -20,6 +20,7 @@ import uuid
 
 import mock
 from oslo.utils import units
+from oslo.vmware import api
 import six
 
 import glance_store._drivers.vmware_datastore as vm_store
@@ -98,33 +99,6 @@ class TestStore(base.StoreBaseTest):
         backend.create_stores(self.conf)
 
         self.store = backend.get_store_from_scheme('vsphere')
-
-        class FakeSession:
-            def __init__(self):
-                self.vim = FakeVim()
-
-        class FakeVim:
-            def __init__(self):
-                self.client = FakeClient()
-
-        class FakeClient:
-            def __init__(self):
-                self.options = FakeOptions()
-
-        class FakeOptions:
-            def __init__(self):
-                self.transport = FakeTransport()
-
-        class FakeTransport:
-            def __init__(self):
-                self.cookiejar = FakeCookieJar()
-
-        class FakeCookieJar:
-            pass
-
-        self.store._session = FakeSession()
-        self.store._session.invoke_api = mock.Mock()
-        self.store._session.wait_for_task = mock.Mock()
 
         self.store.store_image_dir = (
             VMWARE_DS['vmware_store_image_dir'])
@@ -370,20 +344,52 @@ class TestStore(base.StoreBaseTest):
         except exceptions.BadStoreConfiguration:
             self.fail()
 
-    def test_retry_count(self):
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_retry_count(self, mock_api_session):
         expected_image_id = str(uuid.uuid4())
         expected_size = FIVE_KB
         expected_contents = "*" * expected_size
         image = six.StringIO(expected_contents)
-        self.store._create_session = mock.Mock()
+        self.session = mock.Mock()
         with mock.patch('httplib.HTTPConnection') as HttpConn:
             HttpConn.return_value = FakeHTTPConnection(status=401)
             try:
-                location, size, checksum, _ = self.store.add(expected_image_id,
-                                                             image,
-                                                             expected_size)
+                self.store.add(expected_image_id, image, expected_size)
             except exceptions.NotAuthenticated:
                 pass
         self.assertEqual(
             self.store.conf.glance_store.vmware_api_retry_count + 1,
-            self.store._create_session.call_count)
+            mock_api_session.call_count)
+
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_session_reused(self, mock_api_session):
+        expected_image_id = str(uuid.uuid4())
+        expected_size = FIVE_KB
+        expected_contents = "*" * expected_size
+        hash_code = hashlib.md5(expected_contents)
+        loc = location.get_location_from_uri(
+            "vsphere://127.0.0.1/folder/openstack_glance/%s?"
+            "dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
+        with mock.patch('hashlib.md5') as md5:
+            md5.return_value = hash_code
+            image = six.StringIO(expected_contents)
+            with mock.patch('httplib.HTTPConnection') as HttpConn:
+                HttpConn.return_value = FakeHTTPConnection()
+                self.store.add(expected_image_id, image, expected_size)
+                HttpConn.return_value = FakeHTTPConnection(status=401)
+                self.store.add(expected_image_id, image, expected_size)
+                HttpConn.return_value = FakeHTTPConnection()
+                self.store.add(expected_image_id, image, expected_size)
+                self.store.delete(loc)
+        self.assertEqual(
+            self.store.conf.glance_store.vmware_api_retry_count + 1,
+            mock_api_session.call_count)
+
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_reset_session(self, mock_api_session):
+        self.store.reset_session(force=False)
+        self.assertFalse(mock_api_session.called)
+        self.store.reset_session()
+        self.assertFalse(mock_api_session.called)
+        self.store.reset_session(force=True)
+        self.assertTrue(mock_api_session.called)
