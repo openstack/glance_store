@@ -7,9 +7,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: glance_store 0.1.7.34.g692a6cd\n"
+"Project-Id-Version: glance_store 0.1.7.56.g0584204\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2014-09-22 06:07+0000\n"
+"POT-Creation-Date: 2014-10-01 06:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -28,43 +28,33 @@ msgid ""
 "by one of the stores defined by the 'stores' config option."
 msgstr ""
 
-#: glance_store/backend.py:220
+#: glance_store/backend.py:219
 #, python-format
 msgid "Store for scheme %s not found"
 msgstr ""
 
-#: glance_store/backend.py:302
-#, python-format
-msgid "Failed to delete image %s in store from URI"
-msgstr ""
-
-#: glance_store/backend.py:308
-#, python-format
-msgid "Failed to delete image %(image_id)s from store (%(exc_type)s)"
-msgstr ""
-
-#: glance_store/backend.py:331
+#: glance_store/backend.py:307
 #, python-format
 msgid ""
 "The image metadata key %(key)s has an invalid type of %(type)s. Only "
 "dict, list, and unicode are supported."
 msgstr ""
 
-#: glance_store/backend.py:355
+#: glance_store/backend.py:331
 #, python-format
 msgid ""
 "The storage driver %(driver)s returned invalid  metadata %(metadata)s. "
 "This must be a dictionary type"
 msgstr ""
 
-#: glance_store/backend.py:363
+#: glance_store/backend.py:339
 #, python-format
 msgid ""
 "A bad metadata structure was returned from the %(driver)s storage driver:"
 " %(metadata)s.  %(e)s."
 msgstr ""
 
-#: glance_store/backend.py:397
+#: glance_store/backend.py:373
 msgid "Skipping store.set_acls... not implemented."
 msgstr ""
 
@@ -397,39 +387,9 @@ msgid ""
 "Got: %(e)r"
 msgstr ""
 
-#: glance_store/common/utils.py:87
+#: glance_store/common/utils.py:86
 #, python-format
 msgid "Error: cooperative_iter exception %s"
-msgstr ""
-
-#: glance_store/openstack/common/gettextutils.py:320
-msgid "Message objects do not support addition."
-msgstr ""
-
-#: glance_store/openstack/common/gettextutils.py:330
-msgid ""
-"Message objects do not support str() because they may contain non-ascii "
-"characters. Please use unicode() or translate() instead."
-msgstr ""
-
-#: glance_store/openstack/common/log.py:275
-#, python-format
-msgid "Deprecated: %s"
-msgstr ""
-
-#: glance_store/openstack/common/log.py:384
-#, python-format
-msgid "Error loading logging config %(log_config)s: %(err_msg)s"
-msgstr ""
-
-#: glance_store/openstack/common/log.py:434
-#, python-format
-msgid "syslog facility must be one of: %s"
-msgstr ""
-
-#: glance_store/openstack/common/log.py:677
-#, python-format
-msgid "Fatal call to deprecated config: %(msg)s"
 msgstr ""
 
 #: glance_store/openstack/common/processutils.py:59
@@ -448,33 +408,28 @@ msgstr ""
 
 #: glance_store/openstack/common/processutils.py:143
 #, python-format
-msgid "Got unknown keyword args to utils.execute: %r"
+msgid "Got unknown keyword args: %r"
 msgstr ""
 
-#: glance_store/openstack/common/processutils.py:149
+#: glance_store/openstack/common/processutils.py:148
 msgid "Command requested root, but did not specify a root helper."
 msgstr ""
 
-#: glance_store/openstack/common/processutils.py:246
+#: glance_store/openstack/common/processutils.py:158
+#, python-format
+msgid "Running cmd (subprocess): %s"
+msgstr ""
+
+#: glance_store/openstack/common/processutils.py:206
+#, python-format
+msgid "%r failed. Retrying."
+msgstr ""
+
+#: glance_store/openstack/common/processutils.py:248
 msgid "Environment not supported over SSH"
 msgstr ""
 
-#: glance_store/openstack/common/processutils.py:250
+#: glance_store/openstack/common/processutils.py:252
 msgid "process_input not supported over SSH"
-msgstr ""
-
-#: glance_store/openstack/common/strutils.py:114
-#, python-format
-msgid "Unrecognized value '%(val)s', acceptable values are: %(acceptable)s"
-msgstr ""
-
-#: glance_store/openstack/common/strutils.py:219
-#, python-format
-msgid "Invalid unit system: \"%s\""
-msgstr ""
-
-#: glance_store/openstack/common/strutils.py:228
-#, python-format
-msgid "Invalid string format: %s"
 msgstr ""
 
