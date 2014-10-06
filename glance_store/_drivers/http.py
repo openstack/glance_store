@@ -150,6 +150,8 @@ class Store(glance_store.driver.Store):
             reason = _("The HTTP URL is invalid.")
             LOG.info(reason)
             raise exceptions.BadStoreUri(message=reason)
+        except exceptions.NotFound:
+            raise
         except Exception:
             # NOTE(flaper87): Catch more granular exceptions,
             # keeping this branch for backwards compatibility.
