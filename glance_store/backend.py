@@ -371,8 +371,3 @@ def set_acls(location_uri, public=False, read_tenants=[],
                        write_tenants=write_tenants)
     except NotImplementedError:
         LOG.debug(_("Skipping store.set_acls... not implemented."))
-
-
-def validate_location(uri, context=None):
-    store = get_store_from_uri(uri)
-    store.validate_location(uri)

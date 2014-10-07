@@ -240,27 +240,6 @@ class SwiftTests(object):
         image_size = self.store.get_size(loc)
         self.assertEqual(image_size, 5120)
 
-    def test_validate_location_for_invalid_uri(self):
-        """
-        Test that validate location raises when the location contains
-        any account reference.
-        """
-        uri = "swift+config://store_1/glance/%s"
-        self.assertRaises(exceptions.BadStoreUri,
-                          self.store.validate_location,
-                          uri)
-
-    def test_validate_location_for_valid_uri(self):
-        """
-        Test that validate location verifies that the location does not
-        contain any account reference
-        """
-        uri = "swift://user:key@auth_address/glance/%s"
-        try:
-            self.assertIsNone(self.store.validate_location(uri))
-        except Exception:
-            self.fail('Location uri validation failed')
-
     def test_get_size_with_multi_tenant_on(self):
         """Test that single tenant uris work with multi tenant on."""
         uri = ("swift://%s:key@auth_address/glance/%s" %
