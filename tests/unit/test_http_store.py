@@ -31,6 +31,12 @@ class TestHttpStore(base.StoreBaseTest):
         http.Store.READ_CHUNKSIZE = 2
         self.store = http.Store(self.conf)
 
+    def _mock_httplib(self):
+        """Mock httplib connection object.
+
+        Should be called when need to mock httplib response and request
+        objects.
+        """
         response = mock.patch('httplib.HTTPConnection.getresponse')
         self.response = response.start()
         self.response.return_value = utils.FakeHTTPResponse()
@@ -42,6 +48,7 @@ class TestHttpStore(base.StoreBaseTest):
         self.addCleanup(request.stop)
 
     def test_http_get(self):
+        self._mock_httplib()
         uri = "http://netloc/path/to/file.tar.gz"
         expected_returns = ['I ', 'am', ' a', ' t', 'ea', 'po', 't,', ' s',
                             'ho', 'rt', ' a', 'nd', ' s', 'to', 'ut', '\n']
@@ -49,12 +56,13 @@ class TestHttpStore(base.StoreBaseTest):
         (image_file, image_size) = self.store.get(loc)
         self.assertEqual(image_size, 31)
         chunks = [c for c in image_file]
-        self.assertEqual(chunks, expected_returns)
+        self.assertEqual(expected_returns, chunks)
 
     def test_http_get_redirect(self):
         # Add two layers of redirects to the response stack, which will
         # return the default 200 OK with the expected data after resolving
         # both redirects.
+        self._mock_httplib()
         redirect1 = {"location": "http://example.com/teapot.img"}
         redirect2 = {"location": "http://example.com/teapot_real.img"}
         responses = [utils.FakeHTTPResponse(status=302, headers=redirect1),
@@ -77,6 +85,7 @@ class TestHttpStore(base.StoreBaseTest):
         self.assertEqual(chunks, expected_returns)
 
     def test_http_get_max_redirects(self):
+        self._mock_httplib()
         redirect = {"location": "http://example.com/teapot.img"}
         responses = ([utils.FakeHTTPResponse(status=302, headers=redirect)]
                      * (http.MAX_REDIRECTS + 2))
@@ -90,6 +99,7 @@ class TestHttpStore(base.StoreBaseTest):
         self.assertRaises(exceptions.MaxRedirectsExceeded, self.store.get, loc)
 
     def test_http_get_redirect_invalid(self):
+        self._mock_httplib()
         redirect = {"location": "http://example.com/teapot.img"}
         redirect_resp = utils.FakeHTTPResponse(status=307, headers=redirect)
         self.response.return_value = redirect_resp
@@ -99,6 +109,7 @@ class TestHttpStore(base.StoreBaseTest):
         self.assertRaises(exceptions.BadStoreUri, self.store.get, loc)
 
     def test_http_get_not_found(self):
+        self._mock_httplib()
         fake = utils.FakeHTTPResponse(status=404, data="404 Not Found")
         self.response.return_value = fake
 
@@ -107,6 +118,7 @@ class TestHttpStore(base.StoreBaseTest):
         self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_http_delete_raise_error(self):
+        self._mock_httplib()
         uri = "https://netloc/path/to/file.tar.gz"
         loc = location.get_location_from_uri(uri, conf=self.conf)
         self.assertRaises(NotImplementedError, self.store.delete, loc)
@@ -114,9 +126,17 @@ class TestHttpStore(base.StoreBaseTest):
                           delete_from_backend, uri, {})
 
     def test_http_get_size_with_non_existent_image_raises_Not_Found(self):
+        self._mock_httplib()
         fake = utils.FakeHTTPResponse(status=404, data="404 Not Found")
         self.response.return_value = fake
 
         uri = "http://netloc/path/to/file.tar.gz"
         loc = location.get_location_from_uri(uri, conf=self.conf)
         self.assertRaises(exceptions.NotFound, self.store.get_size, loc)
+
+    def test_http_get_raises_remote_service_unavailable(self):
+        """Test http store raises RemoteServiceUnavailable."""
+        uri = "http://netloc/path/to/file.tar.gz"
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        self.assertRaises(exceptions.RemoteServiceUnavailable,
+                          self.store.get, loc)

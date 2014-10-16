@@ -178,6 +178,10 @@ class RegionAmbiguity(GlanceStoreException):
                 "supplied one.")
 
 
+class RemoteServiceUnavailable(GlanceStoreException):
+    message = _("Remote server where the image is present is unavailable.")
+
+
 class WorkerCreationFailure(GlanceStoreException):
     message = _("Server worker creation failed: %(reason)s.")
 
