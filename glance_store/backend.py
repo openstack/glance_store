@@ -325,7 +325,10 @@ def store_add_to_backend(image_id, data, size, store, context=None):
              the checksum of the data
              the storage systems metadata dictionary for the location
     """
-    (location, size, checksum, metadata) = store.add(image_id, data, size)
+    (location, size, checksum, metadata) = store.add(image_id,
+                                                     data,
+                                                     size,
+                                                     context=context)
     if metadata is not None:
         if not isinstance(metadata, dict):
             msg = (_("The storage driver %(driver)s returned invalid "
@@ -368,7 +371,8 @@ def set_acls(location_uri, public=False, read_tenants=[],
     try:
         store.set_acls(loc, public=public,
                        read_tenants=read_tenants,
-                       write_tenants=write_tenants)
+                       write_tenants=write_tenants,
+                       context=context)
     except NotImplementedError:
         LOG.debug(_("Skipping store.set_acls... not implemented."))
 
