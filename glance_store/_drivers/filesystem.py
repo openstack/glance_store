@@ -36,7 +36,6 @@ import glance_store.driver
 from glance_store import exceptions
 from glance_store import i18n
 import glance_store.location
-from glance_store.openstack.common import processutils
 
 
 LOG = logging.getLogger(__name__)
@@ -428,10 +427,8 @@ class Store(glance_store.driver.Store):
         """
 
         #Calculate total available space
-        df = processutils.execute("df", "-k",
-                                  mount_point)[0].strip("'\n'")
-        total_available_space = int(df.split('\n')[1].split()[3]) * units.Ki
-
+        stvfs_result = os.statvfs(mount_point)
+        total_available_space = stvfs_result.f_bavail * stvfs_result.f_bsize
         return max(0, total_available_space)
 
     def _find_best_datadir(self, image_size):
