@@ -16,9 +16,9 @@
 import StringIO
 
 import mock
+from oslo.concurrency import processutils
 
 from glance_store._drivers import sheepdog
-from glance_store.openstack.common import processutils
 from glance_store.tests import base
 
 
