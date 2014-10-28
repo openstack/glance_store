@@ -6,6 +6,7 @@ mock>=1.0
 
 # Unit testing
 coverage>=3.6
+httpretty>=0.8.0,!=0.8.1,!=0.8.2,!=0.8.3
 fixtures>=0.3.14
 python-subunit>=0.0.18
 testrepository>=0.0.18
