@@ -398,12 +398,6 @@ class BaseStore(driver.Store):
 
         return (resp_headers, resp_body)
 
-    def validate_location(self, uri):
-        pieces = urlparse.urlparse(uri)
-        if pieces.scheme in ['swift+config']:
-            reason = (_("Location credentials are invalid"))
-            raise exceptions.BadStoreUri(message=reason)
-
     def get(self, location, connection=None,
             offset=0, chunk_size=None, context=None):
         location = location.store_location

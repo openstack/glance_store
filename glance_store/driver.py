@@ -96,13 +96,6 @@ class Store(object):
         """
         # NOTE(flaper87): This should probably go away
 
-    def validate_location(self, location):
-        """
-        Takes a location and validates it for the presence
-        of any account references
-        """
-        pass
-
     def get(self, location, offset=0, chunk_size=None, context=None):
         """
         Takes a `glance_store.location.Location` object that indicates
