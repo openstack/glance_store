@@ -86,7 +86,7 @@ def get_cinderclient(conf, context):
 
     glance_store = conf.glance_store
     c = cinderclient.Client(context.user,
-                            context.auth_tok,
+                            context.auth_token,
                             project_id=context.tenant,
                             auth_url=url,
                             insecure=glance_store.cinder_api_insecure,
@@ -94,8 +94,8 @@ def get_cinderclient(conf, context):
                             cacert=glance_store.cinder_ca_certificates_file)
 
     # noauth extracts user_id:project_id from auth_token
-    c.client.auth_token = context.auth_tok or '%s:%s' % (context.user,
-                                                         context.tenant)
+    c.client.auth_token = context.auth_token or '%s:%s' % (context.user,
+                                                           context.tenant)
     c.client.management_url = url
     return c
 
