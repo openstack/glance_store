@@ -786,7 +786,7 @@ class MultiTenantStore(BaseStore):
 
         headers = {}
         if public:
-            headers['X-Container-Read'] = ".r:*,.rlistings"
+            headers['X-Container-Read'] = "*:*"
         elif read_tenants:
             headers['X-Container-Read'] = ','.join('%s:*' % i
                                                    for i in read_tenants)
