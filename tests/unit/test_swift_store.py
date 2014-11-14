@@ -1048,6 +1048,24 @@ class TestMultiTenantStoreContext(base.StoreBaseTest):
         self.addCleanup(self.conf.reset)
 
     @httpretty.activate
+    def test_download_context(self):
+        """Verify context (ie token) is passed to swift on download."""
+        self.config(swift_store_multi_tenant=True)
+        store = Store(self.conf)
+        store.configure()
+        uri = "swift+http://127.0.0.1:0/glance_123/123"
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        ctx = context.RequestContext(
+            service_catalog=self.service_catalog, user='tenant:user1',
+            tenant='tenant', auth_token='0123')
+        httpretty.register_uri(httpretty.GET,
+                               "http://127.0.0.1:0/glance_123/123",
+                               status=200)
+        store.get(loc, context=ctx)
+        self.assertEqual(
+            '0123', httpretty.last_request().headers['X-Auth-Token'])
+
+    @httpretty.activate
     def test_upload_context(self):
         """Verify context (ie token) is passed to swift on upload."""
         def put_callback(request, uri, headers):
