@@ -60,6 +60,12 @@ class TestHttpStore(base.StoreBaseTest,
         chunks = [c for c in image_file]
         self.assertEqual(expected_returns, chunks)
 
+    def test_http_partial_get(self):
+        uri = "http://netloc/path/to/file.tar.gz"
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        self.assertRaises(exceptions.StoreRandomGetNotSupported,
+                          self.store.get, loc, chunk_size=1)
+
     def test_http_get_redirect(self):
         # Add two layers of redirects to the response stack, which will
         # return the default 200 OK with the expected data after resolving

@@ -220,9 +220,8 @@ class Store(driver.Store):
         :raises `glance_store.exceptions.NotFound` if image does not exist
         """
         loc = location.store_location
-        return (ImageIterator(loc.pool, loc.image, loc.snapshot,
-                              self, chunk_size=chunk_size),
-                chunk_size or self.get_size(location))
+        return (ImageIterator(loc.pool, loc.image, loc.snapshot, self),
+                self.get_size(location))
 
     def get_size(self, location, context=None):
         """

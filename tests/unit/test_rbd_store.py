@@ -173,9 +173,9 @@ class TestStore(base.StoreBaseTest,
             with mock.patch.object(rbd_store.rbd.Image, 'write') as write:
                 ret = self.store.add('fake_image_id', self.data_iter, 0)
 
-        self.assertTrue(resize.called)
-        self.assertTrue(write.called)
-        self.assertEqual(ret[1], self.data_len)
+                self.assertTrue(resize.called)
+                self.assertTrue(write.called)
+                self.assertEqual(ret[1], self.data_len)
 
     @mock.patch.object(MockRBD.Image, '__enter__')
     @mock.patch.object(rbd_store.Store, '_create_image')
@@ -282,6 +282,12 @@ class TestStore(base.StoreBaseTest,
                               'fake_pool', self.location, snapshot_name='snap')
 
             self.called_commands_expected = ['remove']
+
+    def test_get_partial_image(self):
+        loc = Location('test_rbd_store', rbd_store.StoreLocation, self.conf,
+                       store_specs=self.store_specs)
+        self.assertRaises(exceptions.StoreRandomGetNotSupported,
+                          self.store.get, loc, chunk_size=1)
 
     def tearDown(self):
         self.assertEqual(self.called_commands_actual,

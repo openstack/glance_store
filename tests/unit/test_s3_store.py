@@ -301,6 +301,14 @@ class TestStore(base.StoreBaseTest,
             data += chunk
         self.assertEqual(expected_data, data)
 
+    def test_partial_get(self):
+        """Test a "normal" retrieval of an image in chunks."""
+        loc = location.get_location_from_uri(
+            "s3://user:key@auth_address/glance/%s" % FAKE_UUID,
+            conf=self.conf)
+        self.assertRaises(exceptions.StoreRandomGetNotSupported,
+                          self.store.get, loc, chunk_size=1)
+
     def test_get_calling_format_path(self):
         """Test a "normal" retrieval of an image in chunks."""
         self.config(s3_store_bucket_url_format='path')
