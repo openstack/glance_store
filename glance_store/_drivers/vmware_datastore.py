@@ -22,6 +22,7 @@ import os
 import socket
 
 from oslo.vmware import api
+from oslo.vmware import constants
 from oslo_config import cfg
 from oslo_utils import excutils
 from oslo_utils import units
@@ -38,7 +39,6 @@ LOG = logging.getLogger(__name__)
 
 MAX_REDIRECTS = 5
 DEFAULT_STORE_IMAGE_DIR = '/openstack_glance'
-DEFAULT_ESX_DATACENTER_PATH = 'ha-datacenter'
 DS_URL_PREFIX = '/folder'
 STORE_SCHEME = 'vsphere'
 
@@ -57,7 +57,7 @@ _VMWARE_OPTS = [
                       'VMware ESX/VC server.'),
                secret=True),
     cfg.StrOpt('vmware_datacenter_path',
-               default=DEFAULT_ESX_DATACENTER_PATH,
+               default=constants.ESX_DATACENTER_PATH,
                help=_('Inventory path to a datacenter. '
                       'If the vmware_server_host specified is an ESX/ESXi, '
                       'the vmware_datacenter_path is optional. If specified, '
