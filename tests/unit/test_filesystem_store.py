@@ -34,12 +34,14 @@ from glance_store._drivers.filesystem import Store
 from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
+from tests.unit import test_store_capabilities
 
 
 KB = 1024
 
 
-class TestStore(base.StoreBaseTest):
+class TestStore(base.StoreBaseTest,
+                test_store_capabilities.TestStoreCapabilitiesChecking):
 
     def setUp(self):
         """Establish a clean test environment."""

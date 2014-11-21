@@ -31,6 +31,7 @@ from oslo_utils import units
 import six
 
 import glance_store
+from glance_store import capabilities
 from glance_store.common import utils
 import glance_store.driver
 from glance_store import exceptions
@@ -293,6 +294,7 @@ class ChunkedFile(object):
 class Store(glance_store.driver.Store):
     """An implementation of the s3 adapter."""
 
+    _CAPABILITIES = capabilities.RW_ACCESS
     OPTIONS = _S3_OPTS
     EXAMPLE_URL = "s3://<ACCESS_KEY>:<SECRET_KEY>@<S3_URL>/<BUCKET>/<OBJ>"
 
@@ -364,6 +366,7 @@ class Store(glance_store.driver.Store):
                                                    reason=reason)
         return result
 
+    @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
         """
         Takes a `glance_store.location.Location` object that indicates
@@ -426,6 +429,7 @@ class Store(glance_store.driver.Store):
 
         return key
 
+    @capabilities.check
     def add(self, image_id, image_file, image_size, context=None):
         """
         Stores an image file with supplied identifier to the backend
@@ -651,6 +655,7 @@ class Store(glance_store.driver.Store):
                      "key=%(obj_name)s") % {'obj_name': obj_name})
             raise glance_store.BackendException(msg)
 
+    @capabilities.check
     def delete(self, location, context=None):
         """
         Takes a `glance_store.location.Location` object that indicates

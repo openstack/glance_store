@@ -22,6 +22,7 @@ import urlparse
 from oslo_config import cfg
 from oslo_utils import excutils
 
+from glance_store import capabilities
 import glance_store.driver
 from glance_store import exceptions
 from glance_store.i18n import _
@@ -80,6 +81,7 @@ class StoreLocation(glance_store.location.StoreLocation):
 class Store(glance_store.driver.Store):
     """GridFS adapter"""
 
+    _CAPABILITIES = capabilities.RW_ACCESS
     OPTIONS = _GRIDFS_OPTS
     EXAMPLE_URL = "gridfs://<IMAGE_ID>"
 
@@ -117,6 +119,7 @@ class Store(glance_store.driver.Store):
                                                    reason=reason)
         return result
 
+    @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
         """
         Takes a `glance_store.location.Location` object that indicates
@@ -159,6 +162,7 @@ class Store(glance_store.driver.Store):
             LOG.debug(msg)
             raise exceptions.NotFound(msg)
 
+    @capabilities.check
     def add(self, image_id, image_file, image_size, context=None):
         """
         Stores an image file with supplied identifier to the backend
@@ -199,6 +203,7 @@ class Store(glance_store.driver.Store):
 
         return (loc.get_uri(), image.length, image.md5, {})
 
+    @capabilities.check
     def delete(self, location, context=None):
         """
         Takes a `glance_store.location.Location` object that indicates

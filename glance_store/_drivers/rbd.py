@@ -25,6 +25,7 @@ import urllib
 
 from oslo_config import cfg
 
+from glance_store import capabilities
 from glance_store.common import utils
 from glance_store import driver
 from glance_store import exceptions
@@ -175,6 +176,7 @@ class ImageIterator(object):
 class Store(driver.Store):
     """An implementation of the RBD backend adapter."""
 
+    _CAPABILITIES = capabilities.RW_ACCESS
     OPTIONS = _RBD_OPTS
 
     EXAMPLE_URL = "rbd://<FSID>/<POOL>/<IMAGE>/<SNAP>"
@@ -206,6 +208,7 @@ class Store(driver.Store):
             raise exceptions.BadStoreConfiguration(store_name='rbd',
                                                    reason=reason)
 
+    @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
         """
         Takes a `glance_store.location.Location` object that indicates
@@ -313,6 +316,7 @@ class Store(driver.Store):
                     LOG.debug(log_msg % image_name)
                     raise exceptions.InUseByStore()
 
+    @capabilities.check
     def add(self, image_id, image_file, image_size, context=None):
         """
         Stores an image file with supplied identifier to the backend
@@ -390,6 +394,7 @@ class Store(driver.Store):
 
         return (loc.get_uri(), image_size, checksum.hexdigest(), {})
 
+    @capabilities.check
     def delete(self, location, context=None):
         """
         Takes a `glance_store.location.Location` object that indicates

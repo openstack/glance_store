@@ -19,6 +19,7 @@ import mock
 
 from glance_store._drivers import gridfs as gfs
 from glance_store.tests import base
+from tests.unit import test_store_capabilities
 
 try:
     import gridfs
@@ -75,7 +76,8 @@ class FakeGridFS(object):
         return Image
 
 
-class TestStore(base.StoreBaseTest):
+class TestStore(base.StoreBaseTest,
+                test_store_capabilities.TestStoreCapabilitiesChecking):
 
     def setUp(self):
         """Establish a clean test environment."""

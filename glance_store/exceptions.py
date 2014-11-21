@@ -146,8 +146,9 @@ class StoreGetNotSupported(GlanceStoreException):
     message = _("Getting images from this store is not supported.")
 
 
-class StoreAddNotSupported(GlanceStoreException):
-    message = _("Adding images to this store is not supported.")
+class StoreRandomGetNotSupported(StoreGetNotSupported):
+    message = _("Getting images randomly from this store is not supported. "
+                "Offset: %(offset)s, length: %(chunk_size)s")
 
 
 class StoreAddDisabled(GlanceStoreException):

@@ -20,9 +20,11 @@ from oslo_concurrency import processutils
 
 from glance_store._drivers import sheepdog
 from glance_store.tests import base
+from tests.unit import test_store_capabilities
 
 
-class TestSheepdogStore(base.StoreBaseTest):
+class TestSheepdogStore(base.StoreBaseTest,
+                        test_store_capabilities.TestStoreCapabilitiesChecking):
 
     def setUp(self):
         """Establish a clean test environment."""

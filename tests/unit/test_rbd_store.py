@@ -21,6 +21,7 @@ from glance_store._drivers import rbd as rbd_store
 from glance_store import exceptions
 from glance_store.location import Location
 from glance_store.tests import base
+from tests.unit import test_store_capabilities
 
 
 class MockRados(object):
@@ -141,7 +142,9 @@ class MockRBD(object):
             raise NotImplementedError()
 
 
-class TestStore(base.StoreBaseTest):
+class TestStore(base.StoreBaseTest,
+                test_store_capabilities.TestStoreCapabilitiesChecking):
+
     def setUp(self):
         """Establish a clean test environment."""
         super(TestStore, self).setUp()

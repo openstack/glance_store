@@ -15,15 +15,17 @@
 
 import mock
 
+import glance_store
 from glance_store._drivers import http
-from glance_store import delete_from_backend
 from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
 from glance_store.tests import utils
+from tests.unit import test_store_capabilities
 
 
-class TestHttpStore(base.StoreBaseTest):
+class TestHttpStore(base.StoreBaseTest,
+                    test_store_capabilities.TestStoreCapabilitiesChecking):
 
     def setUp(self):
         super(TestHttpStore, self).setUp()
@@ -121,9 +123,17 @@ class TestHttpStore(base.StoreBaseTest):
         self._mock_httplib()
         uri = "https://netloc/path/to/file.tar.gz"
         loc = location.get_location_from_uri(uri, conf=self.conf)
-        self.assertRaises(NotImplementedError, self.store.delete, loc)
         self.assertRaises(exceptions.StoreDeleteNotSupported,
-                          delete_from_backend, uri, {})
+                          self.store.delete, loc)
+        self.assertRaises(exceptions.StoreDeleteNotSupported,
+                          glance_store.delete_from_backend, uri, {})
+
+    def test_http_add_raise_error(self):
+        self.assertRaises(exceptions.StoreAddDisabled,
+                          self.store.add, None, None, None, None)
+        self.assertRaises(exceptions.StoreAddDisabled,
+                          glance_store.add_to_backend, None, None,
+                          None, None, 'file')
 
     def test_http_get_size_with_non_existent_image_raises_Not_Found(self):
         self._mock_httplib()

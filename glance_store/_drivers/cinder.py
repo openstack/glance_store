@@ -19,6 +19,7 @@ from cinderclient import service_catalog
 from cinderclient.v2 import client as cinderclient
 from oslo_config import cfg
 
+from glance_store import capabilities
 from glance_store.common import utils
 import glance_store.driver
 from glance_store import exceptions
@@ -130,6 +131,7 @@ class Store(glance_store.driver.Store):
 
     """Cinder backend store adapter."""
 
+    _CAPABILITIES = capabilities.DRIVER_REUSABLE
     OPTIONS = _CINDER_OPTS
     EXAMPLE_URL = "cinder://<VOLUME_ID>"
 

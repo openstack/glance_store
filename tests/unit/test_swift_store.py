@@ -34,12 +34,15 @@ import swiftclient
 from glance_store._drivers.swift import store as swift
 from glance_store import backend
 from glance_store import BackendException
+from glance_store import capabilities
 from glance_store.common import auth
 from glance_store.common import utils
 from glance_store import exceptions
 from glance_store import location
 from glance_store.openstack.common import context
 from glance_store.tests import base
+from tests.unit import test_store_capabilities
+
 
 CONF = cfg.CONF
 
@@ -248,7 +251,8 @@ class SwiftTests(object):
                (self.swift_store_user, FAKE_UUID))
         self.config(swift_store_multi_tenant=True)
         # NOTE(markwash): ensure the image is found
-        size = backend.get_size_from_backend(uri, context={})
+        ctxt = context.RequestContext()
+        size = backend.get_size_from_backend(uri, context=ctxt)
         self.assertEqual(size, 5120)
 
     def test_get(self):
@@ -757,7 +761,7 @@ class SwiftTests(object):
         try:
             self.config(**conf)
             self.store = Store(self.conf)
-            return self.store.add == self.store.add_disabled
+            return not self.store.is_capable(capabilities.WRITE_ACCESS)
         except Exception:
             return False
         return False
@@ -771,7 +775,7 @@ class SwiftTests(object):
                                           'authurl.com', 'user': '',
                                           'key': ''}}
         self.store.configure()
-        self.assertEqual(self.store.add, self.store.add_disabled)
+        self.assertFalse(self.store.is_capable(capabilities.WRITE_ACCESS))
 
     def test_no_auth_address(self):
         """
@@ -782,12 +786,18 @@ class SwiftTests(object):
                                           '', 'user': 'user1',
                                           'key': 'key1'}}
         self.store.configure()
-        self.assertEqual(self.store.add, self.store.add_disabled)
+        self.assertFalse(self.store.is_capable(capabilities.WRITE_ACCESS))
 
     def test_delete(self):
         """
         Test we can delete an existing image in the swift store
         """
+        conf = copy.deepcopy(SWIFT_CONF)
+        self.config(**conf)
+        reload(swift)
+        self.store = Store(self.conf)
+        self.store.configure()
+
         uri = "swift://%s:key@authurl/glance/%s" % (
             self.swift_store_user, FAKE_UUID)
         loc = location.get_location_from_uri(uri, conf=self.conf)
@@ -799,6 +809,12 @@ class SwiftTests(object):
         """
         Test we can delete an existing image in the swift store
         """
+        conf = copy.deepcopy(SWIFT_CONF)
+        self.config(**conf)
+        reload(swift)
+        self.store = Store(self.conf)
+        self.store.configure()
+
         uri = "swift+config://ref1/glance/%s" % (FAKE_UUID)
         loc = location.get_location_from_uri(uri, conf=self.conf)
         self.store.delete(loc)
@@ -810,6 +826,12 @@ class SwiftTests(object):
         Test that trying to delete a swift that doesn't exist
         raises an error
         """
+        conf = copy.deepcopy(SWIFT_CONF)
+        self.config(**conf)
+        reload(swift)
+        self.store = Store(self.conf)
+        self.store.configure()
+
         loc = location.get_location_from_uri(
             "swift://%s:key@authurl/glance/noexist" % (self.swift_store_user),
             conf=self.conf)
@@ -842,6 +864,12 @@ class SwiftTests(object):
                 raise swiftclient.ClientException('Object DELETE failed')
             else:
                 pass
+
+        conf = copy.deepcopy(SWIFT_CONF)
+        self.config(**conf)
+        reload(swift)
+        self.store = Store(self.conf)
+        self.store.configure()
 
         loc_uri = "swift+https://%s:key@localhost:8080/glance/%s"
         loc_uri = loc_uri % (self.swift_store_user, test_image_id)
@@ -910,7 +938,8 @@ class SwiftTests(object):
                          'frank:*,jim:*')
 
 
-class TestStoreAuthV1(base.StoreBaseTest, SwiftTests):
+class TestStoreAuthV1(base.StoreBaseTest, SwiftTests,
+                      test_store_capabilities.TestStoreCapabilitiesChecking):
 
     _CONF = cfg.CONF
 
@@ -935,7 +964,7 @@ class TestStoreAuthV1(base.StoreBaseTest, SwiftTests):
         self.store = Store(self.conf)
         self.config(**conf)
         self.store.configure()
-        self.register_store_schemes(self.store)
+        self.register_store_schemes(self.store, 'swift')
         self.addCleanup(self.conf.reset)
 
 
@@ -1166,7 +1195,7 @@ class TestMultiTenantStoreContext(base.StoreBaseTest):
         self.store = Store(self.conf)
         self.config(**conf)
         self.store.configure()
-        self.register_store_schemes(self.store)
+        self.register_store_schemes(self.store, 'swift')
         self.service_catalog = [{
             "name": "Object Storage",
             "type": "object-store",

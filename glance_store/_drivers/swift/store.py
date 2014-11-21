@@ -28,6 +28,7 @@ import urllib
 
 import glance_store
 from glance_store._drivers.swift import utils as sutils
+from glance_store import capabilities
 from glance_store.common import auth
 from glance_store.common import utils as cutils
 from glance_store import driver
@@ -374,6 +375,7 @@ Store.OPTIONS = _SWIFT_OPTS + sutils.swift_opts
 
 class BaseStore(driver.Store):
 
+    _CAPABILITIES = capabilities.RW_ACCESS
     CHUNKSIZE = 65536
     OPTIONS = _SWIFT_OPTS + sutils.swift_opts
 
@@ -418,6 +420,7 @@ class BaseStore(driver.Store):
 
         return (resp_headers, resp_body)
 
+    @capabilities.check
     def get(self, location, connection=None,
             offset=0, chunk_size=None, context=None):
         location = location.store_location
@@ -469,6 +472,7 @@ class BaseStore(driver.Store):
                 LOG.exception(msg % {'container': container,
                                      'chunk': chunk})
 
+    @capabilities.check
     def add(self, image_id, image_file, image_size,
             connection=None, context=None):
         location = self.create_location(image_id, context=context)
@@ -597,6 +601,7 @@ class BaseStore(driver.Store):
             LOG.error(msg)
             raise glance_store.BackendException(msg)
 
+    @capabilities.check
     def delete(self, location, connection=None, context=None):
         location = location.store_location
         if not connection:

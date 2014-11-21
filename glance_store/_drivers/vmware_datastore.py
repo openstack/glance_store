@@ -29,6 +29,7 @@ from oslo_utils import units
 import six.moves.urllib.parse as urlparse
 
 import glance_store
+from glance_store import capabilities
 from glance_store import exceptions
 from glance_store.i18n import _
 from glance_store.i18n import _LE
@@ -220,6 +221,7 @@ class StoreLocation(location.StoreLocation):
 class Store(glance_store.Store):
     """An implementation of the VMware datastore adapter."""
 
+    _CAPABILITIES = capabilities.RW_ACCESS
     OPTIONS = _VMWARE_OPTS
     WRITE_CHUNKSIZE = units.Mi
     # FIXME(arnaud): re-visit this code once the store API is cleaned up.
@@ -300,6 +302,7 @@ class Store(glance_store.Store):
             cookie = list(vim_cookies)[0]
             return cookie.name + '=' + cookie.value
 
+    @capabilities.check
     def add(self, image_id, image_file, image_size, context=None):
         """Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -362,6 +365,7 @@ class Store(glance_store.Store):
         return (loc.get_uri(), image_file.size,
                 image_file.checksum.hexdigest(), {})
 
+    @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
         """Takes a `glance_store.location.Location` object that indicates
         where to find the image file, and returns a tuple of generator
@@ -392,6 +396,7 @@ class Store(glance_store.Store):
         """
         return self._query(location, 'HEAD')[2]
 
+    @capabilities.check
     def delete(self, location, context=None):
         """Takes a `glance_store.location.Location` object that indicates
         where to find the image file to delete

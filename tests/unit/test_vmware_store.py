@@ -29,6 +29,7 @@ from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
 from glance_store.tests import utils
+from tests.unit import test_store_capabilities
 
 
 FAKE_UUID = str(uuid.uuid4())
@@ -78,7 +79,8 @@ class FakeHTTPConnection(object):
         pass
 
 
-class TestStore(base.StoreBaseTest):
+class TestStore(base.StoreBaseTest,
+                test_store_capabilities.TestStoreCapabilitiesChecking):
 
     @mock.patch('oslo.vmware.api.VMwareAPISession', auptospec=True)
     def setUp(self, mock_session):

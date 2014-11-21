@@ -21,14 +21,16 @@ import logging
 from oslo.config import cfg
 from oslo.utils import importutils
 
+from glance_store import capabilities
 from glance_store.common import utils
 from glance_store import exceptions
-from glance_store.i18n import _
+from glance_store import i18n
 
+_ = i18n._
 LOG = logging.getLogger(__name__)
 
 
-class Store(object):
+class Store(capabilities.StoreCapability):
 
     OPTIONS = None
     READ_CHUNKSIZE = 16 * (1024 * 1024)  # 16M
@@ -38,6 +40,9 @@ class Store(object):
         """
         Initialize the Store
         """
+
+        super(Store, self).__init__()
+
         self.conf = conf
         self.store_location_class = None
 
@@ -55,20 +60,22 @@ class Store(object):
 
     def configure(self):
         """
-        Configure the Store to use the stored configuration options
+        Configure the store to use the stored configuration options
+        and initialize capabilities based on current configuration.
+
         Any store that needs special configuration should implement
         this method.
         """
 
         try:
             self.configure_add()
-            self.add = getattr(self, '_add', self.add)
         except exceptions.BadStoreConfiguration as e:
-            self._add = self.add
-            self.add = self.add_disabled
+            self.unset_capabilities(capabilities.WRITE_ACCESS)
             msg = (_(u"Failed to configure store correctly: %s "
                      "Disabling add method.") % utils.exception_to_str(e))
             LOG.warn(msg)
+
+        self.update_capabilities()
 
     def get_schemes(self):
         """
@@ -96,6 +103,7 @@ class Store(object):
         """
         # NOTE(flaper87): This should probably go away
 
+    @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
         """
         Takes a `glance_store.location.Location` object that indicates
@@ -119,14 +127,7 @@ class Store(object):
         """
         raise NotImplementedError
 
-    def add_disabled(self, *args, **kwargs):
-        """
-        Add method that raises an exception because the Store was
-        not able to be configured properly and therefore the add()
-        method would error out.
-        """
-        raise exceptions.StoreAddDisabled
-
+    @capabilities.check
     def add(self, image_id, image_file, image_size, context=None):
         """
         Stores an image file with supplied identifier to the backend
@@ -144,6 +145,7 @@ class Store(object):
         """
         raise NotImplementedError
 
+    @capabilities.check
     def delete(self, location, context=None):
         """
         Takes a `glance_store.location.Location` object that indicates

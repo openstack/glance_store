@@ -15,11 +15,12 @@
 
 import mock
 
-
+import glance_store
 from glance_store._drivers import cinder
 from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
+from tests.unit import test_store_capabilities
 
 
 class FakeObject(object):
@@ -28,13 +29,14 @@ class FakeObject(object):
             setattr(self, name, value)
 
 
-class TestCinderStore(base.StoreBaseTest):
+class TestCinderStore(base.StoreBaseTest,
+                      test_store_capabilities.TestStoreCapabilitiesChecking):
 
     def setUp(self):
         super(TestCinderStore, self).setUp()
         self.store = cinder.Store(self.conf)
         self.store.configure()
-        self.register_store_schemes(self.store)
+        self.register_store_schemes(self.store, 'cinder')
 
     def test_cinder_configure_add(self):
         self.assertRaises(exceptions.BadStoreConfiguration,
@@ -69,3 +71,18 @@ class TestCinderStore(base.StoreBaseTest):
             image_size = self.store.get_size(loc, context=fake_context)
             self.assertEqual(image_size,
                              fake_volumes.values()[0].size * (1024 ** 3))
+
+    def test_cinder_delete_raise_error(self):
+        uri = 'cinder://12345678-9012-3455-6789-012345678901'
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        self.assertRaises(exceptions.StoreDeleteNotSupported,
+                          self.store.delete, loc)
+        self.assertRaises(exceptions.StoreDeleteNotSupported,
+                          glance_store.delete_from_backend, uri, {})
+
+    def test_cinder_add_raise_error(self):
+        self.assertRaises(exceptions.StoreAddDisabled,
+                          self.store.add, None, None, None, None)
+        self.assertRaises(exceptions.StoreAddDisabled,
+                          glance_store.add_to_backend, None, None,
+                          None, None, 'cinder')

@@ -18,6 +18,7 @@ import logging
 import socket
 import urlparse
 
+from glance_store import capabilities
 import glance_store.driver
 from glance_store import exceptions
 from glance_store.i18n import _
@@ -111,6 +112,10 @@ class Store(glance_store.driver.Store):
 
     """An implementation of the HTTP(S) Backend Adapter"""
 
+    _CAPABILITIES = (capabilities.READ_ACCESS |
+                     capabilities.DRIVER_REUSABLE)
+
+    @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
         """
         Takes a `glance_store.location.Location` object that indicates

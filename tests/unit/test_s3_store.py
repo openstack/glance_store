@@ -25,9 +25,11 @@ import mock
 from oslo_utils import units
 
 from glance_store._drivers import s3
+from glance_store import capabilities
 from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
+from tests.unit import test_store_capabilities
 
 
 FAKE_UUID = str(uuid.uuid4())
@@ -260,7 +262,8 @@ def format_s3_location(user, key, authurl, bucket, obj):
                                     bucket, obj)
 
 
-class TestStore(base.StoreBaseTest):
+class TestStore(base.StoreBaseTest,
+                test_store_capabilities.TestStoreCapabilitiesChecking):
 
     def setUp(self):
         """Establish a clean test environment."""
@@ -268,7 +271,7 @@ class TestStore(base.StoreBaseTest):
         self.store = s3.Store(self.conf)
         self.config(**S3_CONF)
         self.store.configure()
-        self.register_store_schemes(self.store)
+        self.register_store_schemes(self.store, 's3')
 
         fctor, fbucket = fakers()
 
@@ -486,7 +489,7 @@ class TestStore(base.StoreBaseTest):
             self.config(**conf)
             self.store = s3.Store(self.conf)
             self.store.configure()
-            return self.store.add == self.store.add_disabled
+            return not self.store.is_capable(capabilities.WRITE_ACCESS)
         except Exception:
             return False
         return False
