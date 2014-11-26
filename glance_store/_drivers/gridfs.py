@@ -85,6 +85,12 @@ class Store(glance_store.driver.Store):
     OPTIONS = _GRIDFS_OPTS
     EXAMPLE_URL = "gridfs://<IMAGE_ID>"
 
+    def __init__(self, *args, **kwargs):
+        LOG.warn('The gridfs store has been deprecated and it\'ll be removed '
+                 'in future versions of this library. Please, consider '
+                 'maintaining it yourself or adopting a different store.')
+        super(Store, self).__init__(*args, **kwargs)
+
     def get_schemes(self):
         return ('gridfs',)
 
