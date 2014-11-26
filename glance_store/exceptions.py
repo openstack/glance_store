@@ -46,9 +46,8 @@ class GlanceStoreException(Exception):
     message = ''
 
     def __init__(self, **kwargs):
-        msg = kwargs.pop('message', None)
-        self.msg = msg or self.message.format(**kwargs)
-        super(Exception, self).__init__(msg)
+        self.msg = kwargs.pop('message', None) or self.message % kwargs
+        super(Exception, self).__init__(self.msg)
 
 
 class MissingCredentialError(GlanceStoreException):
@@ -73,7 +72,7 @@ class UnknownScheme(GlanceStoreException):
 
 
 class BadStoreUri(GlanceStoreException):
-    message = _("The Store URI was malformed: %(uri)")
+    message = _("The Store URI was malformed: %(uri)s")
 
 
 class Duplicate(GlanceStoreException):

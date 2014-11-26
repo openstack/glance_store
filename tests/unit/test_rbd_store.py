@@ -186,7 +186,7 @@ class TestStore(base.StoreBaseTest):
             self.called_commands_actual.append('delete')
 
         def _fake_enter(*args, **kwargs):
-            raise exceptions.NotFound()
+            raise exceptions.NotFound(image="fake_image_id")
 
         create.side_effect = _fake_create_image
         delete.side_effect = _fake_delete_image
