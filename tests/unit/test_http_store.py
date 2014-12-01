@@ -112,3 +112,11 @@ class TestHttpStore(base.StoreBaseTest):
         self.assertRaises(NotImplementedError, self.store.delete, loc)
         self.assertRaises(exceptions.StoreDeleteNotSupported,
                           delete_from_backend, uri, {})
+
+    def test_http_get_size_with_non_existent_image_raises_Not_Found(self):
+        fake = utils.FakeHTTPResponse(status=404, data="404 Not Found")
+        self.response.return_value = fake
+
+        uri = "http://netloc/path/to/file.tar.gz"
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        self.assertRaises(exceptions.NotFound, self.store.get_size, loc)
