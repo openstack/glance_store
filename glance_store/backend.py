@@ -30,20 +30,13 @@ LOG = logging.getLogger(__name__)
 
 _ = i18n._
 
-_DEPRECATED_STORE_OPTS = [
-    cfg.DeprecatedOpt('known_stores', group='DEFAULT'),
-    cfg.DeprecatedOpt('default_store', group='DEFAULT')
-]
-
 _STORE_OPTS = [
     cfg.ListOpt('stores', default=['file', 'http'],
-                help=_('List of stores enabled'),
-                deprecated_opts=[_DEPRECATED_STORE_OPTS[0]]),
+                help=_('List of stores enabled')),
     cfg.StrOpt('default_store', default='file',
                help=_("Default scheme to use to store image data. The "
                       "scheme must be registered by one of the stores "
-                      "defined by the 'stores' config option."),
-               deprecated_opts=[_DEPRECATED_STORE_OPTS[1]])
+                      "defined by the 'stores' config option."))
 ]
 
 _STORE_CFG_GROUP = 'glance_store'
@@ -59,13 +52,7 @@ def _list_opts():
         driver_cls = _load_store(None, store_entry, False)
         if driver_cls and driver_cls not in handled_drivers:
             if getattr(driver_cls, 'OPTIONS', None) is not None:
-                # NOTE(flaper87): To be removed in k-2. This should
-                # give deployers enough time to migrate their systems
-                # and move configs under the new section.
-                for opt in driver_cls.OPTIONS:
-                    opt.deprecated_opts = [cfg.DeprecatedOpt(opt.name,
-                                                             group='DEFAULT')]
-                    driver_opts.append(opt)
+                driver_opts += driver_cls.OPTIONS
             handled_drivers.append(driver_cls)
 
     # NOTE(zhiyan): This separated approach could list
