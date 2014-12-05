@@ -195,7 +195,7 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
     def fake_http_connection(*args, **kwargs):
         return None
 
-    def fake_get_auth(url, user, key, snet, auth_version, **kwargs):
+    def fake_get_auth(url, user, key, auth_version, **kwargs):
         if url is None:
             return None, None
         if 'http' in url and '://' not in url:
@@ -964,10 +964,9 @@ class TestStoreAuthV2(TestStoreAuthV1):
 
 class FakeConnection(object):
     def __init__(self, authurl, user, key, retries=5, preauthurl=None,
-                 preauthtoken=None, snet=False, starting_backoff=1,
-                 tenant_name=None, os_options=None, auth_version="1",
-                 insecure=False, ssl_compression=True,
-                 cacert=None):
+                 preauthtoken=None, starting_backoff=1, tenant_name=None,
+                 os_options=None, auth_version="1", insecure=False,
+                 ssl_compression=True, cacert=None):
         if os_options is None:
             os_options = {}
 
@@ -976,7 +975,6 @@ class FakeConnection(object):
         self.key = key
         self.preauthurl = preauthurl
         self.preauthtoken = preauthtoken
-        self.snet = snet
         self.tenant_name = tenant_name
         self.os_options = os_options
         self.auth_version = auth_version
@@ -1009,10 +1007,39 @@ class TestSingleTenantStoreConnections(base.StoreBaseTest):
         self.assertEqual(connection.auth_version, '2')
         self.assertEqual(connection.user, 'user1')
         self.assertEqual(connection.tenant_name, 'tenant')
-        self.assertFalse(connection.snet)
         self.assertEqual(connection.key, 'key1')
         self.assertIsNone(connection.preauthurl)
-        self.assertIsNone(connection.preauthtoken)
+        self.assertFalse(connection.insecure)
+        self.assertEqual(connection.os_options,
+                         {'service_type': 'object-store',
+                          'endpoint_type': 'publicURL'})
+
+    def test_connection_with_conf_endpoint(self):
+        ctx = context.RequestContext(user='tenant:user1', tenant='tenant')
+        self.config(swift_store_endpoint='https://internal.com')
+        self.store.configure()
+        connection = self.store.get_connection(self.location, context=ctx)
+        self.assertEqual(connection.authurl, 'https://example.com/v2/')
+        self.assertEqual(connection.auth_version, '2')
+        self.assertEqual(connection.user, 'user1')
+        self.assertEqual(connection.tenant_name, 'tenant')
+        self.assertEqual(connection.key, 'key1')
+        self.assertEqual(connection.preauthurl, 'https://internal.com')
+        self.assertFalse(connection.insecure)
+        self.assertEqual(connection.os_options,
+                         {'service_type': 'object-store',
+                          'endpoint_type': 'publicURL'})
+
+    def test_connection_with_conf_endpoint_no_context(self):
+        self.config(swift_store_endpoint='https://internal.com')
+        self.store.configure()
+        connection = self.store.get_connection(self.location)
+        self.assertEqual(connection.authurl, 'https://example.com/v2/')
+        self.assertEqual(connection.auth_version, '2')
+        self.assertEqual(connection.user, 'user1')
+        self.assertEqual(connection.tenant_name, 'tenant')
+        self.assertEqual(connection.key, 'key1')
+        self.assertEqual(connection.preauthurl, 'https://internal.com')
         self.assertFalse(connection.insecure)
         self.assertEqual(connection.os_options,
                          {'service_type': 'object-store',
@@ -1075,12 +1102,6 @@ class TestSingleTenantStoreConnections(base.StoreBaseTest):
                          {'service_type': 'object-store',
                           'endpoint_type': 'internalURL'})
 
-    def test_connection_with_snet(self):
-        self.config(swift_enable_snet=True)
-        self.store.configure()
-        connection = self.store.get_connection(self.location)
-        self.assertTrue(connection.snet)
-
     def test_bad_location_uri(self):
         self.store.configure()
         self.location.uri = 'http://bad_uri://'
@@ -1128,17 +1149,9 @@ class TestMultiTenantStoreConnections(base.StoreBaseTest):
         self.assertEqual(connection.user, 'tenant:user1')
         self.assertEqual(connection.tenant_name, 'tenant')
         self.assertIsNone(connection.key)
-        self.assertFalse(connection.snet)
         self.assertEqual(connection.preauthurl, 'https://example.com')
         self.assertEqual(connection.preauthtoken, '0123')
         self.assertEqual(connection.os_options, {})
-
-    def test_connection_with_snet(self):
-        self.config(swift_enable_snet=True)
-        self.store.configure()
-        connection = self.store.get_connection(self.location,
-                                               context=self.context)
-        self.assertTrue(connection.snet)
 
 
 class TestMultiTenantStoreContext(base.StoreBaseTest):
