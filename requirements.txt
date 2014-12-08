@@ -12,5 +12,7 @@ eventlet>=0.13.0
 iso8601>=0.1.8
 six>=1.4.1
 
+jsonschema>=2.0.0,<3.0.0
+
 # py2.6 compat
 ordereddict

@@ -56,6 +56,25 @@ class TestStore(base.StoreBaseTest):
         super(TestStore, self).tearDown()
         ChunkedFile.CHUNKSIZE = self.orig_chunksize
 
+    def _create_metadata_json_file(self, metadata):
+        expected_image_id = str(uuid.uuid4())
+        jsonfilename = os.path.join(self.test_dir,
+                                    "storage_metadata.%s" % expected_image_id)
+
+        self.config(filesystem_store_metadata_file=jsonfilename,
+                    group="glance_store")
+        with open(jsonfilename, 'w') as fptr:
+            json.dump(metadata, fptr)
+
+    def _store_image(self, in_metadata):
+        expected_image_id = str(uuid.uuid4())
+        expected_file_size = 10
+        expected_file_contents = "*" * expected_file_size
+        image_file = StringIO.StringIO(expected_file_contents)
+        self.store.FILESYSTEM_STORE_METADATA = in_metadata
+        return self.store.add(expected_image_id, image_file,
+                              expected_file_size)
+
     def test_get(self):
         """Test a "normal" retrieval of an image in chunks."""
         # First add an image...
@@ -162,45 +181,23 @@ class TestStore(base.StoreBaseTest):
         self.assertEqual(expected_file_contents, new_image_contents)
         self.assertEqual(expected_file_size, new_image_file_size)
 
-    def test_add_check_metadata_success(self):
-        expected_image_id = str(uuid.uuid4())
-        in_metadata = {'akey': u'some value', 'list': [u'1', u'2', u'3']}
-        jsonfilename = os.path.join(self.test_dir,
-                                    "storage_metadata.%s" % expected_image_id)
+    def test_add_check_metadata_with_invalid_mountpoint_location(self):
+        in_metadata = [{'id': 'abcdefg',
+                       'mountpoint': '/xyz/images'}]
+        location, size, checksum, metadata = self._store_image(in_metadata)
+        self.assertEqual({}, metadata)
 
-        self.config(filesystem_store_metadata_file=jsonfilename,
-                    group="glance_store")
-        with open(jsonfilename, 'w') as fptr:
-            json.dump(in_metadata, fptr)
-        expected_file_size = 10
-        expected_file_contents = "*" * expected_file_size
-        image_file = StringIO.StringIO(expected_file_contents)
+    def test_add_check_metadata_list_with_invalid_mountpoint_locations(self):
+        in_metadata = [{'id': 'abcdefg', 'mountpoint': '/xyz/images'},
+                       {'id': 'xyz1234', 'mountpoint': '/pqr/images'}]
+        location, size, checksum, metadata = self._store_image(in_metadata)
+        self.assertEqual({}, metadata)
 
-        location, size, checksum, metadata = self.store.add(expected_image_id,
-                                                            image_file,
-                                                            expected_file_size)
-
-        self.assertEqual(metadata, in_metadata)
-
-    def test_add_check_metadata_bad_data(self):
-        expected_image_id = str(uuid.uuid4())
-        in_metadata = {'akey': 10}  # only unicode is allowed
-        jsonfilename = os.path.join(self.test_dir,
-                                    "storage_metadata.%s" % expected_image_id)
-
-        self.config(filesystem_store_metadata_file=jsonfilename,
-                    group="glance_store")
-        with open(jsonfilename, 'w') as fptr:
-            json.dump(in_metadata, fptr)
-        expected_file_size = 10
-        expected_file_contents = "*" * expected_file_size
-        image_file = StringIO.StringIO(expected_file_contents)
-
-        location, size, checksum, metadata = self.store.add(expected_image_id,
-                                                            image_file,
-                                                            expected_file_size)
-
-        self.assertEqual(metadata, {})
+    def test_add_check_metadata_list_with_valid_mountpoint_locations(self):
+        in_metadata = [{'id': 'abcdefg', 'mountpoint': '/tmp'},
+                       {'id': 'xyz1234', 'mountpoint': '/xyz'}]
+        location, size, checksum, metadata = self._store_image(in_metadata)
+        self.assertEqual(in_metadata[0], metadata)
 
     def test_add_check_metadata_bad_nosuch_file(self):
         expected_image_id = str(uuid.uuid4())
@@ -359,6 +356,82 @@ class TestStore(base.StoreBaseTest):
         expected_priority_list = [200, 100]
         self.assertEqual(self.store.priority_data_map, expected_priority_map)
         self.assertEqual(self.store.priority_list, expected_priority_list)
+
+    def test_configure_add_with_metadata_file_success(self):
+        metadata = {'id': 'asdf1234',
+                    'mountpoint': '/tmp'}
+        self._create_metadata_json_file(metadata)
+        self.store.configure_add()
+        self.assertEqual([metadata], self.store.FILESYSTEM_STORE_METADATA)
+
+    def test_configure_add_check_metadata_list_of_dicts_success(self):
+        metadata = [{'id': 'abcdefg', 'mountpoint': '/xyz/images'},
+                    {'id': 'xyz1234', 'mountpoint': '/tmp/'}]
+        self._create_metadata_json_file(metadata)
+        self.store.configure_add()
+        self.assertEqual(metadata, self.store.FILESYSTEM_STORE_METADATA)
+
+    def test_configure_add_check_metadata_success_list_val_for_some_key(self):
+        metadata = {'akey': ['value1', 'value2'], 'id': 'asdf1234',
+                    'mountpoint': '/tmp'}
+        self._create_metadata_json_file(metadata)
+        self.store.configure_add()
+        self.assertEqual([metadata], self.store.FILESYSTEM_STORE_METADATA)
+
+    def test_configure_add_check_metadata_bad_data(self):
+        metadata = {'akey': 10, 'id': 'asdf1234',
+                    'mountpoint': '/tmp'}  # only unicode is allowed
+        self._create_metadata_json_file(metadata)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure_add)
+
+    def test_configure_add_check_metadata_with_no_id_or_mountpoint(self):
+        metadata = {'mountpoint': '/tmp'}
+        self._create_metadata_json_file(metadata)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure_add)
+
+        metadata = {'id': 'asdfg1234'}
+        self._create_metadata_json_file(metadata)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure_add)
+
+    def test_configure_add_check_metadata_id_or_mountpoint_is_not_string(self):
+        metadata = {'id': 10, 'mountpoint': '/tmp'}
+        self._create_metadata_json_file(metadata)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure_add)
+
+        metadata = {'id': 'asdf1234', 'mountpoint': 12345}
+        self._create_metadata_json_file(metadata)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure_add)
+
+    def test_configure_add_check_metadata_list_with_no_id_or_mountpoint(self):
+        metadata = [{'id': 'abcdefg', 'mountpoint': '/xyz/images'},
+                    {'mountpoint': '/pqr/images'}]
+        self._create_metadata_json_file(metadata)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure_add)
+
+        metadata = [{'id': 'abcdefg'},
+                    {'id': 'xyz1234', 'mountpoint': '/pqr/images'}]
+        self._create_metadata_json_file(metadata)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure_add)
+
+    def test_add_check_metadata_list_id_or_mountpoint_is_not_string(self):
+        metadata = [{'id': 'abcdefg', 'mountpoint': '/xyz/images'},
+                    {'id': 1234, 'mountpoint': '/pqr/images'}]
+        self._create_metadata_json_file(metadata)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure_add)
+
+        metadata = [{'id': 'abcdefg', 'mountpoint': 1234},
+                    {'id': 'xyz1234', 'mountpoint': '/pqr/images'}]
+        self._create_metadata_json_file(metadata)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure_add)
 
     def test_configure_add_same_dir_multiple_times(self):
         """

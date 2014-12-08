@@ -25,6 +25,7 @@ import os
 import stat
 import urlparse
 
+import jsonschema
 from oslo.serialization import jsonutils
 from oslo_config import cfg
 from oslo_utils import excutils
@@ -54,7 +55,9 @@ _FILESYSTEM_CONFIGS = [
                help=_("The path to a file which contains the "
                       "metadata to be returned with any location "
                       "associated with this store.  The file must "
-                      "contain a valid JSON dict.")),
+                      "contain a valid JSON object. The object should contain "
+                      "the keys 'id' and 'mountpoint'. The value for both "
+                      "keys should be 'string'.")),
     cfg.IntOpt('filesystem_store_file_perm',
                default=0,
                help=_("The required permission for created image file. "
@@ -64,6 +67,18 @@ _FILESYSTEM_CONFIGS = [
                       "it less then or equal to zero means don't change the "
                       "default permission of the file. This value will be "
                       "decoded as an octal digit."))]
+
+MULTI_FILESYSTEM_METADATA_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "mountpoint": {"type": "string"}
+        },
+        "required": ["id", "mountpoint"],
+    }
+}
 
 
 class StoreLocation(glance_store.location.StoreLocation):
@@ -136,6 +151,7 @@ class Store(glance_store.driver.Store):
     OPTIONS = _FILESYSTEM_CONFIGS
     READ_CHUNKSIZE = 64 * units.Ki
     WRITE_CHUNKSIZE = READ_CHUNKSIZE
+    FILESYSTEM_STORE_METADATA = None
 
     def get_schemes(self):
         return ('file', 'filesystem')
@@ -217,6 +233,47 @@ class Store(glance_store.driver.Store):
                     raise exceptions.BadStoreConfiguration(
                         store_name="filesystem", reason=reason)
 
+    def _validate_metadata(self, metadata_file):
+        """Validate metadata against json schema.
+
+        If metadata is valid then cache metadata and use it when
+        creating new image.
+
+        :param metadata_file: JSON metadata file path
+        :raises: BadStoreConfiguration exception if metadata is not valid.
+        """
+        try:
+            with open(metadata_file, 'r') as fptr:
+                metadata = jsonutils.load(fptr)
+
+            if isinstance(metadata, dict):
+                # If metadata is of type dictionary
+                # i.e. - it contains only one mountpoint
+                # then convert it to list of dictionary.
+                metadata = [metadata]
+
+            # Validate metadata against json schema
+            jsonschema.validate(metadata, MULTI_FILESYSTEM_METADATA_SCHEMA)
+            glance_store.check_location_metadata(metadata)
+            self.FILESYSTEM_STORE_METADATA = metadata
+        except (jsonschema.exceptions.ValidationError,
+                exceptions.BackendException, ValueError) as vee:
+            reason = _('The JSON in the metadata file %(file)s is '
+                       'not valid and it can not be used: '
+                       '%(vee)s.') % dict(file=metadata_file,
+                                          vee=utils.exception_to_str(vee))
+            LOG.error(reason)
+            raise exceptions.BadStoreConfiguration(
+                store_name="filesystem", reason=reason)
+        except IOError as ioe:
+            reason = _('The path for the metadata file %(file)s could '
+                       'not be accessed: '
+                       '%(ioe)s.') % dict(file=metadata_file,
+                                          ioe=utils.exception_to_str(ioe))
+            LOG.error(reason)
+            raise exceptions.BadStoreConfiguration(
+                store_name="filesystem", reason=reason)
+
     def configure_add(self):
         """
         Configure the Store to use the stored configuration options
@@ -274,6 +331,10 @@ class Store(glance_store.driver.Store):
                                         reverse=True)
 
         self._create_image_directories(directory_paths)
+
+        metadata_file = self.conf.glance_store.filesystem_store_metadata_file
+        if metadata_file:
+            self._validate_metadata(metadata_file)
 
     def _check_directory_paths(self, datadir_path, directory_paths):
         """
@@ -334,35 +395,41 @@ class Store(glance_store.driver.Store):
         filesize = os.path.getsize(filepath)
         return filepath, filesize
 
-    def _get_metadata(self):
-        metadata_file = self.conf.glance_store.filesystem_store_metadata_file
+    def _get_metadata(self, filepath):
+        """Return metadata dictionary.
 
-        if metadata_file is None:
-            return {}
+        If metadata is provided as list of dictionaries then return
+        metadata as dictionary containing 'id' and 'mountpoint'.
 
-        try:
-            with open(metadata_file, 'r') as fptr:
-                metadata = jsonutils.load(fptr)
+        If there are multiple nfs directories (mountpoints) configured
+        for glance, then we need to create metadata JSON file as list
+        of dictionaries containing all mountpoints with unique id.
+        But Nova will not be able to find in which directory (mountpoint)
+        image is present if we store list of dictionary(containing mountpoints)
+        in glance image metadata. So if there are multiple mountpoints then
+        we will return dict containing exact mountpoint where image is stored.
 
-            glance_store.check_location_metadata(metadata)
-            return metadata
-        except exceptions.BackendException as bee:
-            LOG.error(_('The JSON in the metadata file %(file)s could not '
-                        'be used: %(bee)s  An empty dictionary will be '
-                        'returned to the client.')
-                      % dict(file=metadata_file, bee=str(bee)))
-            return {}
-        except IOError as ioe:
-            LOG.error(_('The path for the metadata file %(file)s could not be '
-                        'opened: %(io)s  An empty dictionary will be returned '
-                        'to the client.')
-                      % dict(file=metadata_file, io=ioe))
-            return {}
-        except Exception as ex:
-            LOG.exception(_('An error occurred processing the storage systems '
-                            'meta data file: %s.  An empty dictionary will be '
-                            'returned to the client.') % str(ex))
-            return {}
+        If image path does not start with any of the 'mountpoint' provided
+        in metadata JSON file then error is logged and empty
+        dictionary is returned.
+
+        :param filepath: Path of image on store
+        :returns: metadata dictionary
+        """
+        if self.FILESYSTEM_STORE_METADATA:
+            for image_meta in self.FILESYSTEM_STORE_METADATA:
+                if filepath.startswith(image_meta['mountpoint']):
+                    return image_meta
+
+            reason = (_LE("The image path %(path)s does not match with "
+                          "any of the mountpoint defined in "
+                          "metadata: %(metadata)s. An empty dictionary "
+                          "will be returned to the client.")
+                      % dict(path=filepath,
+                             metadata=self.FILESYSTEM_STORE_METADATA))
+            LOG.error(reason)
+
+        return {}
 
     def get(self, location, offset=0, chunk_size=None, context=None):
         """
@@ -516,7 +583,7 @@ class Store(glance_store.driver.Store):
                 self._delete_partial(filepath, image_id)
 
         checksum_hex = checksum.hexdigest()
-        metadata = self._get_metadata()
+        metadata = self._get_metadata(filepath)
 
         LOG.debug(_("Wrote %(bytes_written)d bytes to %(filepath)s with "
                     "checksum %(checksum_hex)s"),
