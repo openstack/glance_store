@@ -80,7 +80,7 @@ class FakeHTTPConnection(object):
 
 class TestStore(base.StoreBaseTest):
 
-    @mock.patch('oslo.vmware.api.VMwareAPISession', auptospec=True)
+    @mock.patch('oslo.vmware.api.VMwareAPISession', autospec=True)
     def setUp(self, mock_session):
         """Establish a clean test environment."""
         super(TestStore, self).setUp()
@@ -102,7 +102,6 @@ class TestStore(base.StoreBaseTest):
 
         self.store.store_image_dir = (
             VMWARE_DS['vmware_store_image_dir'])
-        vm_store.Store._build_vim_cookie_header = mock.Mock()
 
     def test_get(self):
         """Test a "normal" retrieval of an image in chunks."""
@@ -349,3 +348,37 @@ class TestStore(base.StoreBaseTest):
         self.assertFalse(mock_api_session.called)
         self.store.reset_session(force=True)
         self.assertTrue(mock_api_session.called)
+
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_build_vim_cookie_header_active(self, mock_api_session):
+        self.store.session.is_current_session_active = mock.Mock()
+        self.store.session.is_current_session_active.return_value = True
+        self.store._build_vim_cookie_header(True)
+        self.assertFalse(mock_api_session.called)
+
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_build_vim_cookie_header_expired(self, mock_api_session):
+        self.store.session.is_current_session_active = mock.Mock()
+        self.store.session.is_current_session_active.return_value = False
+        self.store._build_vim_cookie_header(True)
+        self.assertTrue(mock_api_session.called)
+
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_build_vim_cookie_header_expired_noverify(self, mock_api_session):
+        self.store.session.is_current_session_active = mock.Mock()
+        self.store.session.is_current_session_active.return_value = False
+        self.store._build_vim_cookie_header()
+        self.assertFalse(mock_api_session.called)
+
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_add_ioerror(self, mock_api_session):
+        expected_image_id = str(uuid.uuid4())
+        expected_size = FIVE_KB
+        expected_contents = "*" * expected_size
+        image = six.StringIO(expected_contents)
+        self.session = mock.Mock()
+        with mock.patch('httplib.HTTPConnection') as HttpConn:
+            HttpConn.request.side_effect = IOError
+            self.assertRaises(exceptions.BackendException,
+                              self.store.add,
+                              expected_image_id, image, expected_size)
