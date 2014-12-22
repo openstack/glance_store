@@ -21,6 +21,7 @@ import urlparse
 import glance_store.driver
 from glance_store import exceptions
 from glance_store.i18n import _
+from glance_store.i18n import _LE
 import glance_store.location
 
 LOG = logging.getLogger(__name__)
@@ -119,7 +120,13 @@ class Store(glance_store.driver.Store):
         :param location `glance_store.location.Location` object, supplied
                         from glance_store.location.get_location_from_uri()
         """
-        conn, resp, content_length = self._query(location, 'GET')
+        try:
+            conn, resp, content_length = self._query(location, 'GET')
+        except socket.error:
+            reason = _LE("Remote server where the image is present "
+                         "is unavailable.")
+            LOG.error(reason)
+            raise exceptions.RemoteServiceUnavailable()
 
         cs = chunk_size or self.READ_CHUNKSIZE
         iterator = http_response_iterator(conn, resp, cs)
