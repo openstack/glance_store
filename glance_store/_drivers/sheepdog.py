@@ -18,7 +18,7 @@
 import hashlib
 import logging
 
-from oslo.concurrency import processutils
+from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_utils import excutils
 from oslo_utils import units

@@ -16,7 +16,7 @@
 import StringIO
 
 import mock
-from oslo.concurrency import processutils
+from oslo_concurrency import processutils
 
 from glance_store._drivers import sheepdog
 from glance_store.tests import base
