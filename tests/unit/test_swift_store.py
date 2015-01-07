@@ -966,7 +966,8 @@ class FakeConnection(object):
     def __init__(self, authurl, user, key, retries=5, preauthurl=None,
                  preauthtoken=None, snet=False, starting_backoff=1,
                  tenant_name=None, os_options=None, auth_version="1",
-                 insecure=False, ssl_compression=True):
+                 insecure=False, ssl_compression=True,
+                 cacert=None):
         if os_options is None:
             os_options = {}
 
@@ -980,6 +981,7 @@ class FakeConnection(object):
         self.os_options = os_options
         self.auth_version = auth_version
         self.insecure = insecure
+        self.cacert = cacert
 
 
 class TestSingleTenantStoreConnections(base.StoreBaseTest):

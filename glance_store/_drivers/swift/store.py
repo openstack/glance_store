@@ -56,6 +56,9 @@ _SWIFT_OPTS = [
     cfg.BoolOpt('swift_store_auth_insecure', default=False,
                 help=_('If True, swiftclient won\'t check for a valid SSL '
                        'certificate when authenticating.')),
+    cfg.StrOpt('swift_store_cacert',
+               help=_('A string giving the CA certificate file to use in '
+                      'SSL connections for verifying certs.')),
     cfg.StrOpt('swift_store_region',
                help=_('The region of the swift endpoint to be used for '
                       'single tenant. This setting is only necessary if the '
@@ -388,6 +391,7 @@ class BaseStore(driver.Store):
         self.snet = glance_conf.swift_enable_snet
         self.insecure = glance_conf.swift_store_auth_insecure
         self.ssl_compression = glance_conf.swift_store_ssl_compression
+        self.cacert = glance_conf.swift_store_cacert
         super(BaseStore, self).configure()
 
     def _get_object(self, location, connection=None, start=None, context=None):
@@ -790,7 +794,8 @@ class SingleTenantStore(BaseStore):
             auth_url, user, location.key, insecure=self.insecure,
             tenant_name=tenant_name, snet=self.snet,
             auth_version=self.auth_version, os_options=os_options,
-            ssl_compression=self.ssl_compression)
+            ssl_compression=self.ssl_compression,
+            cacert=self.cacert)
 
 
 class MultiTenantStore(BaseStore):
@@ -875,7 +880,8 @@ class MultiTenantStore(BaseStore):
             preauthtoken=context.auth_token,
             tenant_name=context.tenant,
             auth_version='2', snet=self.snet, insecure=self.insecure,
-            ssl_compression=self.ssl_compression)
+            ssl_compression=self.ssl_compression,
+            cacert=self.cacert)
 
 
 class ChunkReader(object):

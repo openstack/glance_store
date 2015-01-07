@@ -91,6 +91,7 @@ class OptsTestCase(base.StoreBaseTest):
             'swift_enable_snet',
             'swift_store_admin_tenants',
             'swift_store_auth_address',
+            'swift_store_cacert',
             'swift_store_auth_insecure',
             'swift_store_auth_version',
             'swift_store_config_file',
