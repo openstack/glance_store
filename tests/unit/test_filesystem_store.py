@@ -26,7 +26,7 @@ import StringIO
 import uuid
 
 import fixtures
-from oslo.utils import units
+from oslo_utils import units
 import six
 
 from glance_store._drivers.filesystem import ChunkedFile

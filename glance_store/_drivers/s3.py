@@ -26,8 +26,8 @@ import urlparse
 import boto.exception
 import eventlet
 from oslo.config import cfg
-from oslo.utils import netutils
-from oslo.utils import units
+from oslo_utils import netutils
+from oslo_utils import units
 import six
 
 import glance_store

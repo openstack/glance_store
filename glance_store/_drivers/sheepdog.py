@@ -20,8 +20,8 @@ import logging
 
 from oslo.concurrency import processutils
 from oslo.config import cfg
-from oslo.utils import excutils
-from oslo.utils import units
+from oslo_utils import excutils
+from oslo_utils import units
 
 import glance_store
 import glance_store.driver
