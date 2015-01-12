@@ -17,7 +17,7 @@ import logging
 from cinderclient import exceptions as cinder_exception
 from cinderclient import service_catalog
 from cinderclient.v2 import client as cinderclient
-from oslo.config import cfg
+from oslo_config import cfg
 
 from glance_store.common import utils
 import glance_store.driver

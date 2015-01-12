@@ -22,7 +22,7 @@ import logging.config
 import logging.handlers
 import os
 
-from oslo.config import cfg
+from oslo_config import cfg
 from paste import deploy
 
 from glance.version import version_info as version
