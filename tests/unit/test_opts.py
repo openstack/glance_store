@@ -113,6 +113,7 @@ class OptsTestCase(base.StoreBaseTest):
             'vmware_api_retry_count',
             'vmware_datacenter_path',
             'vmware_datastore_name',
+            'vmware_datastores',
             'vmware_server_host',
             'vmware_server_password',
             'vmware_server_username',
