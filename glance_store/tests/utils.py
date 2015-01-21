@@ -25,10 +25,16 @@ def sort_url_by_qs_keys(url):
     # non-deterministic ordering of the query string causing problems with unit
     # tests.
     parsed = urlparse.urlparse(url)
-    queries = urlparse.parse_qsl(parsed.query, True)
+    # In python2.6, for arbitrary url schemes, query string
+    # is not parsed from url. http://bugs.python.org/issue9374
+    path = parsed.path
+    query = parsed.query
+    if not query:
+        path, query = parsed.path.split('?', 1)
+    queries = urlparse.parse_qsl(query, True)
     sorted_query = sorted(queries, key=lambda x: x[0])
     encoded_sorted_query = urllib.urlencode(sorted_query, True)
-    url_parts = (parsed.scheme, parsed.netloc, parsed.path,
+    url_parts = (parsed.scheme, parsed.netloc, path,
                  parsed.params, encoded_sorted_query,
                  parsed.fragment)
     return urlparse.urlunparse(url_parts)

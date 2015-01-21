@@ -58,9 +58,9 @@ def format_location(host_ip, folder_name,
     the component pieces.
     """
     scheme = 'vsphere'
-    return ("%s://%s/folder%s/%s?dsName=%s&dcPath=%s"
+    return ("%s://%s/folder%s/%s?dcPath=%s&dsName=%s"
             % (scheme, host_ip, folder_name,
-               image_id, datastore_name, datacenter_path))
+               image_id, datacenter_path, datastore_name))
 
 
 class FakeHTTPConnection(object):
@@ -384,3 +384,9 @@ class TestStore(base.StoreBaseTest,
             self.assertRaises(exceptions.BackendException,
                               self.store.add,
                               expected_image_id, image, expected_size)
+
+    def test_qs_sort_with_literal_question_mark(self):
+        url = 'scheme://example.com/path?key2=val2&key1=val1?sort=true'
+        exp_url = 'scheme://example.com/path?key1=val1%3Fsort%3Dtrue&key2=val2'
+        self.assertEqual(exp_url,
+                         utils.sort_url_by_qs_keys(url))
