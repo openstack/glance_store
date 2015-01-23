@@ -27,7 +27,7 @@ from glance_store import location
 
 class StoreBaseTest(base.BaseTestCase):
 
-    #NOTE(flaper87): temporary until we
+    # NOTE(flaper87): temporary until we
     # can move to a fully-local lib.
     # (Swift store's fault)
     _CONF = cfg.ConfigOpts()

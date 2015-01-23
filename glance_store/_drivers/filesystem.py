@@ -493,7 +493,7 @@ class Store(glance_store.driver.Store):
         :mount_point is path of glance data directory
         """
 
-        #Calculate total available space
+        # Calculate total available space
         stvfs_result = os.statvfs(mount_point)
         total_available_space = stvfs_result.f_bavail * stvfs_result.f_bsize
         return max(0, total_available_space)

@@ -247,7 +247,7 @@ class SwiftTests(object):
         uri = ("swift://%s:key@auth_address/glance/%s" %
                (self.swift_store_user, FAKE_UUID))
         self.config(swift_store_multi_tenant=True)
-        #NOTE(markwash): ensure the image is found
+        # NOTE(markwash): ensure the image is found
         size = backend.get_size_from_backend(uri, context={})
         self.assertEqual(size, 5120)
 

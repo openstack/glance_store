@@ -208,13 +208,13 @@ class StoreLocation(location.StoreLocation):
         obj = self.obj.strip('/')
 
         if not credentials_included:
-            #Used only in case of an add
-            #Get the current store from config
+            # Used only in case of an add
+            # Get the current store from config
             store = self.conf.glance_store.default_swift_reference
 
             return '%s://%s/%s/%s' % ('swift+config', store, container, obj)
         if self.scheme == 'swift+config':
-            if self.ssl_enabled == True:
+            if self.ssl_enabled:
                 self.scheme = 'swift+https'
             else:
                 self.scheme = 'swift+http'
@@ -346,7 +346,7 @@ class StoreLocation(location.StoreLocation):
             return self.auth_or_store_url
         else:
             if self.scheme == 'swift+config':
-                if self.ssl_enabled == True:
+                if self.ssl_enabled:
                     self.scheme = 'swift+https'
                 else:
                     self.scheme = 'swift+http'
