@@ -119,15 +119,6 @@ class _Reader(object):
         self.checksum.update(result)
         return result
 
-    def rewind(self):
-        try:
-            self.data.seek(0)
-            self._size = 0
-            self.checksum = hashlib.md5()
-        except IOError:
-            with excutils.save_and_reraise_exception():
-                LOG.exception(_LE('Failed to rewind image content'))
-
     @property
     def size(self):
         return self._size
@@ -341,36 +332,32 @@ class Store(glance_store.Store):
                              'datastore_name': self.datastore_name,
                              'image_id': image_id}, self.conf)
         # NOTE(arnaud): use a decorator when the config is not tied to self
-        for i in range(self.api_retry_count + 1):
-            cookie = self._build_vim_cookie_header(
-                self.session.vim.client.options.transport.cookiejar)
-            headers = dict(headers.items() + {'Cookie': cookie}.items())
-            try:
-                conn = self._get_http_conn('PUT', loc, headers,
-                                           content=image_file)
-                res = conn.getresponse()
-            except Exception:
-                with excutils.save_and_reraise_exception():
-                    LOG.exception(_LE('Failed to upload content of image '
-                                      '%(image)s'), {'image': image_id})
+        cookie = self._build_vim_cookie_header(
+            self.session.vim.client.options.transport.cookiejar)
+        headers = dict(headers.items() + {'Cookie': cookie}.items())
+        try:
+            conn = self._get_http_conn('PUT', loc, headers,
+                                       content=image_file)
+            res = conn.getresponse()
+        except Exception:
+            with excutils.save_and_reraise_exception():
+                LOG.exception(_LE('Failed to upload content of image '
+                                  '%(image)s'), {'image': image_id})
 
-            if res.status == httplib.UNAUTHORIZED:
-                self.reset_session(force=True)
-                image_file.rewind()
-                continue
+        if res.status == httplib.CONFLICT:
+            raise exceptions.Duplicate(_("Image file %(image_id)s already "
+                                         "exists!") %
+                                       {'image_id': image_id})
 
-            if res.status == httplib.CONFLICT:
-                raise exceptions.Duplicate(_("Image file %(image_id)s already "
-                                             "exists!") %
-                                           {'image_id': image_id})
-
-            if res.status not in (httplib.CREATED, httplib.OK):
-                msg = (_LE('Failed to upload content of image %(image)s') %
-                       {'image': image_id})
-                LOG.error(msg)
-                raise exceptions.UnexpectedStatus(status=res.status,
-                                                  body=res.read())
-            break
+        if res.status not in (httplib.CREATED, httplib.OK):
+            msg = (_LE('Failed to upload content of image %(image)s. '
+                       'The request returned an unexpected status: %(status)s.'
+                       '\nThe response body:\n%(body)s') %
+                   {'image': image_id,
+                    'status': res.status,
+                    'body': res.body})
+            LOG.error(msg)
+            raise exceptions.BackendException(msg)
 
         return (loc.get_uri(), image_file.size,
                 image_file.checksum.hexdigest(), {})
