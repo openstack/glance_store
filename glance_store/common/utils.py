@@ -25,7 +25,7 @@ try:
     from eventlet import sleep
 except ImportError:
     from time import sleep
-from oslo.utils import encodeutils
+from oslo_utils import encodeutils
 import six
 
 

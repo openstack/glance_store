@@ -22,9 +22,9 @@ import os
 import socket
 
 from oslo.config import cfg
-from oslo.utils import excutils
-from oslo.utils import units
 from oslo.vmware import api
+from oslo_utils import excutils
+from oslo_utils import units
 import six.moves.urllib.parse as urlparse
 
 import glance_store

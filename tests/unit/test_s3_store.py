@@ -22,7 +22,7 @@ import xml.etree.ElementTree
 
 import boto.s3.connection
 import mock
-from oslo.utils import units
+from oslo_utils import units
 
 from glance_store._drivers import s3
 from glance_store import exceptions

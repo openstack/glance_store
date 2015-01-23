@@ -27,8 +27,8 @@ import urlparse
 
 from oslo.config import cfg
 from oslo.serialization import jsonutils
-from oslo.utils import excutils
-from oslo.utils import units
+from oslo_utils import excutils
+from oslo_utils import units
 
 import glance_store
 from glance_store.common import utils

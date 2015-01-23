@@ -20,7 +20,7 @@ import logging
 import urlparse
 
 from oslo.config import cfg
-from oslo.utils import excutils
+from oslo_utils import excutils
 
 import glance_store.driver
 from glance_store import exceptions

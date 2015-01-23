@@ -19,8 +19,8 @@ import hashlib
 import uuid
 
 import mock
-from oslo.utils import units
 from oslo.vmware import api
+from oslo_utils import units
 import six
 
 import glance_store._drivers.vmware_datastore as vm_store
