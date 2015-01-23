@@ -761,7 +761,8 @@ class SwiftTests(object):
         try:
             self.config(**conf)
             self.store = Store(self.conf)
-            return not self.store.is_capable(capabilities.WRITE_ACCESS)
+            return not self.store.is_capable(
+                capabilities.BitMasks.WRITE_ACCESS)
         except Exception:
             return False
         return False
@@ -775,7 +776,8 @@ class SwiftTests(object):
                                           'authurl.com', 'user': '',
                                           'key': ''}}
         self.store.configure()
-        self.assertFalse(self.store.is_capable(capabilities.WRITE_ACCESS))
+        self.assertFalse(self.store.is_capable(
+            capabilities.BitMasks.WRITE_ACCESS))
 
     def test_no_auth_address(self):
         """
@@ -786,7 +788,8 @@ class SwiftTests(object):
                                           '', 'user': 'user1',
                                           'key': 'key1'}}
         self.store.configure()
-        self.assertFalse(self.store.is_capable(capabilities.WRITE_ACCESS))
+        self.assertFalse(self.store.is_capable(
+            capabilities.BitMasks.WRITE_ACCESS))
 
     def test_delete(self):
         """

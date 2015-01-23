@@ -81,7 +81,7 @@ class StoreLocation(glance_store.location.StoreLocation):
 class Store(glance_store.driver.Store):
     """GridFS adapter"""
 
-    _CAPABILITIES = capabilities.RW_ACCESS
+    _CAPABILITIES = capabilities.BitMasks.RW_ACCESS
     OPTIONS = _GRIDFS_OPTS
     EXAMPLE_URL = "gridfs://<IMAGE_ID>"
 

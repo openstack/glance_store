@@ -112,8 +112,8 @@ class Store(glance_store.driver.Store):
 
     """An implementation of the HTTP(S) Backend Adapter"""
 
-    _CAPABILITIES = (capabilities.READ_ACCESS |
-                     capabilities.DRIVER_REUSABLE)
+    _CAPABILITIES = (capabilities.BitMasks.READ_ACCESS |
+                     capabilities.BitMasks.DRIVER_REUSABLE)
 
     @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):

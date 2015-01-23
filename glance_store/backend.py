@@ -231,7 +231,7 @@ def get_store_from_scheme(scheme):
         raise exceptions.UnknownScheme(scheme=scheme)
     scheme_info = location.SCHEME_TO_CLS_MAP[scheme]
     store = scheme_info['store']
-    if not store.is_capable(capabilities.DRIVER_REUSABLE):
+    if not store.is_capable(capabilities.BitMasks.DRIVER_REUSABLE):
         # Driver instance isn't stateless so it can't
         # be reused safely and need recreation.
         store_entry = scheme_info['store_entry']
