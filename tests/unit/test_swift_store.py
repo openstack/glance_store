@@ -24,7 +24,7 @@ import tempfile
 import uuid
 
 import httpretty
-from oslo.config import cfg
+from oslo_config import cfg
 from oslo_utils import units
 from oslotest import moxstubout
 import six

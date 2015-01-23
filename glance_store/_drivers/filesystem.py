@@ -25,8 +25,8 @@ import os
 import stat
 import urlparse
 
-from oslo.config import cfg
 from oslo.serialization import jsonutils
+from oslo_config import cfg
 from oslo_utils import excutils
 from oslo_utils import units
 

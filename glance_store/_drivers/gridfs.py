@@ -19,7 +19,7 @@ from __future__ import absolute_import
 import logging
 import urlparse
 
-from oslo.config import cfg
+from oslo_config import cfg
 from oslo_utils import excutils
 
 import glance_store.driver

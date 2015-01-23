@@ -18,7 +18,7 @@ import os
 import shutil
 
 import fixtures
-from oslo.config import cfg
+from oslo_config import cfg
 from oslotest import base
 
 import glance_store as store

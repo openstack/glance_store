@@ -23,7 +23,7 @@ import logging
 import math
 import urllib
 
-from oslo.config import cfg
+from oslo_config import cfg
 
 from glance_store.common import utils
 from glance_store import driver
