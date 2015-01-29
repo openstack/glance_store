@@ -7,9 +7,7 @@ stevedore>=0.12
 
 python-cinderclient>=1.0.6
 
-# Required by openstack.common libraries
-eventlet>=0.13.0
-iso8601>=0.1.8
+eventlet>=0.13.0 #s3
 six>=1.4.1
 
 # py2.6 compat
