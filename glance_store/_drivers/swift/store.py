@@ -667,7 +667,7 @@ class BaseStore(driver.Store):
                 else:
                     msg = (_("The container %(container)s does not exist in "
                              "Swift. Please set the "
-                             "swift_store_create_container_on_put option"
+                             "swift_store_create_container_on_put option "
                              "to add container to Swift automatically.") %
                            {'container': container})
                     raise glance_store.BackendException(msg)
