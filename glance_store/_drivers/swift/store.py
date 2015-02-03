@@ -46,9 +46,6 @@ DEFAULT_LARGE_OBJECT_CHUNK_SIZE = 200  # 200M
 ONE_MB = 1000 * 1024
 
 _SWIFT_OPTS = [
-    cfg.BoolOpt('swift_enable_snet', default=False,
-                help=_('Whether to use ServiceNET to communicate with the '
-                       'Swift storage servers.')),
     cfg.StrOpt('swift_store_auth_version', default='2',
                help=_('Version of the authentication service to use. '
                       'Valid versions are 2 for keystone and 1 for swauth '
@@ -63,6 +60,11 @@ _SWIFT_OPTS = [
                help=_('The region of the swift endpoint to be used for '
                       'single tenant. This setting is only necessary if the '
                       'tenant has multiple swift endpoints.')),
+    cfg.StrOpt('swift_store_endpoint',
+               default=None,
+               help=_('If set, the configured endpoint will be used. If '
+                      'None, the storage url from the auth response will be '
+                      'used.')),
     cfg.StrOpt('swift_store_endpoint_type', default='publicURL',
                help=_('A string giving the endpoint type of the swift '
                       'service to use (publicURL, adminURL or internalURL). '
@@ -387,8 +389,8 @@ class BaseStore(driver.Store):
         self.admin_tenants = glance_conf.swift_store_admin_tenants
         self.region = glance_conf.swift_store_region
         self.service_type = glance_conf.swift_store_service_type
+        self.conf_endpoint = glance_conf.swift_store_endpoint
         self.endpoint_type = glance_conf.swift_store_endpoint_type
-        self.snet = glance_conf.swift_enable_snet
         self.insecure = glance_conf.swift_store_auth_insecure
         self.ssl_compression = glance_conf.swift_store_ssl_compression
         self.cacert = glance_conf.swift_store_cacert
@@ -791,11 +793,10 @@ class SingleTenantStore(BaseStore):
         os_options['service_type'] = self.service_type
 
         return swiftclient.Connection(
-            auth_url, user, location.key, insecure=self.insecure,
-            tenant_name=tenant_name, snet=self.snet,
+            auth_url, user, location.key, preauthurl=self.conf_endpoint,
+            insecure=self.insecure, tenant_name=tenant_name,
             auth_version=self.auth_version, os_options=os_options,
-            ssl_compression=self.ssl_compression,
-            cacert=self.cacert)
+            ssl_compression=self.ssl_compression, cacert=self.cacert)
 
 
 class MultiTenantStore(BaseStore):
@@ -812,9 +813,12 @@ class MultiTenantStore(BaseStore):
                        "a service catalog.")
             raise exceptions.BadStoreConfiguration(store_name="swift",
                                                    reason=reason)
-        self.storage_url = auth.get_endpoint(
-            context.service_catalog, service_type=self.service_type,
-            endpoint_region=self.region, endpoint_type=self.endpoint_type)
+        self.storage_url = self.conf_endpoint
+        if not self.storage_url:
+            self.storage_url = auth.get_endpoint(
+                context.service_catalog, service_type=self.service_type,
+                endpoint_region=self.region, endpoint_type=self.endpoint_type)
+
         if self.storage_url.startswith('http://'):
             self.scheme = 'swift+http'
         else:
@@ -879,7 +883,7 @@ class MultiTenantStore(BaseStore):
             preauthurl=location.swift_url,
             preauthtoken=context.auth_token,
             tenant_name=context.tenant,
-            auth_version='2', snet=self.snet, insecure=self.insecure,
+            auth_version='2', insecure=self.insecure,
             ssl_compression=self.ssl_compression,
             cacert=self.cacert)
 
