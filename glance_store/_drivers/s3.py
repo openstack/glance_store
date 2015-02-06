@@ -82,7 +82,7 @@ _S3_OPTS = [
 ]
 
 
-class UploadPart:
+class UploadPart(object):
 
     """
     The class for the upload part

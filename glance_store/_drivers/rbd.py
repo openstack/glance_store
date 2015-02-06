@@ -307,9 +307,8 @@ class Store(driver.Store):
                     # Then delete image.
                     rbd.RBD().remove(ioctx, image_name)
                 except rbd.ImageNotFound:
-                    raise exceptions.NotFound(message=
-                                              _("RBD image %s does not exist")
-                                              % image_name)
+                    msg = _("RBD image %s does not exist") % image_name
+                    raise exceptions.NotFound(message=msg)
                 except rbd.ImageBusy:
                     log_msg = _("image %s could not be removed "
                                 "because it is in use")
@@ -351,9 +350,9 @@ class Store(driver.Store):
                     loc = self._create_image(fsid, ioctx, image_name,
                                              image_size, order)
                 except rbd.ImageExists:
-                    raise exceptions.Duplicate(message=
-                                               _('RBD image %s already exists')
-                                               % image_id)
+                    msg = _('RBD image %s already exists') % image_id
+                    raise exceptions.Duplicate(message=msg)
+
                 try:
                     with rbd.Image(ioctx, image_name) as image:
                         bytes_written = 0

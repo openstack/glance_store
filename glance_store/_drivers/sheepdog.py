@@ -49,7 +49,7 @@ _SHEEPDOG_OPTS = [
 ]
 
 
-class SheepdogImage:
+class SheepdogImage(object):
     """Class describing an image stored in Sheepdog storage."""
 
     def __init__(self, addr, port, name, chunk_size):
