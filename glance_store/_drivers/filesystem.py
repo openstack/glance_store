@@ -335,10 +335,12 @@ class Store(glance_store.driver.Store):
             for datadir in self.conf.glance_store.filesystem_store_datadirs:
                 (datadir_path,
                  priority) = self._get_datadir_path_and_priority(datadir)
-                self._check_directory_paths(datadir_path, directory_paths)
+                priority_paths = self.priority_data_map.setdefault(
+                    int(priority), [])
+                self._check_directory_paths(datadir_path, directory_paths,
+                                            priority_paths)
                 directory_paths.add(datadir_path)
-                self.priority_data_map.setdefault(int(priority),
-                                                  []).append(datadir_path)
+                priority_paths.append(datadir_path)
 
             self.priority_list = sorted(self.priority_data_map,
                                         reverse=True)
@@ -349,7 +351,8 @@ class Store(glance_store.driver.Store):
         if metadata_file:
             self._validate_metadata(metadata_file)
 
-    def _check_directory_paths(self, datadir_path, directory_paths):
+    def _check_directory_paths(self, datadir_path, directory_paths,
+                               priority_paths):
         """
         Checks if directory_path is already present in directory_paths.
 
@@ -363,9 +366,15 @@ class Store(glance_store.driver.Store):
                      "multiple times in filesystem_store_datadirs "
                      "option of filesystem configuration") %
                    {'datadir_path': datadir_path})
-            LOG.exception(msg)
-            raise exceptions.BadStoreConfiguration(
-                store_name="filesystem", reason=msg)
+
+            # If present with different priority it's a bad configuration
+            if datadir_path not in priority_paths:
+                LOG.exception(msg)
+                raise exceptions.BadStoreConfiguration(
+                    store_name="filesystem", reason=msg)
+
+            # Present with same prio (exact duplicate) only deserves a warning
+            LOG.warning(msg)
 
     def _get_datadir_path_and_priority(self, datadir):
         """
