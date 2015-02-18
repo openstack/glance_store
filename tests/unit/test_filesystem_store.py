@@ -451,6 +451,56 @@ class TestStore(base.StoreBaseTest,
         self.assertRaises(exceptions.BadStoreConfiguration,
                           self.store.configure_add)
 
+    def test_configure_add_same_dir_multiple_times_same_priority(self):
+        """
+        Tests BadStoreConfiguration exception is raised if same directory
+        is specified multiple times in filesystem_store_datadirs.
+        """
+        store_map = [self.useFixture(fixtures.TempDir()).path,
+                     self.useFixture(fixtures.TempDir()).path]
+        self.conf.clear_override('filesystem_store_datadir',
+                                 group='glance_store')
+        self.conf.set_override('filesystem_store_datadirs',
+                               [store_map[0] + ":100",
+                                store_map[1] + ":200",
+                                store_map[0] + ":100"],
+                               group='glance_store')
+        try:
+            self.store.configure()
+        except exceptions.BadStoreConfiguration:
+            self.fail("configure() raised BadStoreConfiguration unexpectedly!")
+
+        # Test that we can add an image via the filesystem backend
+        ChunkedFile.CHUNKSIZE = 1024
+        expected_image_id = str(uuid.uuid4())
+        expected_file_size = 5 * units.Ki  # 5K
+        expected_file_contents = "*" * expected_file_size
+        expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_location = "file://%s/%s" % (store_map[1],
+                                              expected_image_id)
+        image_file = six.StringIO(expected_file_contents)
+
+        loc, size, checksum, _ = self.store.add(expected_image_id,
+                                                image_file,
+                                                expected_file_size)
+
+        self.assertEqual(expected_location, loc)
+        self.assertEqual(expected_file_size, size)
+        self.assertEqual(expected_checksum, checksum)
+
+        loc = location.get_location_from_uri(expected_location,
+                                             conf=self.conf)
+        (new_image_file, new_image_size) = self.store.get(loc)
+        new_image_contents = ""
+        new_image_file_size = 0
+
+        for chunk in new_image_file:
+            new_image_file_size += len(chunk)
+            new_image_contents += chunk
+
+        self.assertEqual(expected_file_contents, new_image_contents)
+        self.assertEqual(expected_file_size, new_image_file_size)
+
     def test_add_with_multiple_dirs(self):
         """Test adding multiple filesystem directories."""
         store_map = [self.useFixture(fixtures.TempDir()).path,
@@ -464,7 +514,7 @@ class TestStore(base.StoreBaseTest,
 
         self.store.configure()
 
-        """Test that we can add an image via the filesystem backend"""
+        # Test that we can add an image via the filesystem backend
         ChunkedFile.CHUNKSIZE = units.Ki
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
