@@ -20,6 +20,7 @@ import logging
 
 from oslo.config import cfg
 from oslo.utils import importutils
+from oslo_utils import units
 
 from glance_store import capabilities
 from glance_store.common import utils
@@ -33,7 +34,7 @@ LOG = logging.getLogger(__name__)
 class Store(capabilities.StoreCapability):
 
     OPTIONS = None
-    READ_CHUNKSIZE = 16 * (1024 * 1024)  # 16M
+    READ_CHUNKSIZE = 16 * units.Mi  # 16M
     WRITE_CHUNKSIZE = READ_CHUNKSIZE
 
     def __init__(self, conf):

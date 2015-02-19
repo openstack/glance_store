@@ -16,6 +16,7 @@
 import StringIO
 
 import mock
+from oslo_utils import units
 
 from glance_store._drivers import rbd as rbd_store
 from glance_store import exceptions
@@ -163,12 +164,12 @@ class TestStore(base.StoreBaseTest,
         self.location = rbd_store.StoreLocation(self.store_specs,
                                                 self.conf)
         # Provide enough data to get more than one chunk iteration.
-        self.data_len = 3 * 1024
+        self.data_len = 3 * units.Ki
         self.data_iter = StringIO.StringIO('*' * self.data_len)
 
     def test_add_w_image_size_zero(self):
         """Assert that correct size is returned even though 0 was provided."""
-        self.store.chunk_size = 1024
+        self.store.chunk_size = units.Ki
         with mock.patch.object(rbd_store.rbd.Image, 'resize') as resize:
             with mock.patch.object(rbd_store.rbd.Image, 'write') as write:
                 ret = self.store.add('fake_image_id', self.data_iter, 0)

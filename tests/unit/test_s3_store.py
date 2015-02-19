@@ -56,7 +56,7 @@ class FakeKey(object):
         self.data = None
         self.size = 0
         self.etag = None
-        self.BufferSize = 1024
+        self.BufferSize = units.Ki
 
     def close(self):
         pass

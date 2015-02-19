@@ -18,6 +18,7 @@ from cinderclient import exceptions as cinder_exception
 from cinderclient import service_catalog
 from cinderclient.v2 import client as cinderclient
 from oslo_config import cfg
+from oslo_utils import units
 
 from glance_store import capabilities
 from glance_store.common import utils
@@ -173,7 +174,7 @@ class Store(glance_store.driver.Store):
             volume = get_cinderclient(self.conf,
                                       context).volumes.get(loc.volume_id)
             # GB unit convert to byte
-            return volume.size * (1024 ** 3)
+            return volume.size * units.Gi
         except cinder_exception.NotFound as e:
             reason = _("Failed to get image size due to "
                        "volume can not be found: %s") % self.volume_id

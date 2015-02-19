@@ -39,9 +39,6 @@ from glance_store.tests import base
 from tests.unit import test_store_capabilities
 
 
-KB = 1024
-
-
 class TestStore(base.StoreBaseTest,
                 test_store_capabilities.TestStoreCapabilitiesChecking):
 
@@ -155,9 +152,9 @@ class TestStore(base.StoreBaseTest,
 
     def test_add(self):
         """Test that we can add an image via the filesystem backend."""
-        ChunkedFile.CHUNKSIZE = 1024
+        ChunkedFile.CHUNKSIZE = units.Ki
         expected_image_id = str(uuid.uuid4())
-        expected_file_size = 5 * KB  # 5K
+        expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = "*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (self.test_dir,
@@ -225,9 +222,9 @@ class TestStore(base.StoreBaseTest,
         Tests that adding an image with an existing identifier
         raises an appropriate exception
         """
-        ChunkedFile.CHUNKSIZE = 1024
+        ChunkedFile.CHUNKSIZE = units.Ki
         image_id = str(uuid.uuid4())
-        file_size = 5 * KB  # 5K
+        file_size = 5 * units.Ki  # 5K
         file_contents = "*" * file_size
         image_file = StringIO.StringIO(file_contents)
 
@@ -240,9 +237,9 @@ class TestStore(base.StoreBaseTest,
                           image_id, image_file, 0)
 
     def _do_test_add_write_failure(self, errno, exception):
-        ChunkedFile.CHUNKSIZE = 1024
+        ChunkedFile.CHUNKSIZE = units.Ki
         image_id = str(uuid.uuid4())
-        file_size = 5 * KB  # 5K
+        file_size = 5 * units.Ki  # 5K
         file_contents = "*" * file_size
         path = os.path.join(self.test_dir, image_id)
         image_file = StringIO.StringIO(file_contents)
@@ -291,9 +288,9 @@ class TestStore(base.StoreBaseTest,
         Tests the partial image file is cleaned up after a read
         failure.
         """
-        ChunkedFile.CHUNKSIZE = 1024
+        ChunkedFile.CHUNKSIZE = units.Ki
         image_id = str(uuid.uuid4())
-        file_size = 5 * KB  # 5K
+        file_size = 5 * units.Ki  # 5K
         file_contents = "*" * file_size
         path = os.path.join(self.test_dir, image_id)
         image_file = StringIO.StringIO(file_contents)
@@ -315,7 +312,7 @@ class TestStore(base.StoreBaseTest,
         """
         # First add an image
         image_id = str(uuid.uuid4())
-        file_size = 5 * KB  # 5K
+        file_size = 5 * units.Ki  # 5K
         file_contents = "*" * file_size
         image_file = StringIO.StringIO(file_contents)
 
@@ -468,7 +465,7 @@ class TestStore(base.StoreBaseTest,
         self.store.configure()
 
         """Test that we can add an image via the filesystem backend"""
-        ChunkedFile.CHUNKSIZE = 1024
+        ChunkedFile.CHUNKSIZE = units.Ki
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = "*" * expected_file_size
@@ -520,7 +517,7 @@ class TestStore(base.StoreBaseTest,
         with mock.patch.object(self.store, '_get_capacity_info') as capacity:
             capacity.return_value = 0
 
-            ChunkedFile.CHUNKSIZE = 1024
+            ChunkedFile.CHUNKSIZE = units.Ki
             expected_image_id = str(uuid.uuid4())
             expected_file_size = 5 * units.Ki  # 5K
             expected_file_contents = "*" * expected_file_size
@@ -573,7 +570,7 @@ class TestStore(base.StoreBaseTest,
 
         self.store.configure_add()
 
-        Store.WRITE_CHUNKSIZE = 1024
+        Store.WRITE_CHUNKSIZE = units.Ki
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = "*" * expected_file_size
@@ -614,7 +611,7 @@ class TestStore(base.StoreBaseTest,
 
         self.store.configure_add()
 
-        Store.WRITE_CHUNKSIZE = 1024
+        Store.WRITE_CHUNKSIZE = units.Ki
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = "*" * expected_file_size

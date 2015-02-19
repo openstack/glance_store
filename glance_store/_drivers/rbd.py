@@ -24,6 +24,7 @@ import math
 import urllib
 
 from oslo_config import cfg
+from oslo_utils import units
 
 from glance_store import capabilities
 from glance_store.common import utils
@@ -193,7 +194,7 @@ class Store(driver.Store):
         """
         try:
             chunk = self.conf.glance_store.rbd_store_chunk_size
-            self.chunk_size = chunk * (1024 ** 2)
+            self.chunk_size = chunk * units.Mi
             self.READ_CHUNKSIZE = self.chunk_size
             self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
 
@@ -369,7 +370,7 @@ class Store(driver.Store):
                                 length = offset + chunk_length
                                 bytes_written += chunk_length
                                 LOG.debug(_("resizing image to %s KiB") %
-                                          (length / 1024))
+                                          (length / units.Ki))
                                 image.resize(length)
                             LOG.debug(_("writing chunk at offset %s") %
                                       (offset))
