@@ -296,8 +296,11 @@ class Store(glance_store.Store):
                 store_name='vmware_datastore', reason=reason)
         return result
 
-    def _build_vim_cookie_header(self, vim_cookies):
+    def _build_vim_cookie_header(self, verify_session=False):
         """Build ESX host session cookie header."""
+        if verify_session and not self.session.is_current_session_active():
+            self.reset_session(force=True)
+        vim_cookies = self.session.vim.client.options.transport.cookiejar
         if len(list(vim_cookies)) > 0:
             cookie = list(vim_cookies)[0]
             return cookie.name + '=' + cookie.value
@@ -335,18 +338,31 @@ class Store(glance_store.Store):
                              'datastore_name': self.datastore_name,
                              'image_id': image_id}, self.conf)
         # NOTE(arnaud): use a decorator when the config is not tied to self
-        cookie = self._build_vim_cookie_header(
-            self.session.vim.client.options.transport.cookiejar)
+        cookie = self._build_vim_cookie_header(True)
         headers = dict(headers.items() + {'Cookie': cookie}.items())
+        conn_class = self._get_http_conn_class()
+        conn = conn_class(loc.server_host)
+        url = urlparse.quote('%s?%s' % (loc.path, loc.query))
         try:
-            conn = self._get_http_conn('PUT', loc, headers,
-                                       content=image_file)
-            res = conn.getresponse()
+            conn.request('PUT', url, image_file, headers)
+        except IOError as e:
+            # When a session is not authenticated, the socket is closed by
+            # the server after sending the response. httplib has an open
+            # issue with https that raises Broken Pipe
+            # error instead of returning the response.
+            # See http://bugs.python.org/issue16062. Here, we log the error
+            # and continue to look into the response.
+            msg = _LE('Communication error sending http %(method)s request'
+                      'to the url %(url)s.\n'
+                      'Got IOError %(e)s') % {'method': 'PUT',
+                                              'url': url,
+                                              'e': e}
+            LOG.error(msg)
         except Exception:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE('Failed to upload content of image '
                                   '%(image)s'), {'image': image_id})
-
+        res = conn.getresponse()
         if res.status == httplib.CONFLICT:
             raise exceptions.Duplicate(_("Image file %(image_id)s already "
                                          "exists!") %
@@ -434,8 +450,7 @@ class Store(glance_store.Store):
         loc = location.store_location
         # NOTE(arnaud): use a decorator when the config is not tied to self
         for i in range(self.api_retry_count + 1):
-            cookie = self._build_vim_cookie_header(
-                self.session.vim.client.options.transport.cookiejar)
+            cookie = self._build_vim_cookie_header()
             headers = {'Cookie': cookie}
             try:
                 conn = self._get_http_conn(method, loc, headers)
