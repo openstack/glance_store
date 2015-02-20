@@ -642,7 +642,6 @@ class Store(glance_store.driver.Store):
                      {'obj_name': obj_name,
                       'UploadId': mpu.id,
                       'total_size': total_size,
-                      'obj_name': obj_name,
                       'checksum_hex': checksum_hex})
             return (loc.get_uri(), total_size, checksum_hex, {})
         else:
