@@ -22,6 +22,7 @@ import math
 
 from oslo.config import cfg
 from oslo.utils import excutils
+import six
 import six.moves.urllib.parse as urlparse
 import swiftclient
 import urllib
@@ -373,6 +374,14 @@ def Store(conf):
 Store.OPTIONS = _SWIFT_OPTS + sutils.swift_opts
 
 
+def _is_slo(slo_header):
+    if (slo_header is not None and isinstance(slo_header, six.string_types)
+            and slo_header.lower() == 'true'):
+        return True
+
+    return False
+
+
 class BaseStore(driver.Store):
 
     _CAPABILITIES = capabilities.BitMasks.RW_ACCESS
@@ -612,17 +621,27 @@ class BaseStore(driver.Store):
             # that means the object was uploaded in chunks/segments,
             # and we need to delete all the chunks as well as the
             # manifest.
-            manifest = None
+            dlo_manifest = None
+            slo_manifest = None
             try:
                 headers = connection.head_object(
                     location.container, location.obj)
-                manifest = headers.get('x-object-manifest')
+                dlo_manifest = headers.get('x-object-manifest')
+                slo_manifest = headers.get('x-static-large-object')
             except swiftclient.ClientException as e:
                 if e.http_status != httplib.NOT_FOUND:
                     raise
-            if manifest:
+
+            if _is_slo(slo_manifest):
+                # Delete the manifest as well as the segments
+                query_string = 'multipart-manifest=delete'
+                connection.delete_object(location.container, location.obj,
+                                         query_string=query_string)
+                return
+
+            if dlo_manifest:
                 # Delete all the chunks before the object manifest itself
-                obj_container, obj_prefix = manifest.split('/', 1)
+                obj_container, obj_prefix = dlo_manifest.split('/', 1)
                 segments = connection.get_container(
                     obj_container, prefix=obj_prefix)[1]
                 for segment in segments:
