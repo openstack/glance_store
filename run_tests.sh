@@ -13,6 +13,7 @@ function usage {
   echo "  -u, --update                Update the virtual environment with any newer package versions"
   echo "  -p, --pep8                  Just run PEP8 and HACKING compliance check"
   echo "  -P, --no-pep8               Don't run static code checks"
+  echo "  -c, --coverage              Generate coverage report"
   echo "  -d, --debug                 Run tests with testtools instead of testr. This allows you to use the debugger."
   echo "  -h, --help                  Print this usage message"
   echo "  --virtual-env-path <path>   Location of the virtualenv directory"
@@ -42,6 +43,7 @@ function process_options {
       -u|--update) update=1;;
       -p|--pep8) just_pep8=1;;
       -P|--no-pep8) no_pep8=1;;
+      -c|--coverage) coverage=1;;
       -d|--debug) debug=1;;
       --virtual-env-path)
         (( i++ ))
@@ -80,6 +82,7 @@ testropts=
 wrapper=""
 just_pep8=0
 no_pep8=0
+coverage=0
 debug=0
 update=0
 concurrency=0
@@ -112,13 +115,17 @@ function run_tests {
     fi
     ${wrapper} python -m testtools.run $testropts $testrargs
 
-    # Short circuit because all of the testr stuff
+    # Short circuit because all of the testr and coverage stuff
     # below does not make sense when running testtools.run for
     # debugging purposes.
     return $?
   fi
 
-  TESTRTESTS="$TESTRTESTS"
+  if [ $coverage -eq 1 ]; then
+    TESTRTESTS="$TESTRTESTS --coverage"
+  else
+    TESTRTESTS="$TESTRTESTS"
+  fi
 
   # Just run the test suites in current environment
   set +e
@@ -141,6 +148,14 @@ function run_tests {
   set -e
 
   copy_subunit_log
+
+  if [ $coverage -eq 1 ]; then
+    echo "Generating HTML coverage report in covhtml/"
+    # Don't compute coverage for common code, which is tested elsewhere
+    ${wrapper} coverage combine
+    ${wrapper} coverage html --include='glance_store/*' --omit='glance_store/openstack/common/*' -d covhtml -i
+    ${wrapper} coverage report --include='glance_store/*' --omit='glance_store/openstack/common/*' -i
+  fi
 
   return $RESULT
 }
@@ -194,6 +209,11 @@ then
       fi
     fi
   fi
+fi
+
+# Delete old coverage data from previous runs
+if [ $coverage -eq 1 ]; then
+    ${wrapper} coverage erase
 fi
 
 if [ $just_pep8 -eq 1 ]; then
