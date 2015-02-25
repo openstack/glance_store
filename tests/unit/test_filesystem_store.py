@@ -28,6 +28,8 @@ import uuid
 import fixtures
 from oslo_utils import units
 import six
+# NOTE(jokke): simplified transition to py3, behaves like py2 xrange
+from six.moves import range
 
 from glance_store._drivers.filesystem import ChunkedFile
 from glance_store._drivers.filesystem import Store
