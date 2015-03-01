@@ -20,7 +20,7 @@ import httplib
 import logging
 import math
 
-from oslo.config import cfg
+from oslo_config import cfg
 from oslo_utils import excutils
 from oslo_utils import units
 import six

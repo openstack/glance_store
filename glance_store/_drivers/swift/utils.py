@@ -20,7 +20,7 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-from oslo.config import cfg
+from oslo_config import cfg
 
 from glance_store import exceptions
 from glance_store import i18n
