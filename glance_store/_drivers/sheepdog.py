@@ -174,7 +174,8 @@ class ImageIterator(object):
 class Store(glance_store.driver.Store):
     """Sheepdog backend adapter."""
 
-    _CAPABILITIES = (capabilities.RW_ACCESS | capabilities.DRIVER_REUSABLE)
+    _CAPABILITIES = (capabilities.BitMasks.RW_ACCESS |
+                     capabilities.BitMasks.DRIVER_REUSABLE)
     OPTIONS = _SHEEPDOG_OPTS
     EXAMPLE_URL = "sheepdog://image"
 

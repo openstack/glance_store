@@ -19,6 +19,7 @@ import logging
 import threading
 import time
 
+import enum
 from eventlet import tpool
 
 from glance_store import exceptions
@@ -29,22 +30,34 @@ _STORE_CAPABILITES_UPDATE_SCHEDULING_BOOK = {}
 _STORE_CAPABILITES_UPDATE_SCHEDULING_LOCK = threading.Lock()
 LOG = logging.getLogger(__name__)
 
-# Store capability constants
-NONE = 0b00000000
-ALL = 0b11111111
-READ_ACCESS = 0b00000001
-READ_OFFSET = 0b00000011  # Included READ_ACCESS
-READ_CHUNK = 0b00000101  # Included READ_ACCESS
-READ_RANDOM = 0b00000111  # READ_OFFSET | READ_CHUNK
-WRITE_ACCESS = 0b00001000
-WRITE_OFFSET = 0b00011000  # Included WRITE_ACCESS
-WRITE_CHUNK = 0b00101000  # Included WRITE_ACCESS
-WRITE_RANDOM = 0b00111000  # WRITE_OFFSET | WRITE_CHUNK
-RW_ACCESS = 0b00001001  # READ_ACCESS | WRITE_ACCESS
-RW_OFFSET = 0b00011011  # READ_OFFSET | WRITE_OFFSET
-RW_CHUNK = 0b00101101  # READ_CHUNK | WRITE_CHUNK
-RW_RANDOM = 0b00111111  # RW_OFFSET | RW_CHUNK
-DRIVER_REUSABLE = 0b01000000  # driver is stateless and can be reused safely
+
+class BitMasks(enum.IntEnum):
+    NONE = 0b00000000
+    ALL = 0b11111111
+    READ_ACCESS = 0b00000001
+    # Included READ_ACCESS
+    READ_OFFSET = 0b00000011
+    # Included READ_ACCESS
+    READ_CHUNK = 0b00000101
+    # READ_OFFSET | READ_CHUNK
+    READ_RANDOM = 0b00000111
+    WRITE_ACCESS = 0b00001000
+    # Included WRITE_ACCESS
+    WRITE_OFFSET = 0b00011000
+    # Included WRITE_ACCESS
+    WRITE_CHUNK = 0b00101000
+    # WRITE_OFFSET | WRITE_CHUNK
+    WRITE_RANDOM = 0b00111000
+    # READ_ACCESS | WRITE_ACCESS
+    RW_ACCESS = 0b00001001
+    # READ_OFFSET | WRITE_OFFSET
+    RW_OFFSET = 0b00011011
+    # READ_CHUNK | WRITE_CHUNK
+    RW_CHUNK = 0b00101101
+    # RW_OFFSET | RW_CHUNK
+    RW_RANDOM = 0b00111111
+    # driver is stateless and can be reused safely
+    DRIVER_REUSABLE = 0b01000000
 
 
 class StoreCapability(object):
@@ -178,12 +191,16 @@ def check(store_op_fun):
         if store.conf.glance_store.store_capabilities_update_min_interval > 0:
             _schedule_capabilities_update(store)
 
+        get_capabilities = [
+            BitMasks.READ_ACCESS,
+            BitMasks.READ_OFFSET if kwargs.get('offset') else BitMasks.NONE,
+            BitMasks.READ_CHUNK if kwargs.get('chunk_size') else BitMasks.NONE
+        ]
+
         op_cap_map = {
-            'get': [READ_ACCESS,
-                    READ_OFFSET if kwargs.get('offset') else NONE,
-                    READ_CHUNK if kwargs.get('chunk_size') else NONE],
-            'add': [WRITE_ACCESS],
-            'delete': [WRITE_ACCESS]}
+            'get': get_capabilities,
+            'add': [BitMasks.WRITE_ACCESS],
+            'delete': [BitMasks.WRITE_ACCESS]}
 
         op_exec_map = {
             'get': (exceptions.StoreRandomGetNotSupported

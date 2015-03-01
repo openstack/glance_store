@@ -70,7 +70,7 @@ class Store(capabilities.StoreCapability):
         try:
             self.configure_add()
         except exceptions.BadStoreConfiguration as e:
-            self.unset_capabilities(capabilities.WRITE_ACCESS)
+            self.unset_capabilities(capabilities.BitMasks.WRITE_ACCESS)
             msg = (_(u"Failed to configure store correctly: %s "
                      "Disabling add method.") % utils.exception_to_str(e))
             LOG.warn(msg)

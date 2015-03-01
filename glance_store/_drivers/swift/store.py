@@ -375,7 +375,7 @@ Store.OPTIONS = _SWIFT_OPTS + sutils.swift_opts
 
 class BaseStore(driver.Store):
 
-    _CAPABILITIES = capabilities.RW_ACCESS
+    _CAPABILITIES = capabilities.BitMasks.RW_ACCESS
     CHUNKSIZE = 65536
     OPTIONS = _SWIFT_OPTS + sutils.swift_opts
 

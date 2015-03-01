@@ -131,7 +131,7 @@ class Store(glance_store.driver.Store):
 
     """Cinder backend store adapter."""
 
-    _CAPABILITIES = capabilities.DRIVER_REUSABLE
+    _CAPABILITIES = capabilities.BitMasks.DRIVER_REUSABLE
     OPTIONS = _CINDER_OPTS
     EXAMPLE_URL = "cinder://<VOLUME_ID>"
 

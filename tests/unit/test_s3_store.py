@@ -489,7 +489,8 @@ class TestStore(base.StoreBaseTest,
             self.config(**conf)
             self.store = s3.Store(self.conf)
             self.store.configure()
-            return not self.store.is_capable(capabilities.WRITE_ACCESS)
+            return not self.store.is_capable(
+                capabilities.BitMasks.WRITE_ACCESS)
         except Exception:
             return False
         return False

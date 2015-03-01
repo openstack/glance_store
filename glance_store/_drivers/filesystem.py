@@ -149,9 +149,9 @@ class ChunkedFile(object):
 
 class Store(glance_store.driver.Store):
 
-    _CAPABILITIES = (capabilities.READ_RANDOM |
-                     capabilities.WRITE_ACCESS |
-                     capabilities.DRIVER_REUSABLE)
+    _CAPABILITIES = (capabilities.BitMasks.READ_RANDOM |
+                     capabilities.BitMasks.WRITE_ACCESS |
+                     capabilities.BitMasks.DRIVER_REUSABLE)
     OPTIONS = _FILESYSTEM_CONFIGS
     READ_CHUNKSIZE = 64 * units.Ki
     WRITE_CHUNKSIZE = READ_CHUNKSIZE

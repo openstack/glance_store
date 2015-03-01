@@ -4,6 +4,7 @@ oslo.serialization>=1.0.0 # Apache-2.0
 oslo.utils>=1.2.0 # Apache-2.0
 oslo.concurrency>=1.4.1         # Apache-2.0
 stevedore>=0.12
+enum34
 
 python-cinderclient>=1.0.6
 

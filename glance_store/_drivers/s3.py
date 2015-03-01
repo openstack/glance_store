@@ -294,7 +294,7 @@ class ChunkedFile(object):
 class Store(glance_store.driver.Store):
     """An implementation of the s3 adapter."""
 
-    _CAPABILITIES = capabilities.RW_ACCESS
+    _CAPABILITIES = capabilities.BitMasks.RW_ACCESS
     OPTIONS = _S3_OPTS
     EXAMPLE_URL = "s3://<ACCESS_KEY>:<SECRET_KEY>@<S3_URL>/<BUCKET>/<OBJ>"
 

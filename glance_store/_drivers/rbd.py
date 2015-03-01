@@ -176,7 +176,7 @@ class ImageIterator(object):
 class Store(driver.Store):
     """An implementation of the RBD backend adapter."""
 
-    _CAPABILITIES = capabilities.RW_ACCESS
+    _CAPABILITIES = capabilities.BitMasks.RW_ACCESS
     OPTIONS = _RBD_OPTS
 
     EXAMPLE_URL = "rbd://<FSID>/<POOL>/<IMAGE>/<SNAP>"
