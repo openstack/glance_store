@@ -19,7 +19,7 @@
 import logging
 
 from oslo.config import cfg
-from oslo.utils import importutils
+from oslo_utils import importutils
 from oslo_utils import units
 
 from glance_store import capabilities
