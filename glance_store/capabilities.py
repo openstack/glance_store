@@ -21,6 +21,7 @@ import time
 
 import enum
 from eventlet import tpool
+from oslo_utils import reflection
 
 from glance_store import exceptions
 from glance_store import i18n
@@ -94,7 +95,7 @@ class StoreCapability(object):
                    "storage capabilities. Please overwrite "
                    "'update_capabilities' method of the store to "
                    "implement updating logics if needed.") %
-                  self.__class__.__name__)
+                  reflection.get_class_name(self))
 
     def is_capable(self, *capabilities):
         """
