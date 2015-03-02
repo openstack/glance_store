@@ -221,7 +221,8 @@ class StoreLocation(location.StoreLocation):
 class Store(glance_store.Store):
     """An implementation of the VMware datastore adapter."""
 
-    _CAPABILITIES = capabilities.BitMasks.RW_ACCESS
+    _CAPABILITIES = (capabilities.BitMasks.RW_ACCESS |
+                     capabilities.BitMasks.DRIVER_REUSABLE)
     OPTIONS = _VMWARE_OPTS
     WRITE_CHUNKSIZE = units.Mi
     # FIXME(arnaud): re-visit this code once the store API is cleaned up.
