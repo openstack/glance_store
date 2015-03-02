@@ -68,7 +68,7 @@ class FakeGridFS(object):
     def get(self, location):
         self.called_commands.append('get')
 
-        class Image:
+        class Image(object):
             _id = "test"
             length = 6
             md5 = "yoyo"

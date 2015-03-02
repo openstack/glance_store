@@ -104,7 +104,7 @@ class FakeKey(object):
         return self.data
 
 
-class FakeMPU:
+class FakeMPU(object):
     """
     Acts like a ``boto.s3.multipart.MultiPartUpload``
     """
@@ -167,7 +167,7 @@ class FakeMPU:
         return key
 
 
-class FakeBucket:
+class FakeBucket(object):
     """Acts like a ``boto.s3.bucket.Bucket``."""
     def __init__(self, name, keys=None):
         self.name = name
