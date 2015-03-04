@@ -28,6 +28,8 @@ from oslo_utils import units
 from oslotest import moxstubout
 import requests_mock
 import six
+# NOTE(jokke): simplified transition to py3, behaves like py2 xrange
+from six.moves import range
 import StringIO
 import swiftclient
 

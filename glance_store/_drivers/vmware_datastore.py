@@ -26,6 +26,8 @@ from oslo.vmware import constants
 from oslo_config import cfg
 from oslo_utils import excutils
 from oslo_utils import units
+# NOTE(jokke): simplified transition to py3, behaves like py2 xrange
+from six.moves import range
 import six.moves.urllib.parse as urlparse
 
 import glance_store
