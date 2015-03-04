@@ -15,17 +15,13 @@
 
 import StringIO
 
+import gridfs
 import mock
+import pymongo
 
 from glance_store._drivers import gridfs as gfs
 from glance_store.tests import base
 from tests.unit import test_store_capabilities
-
-try:
-    import gridfs
-    import pymongo
-except ImportError:
-    pymongo = None
 
 
 GRIDFS_CONF = {'mongodb_store_uri': 'mongodb://fake_store_uri',
@@ -83,24 +79,19 @@ class TestStore(base.StoreBaseTest,
         """Establish a clean test environment."""
         super(TestStore, self).setUp()
 
-        if pymongo is not None:
-            conn = mock.patch.object(pymongo, 'MongoClient').start()
-            conn.side_effect = FakeMongoClient
-            self.addCleanup(conn.stop)
+        conn = mock.patch.object(pymongo, 'MongoClient').start()
+        conn.side_effect = FakeMongoClient
+        self.addCleanup(conn.stop)
 
-            pgfs = mock.patch.object(gridfs, 'GridFS').start()
-            pgfs.side_effect = FakeGridFS
-            self.addCleanup(pgfs.stop)
+        pgfs = mock.patch.object(gridfs, 'GridFS').start()
+        pgfs.side_effect = FakeGridFS
+        self.addCleanup(pgfs.stop)
 
         self.store = gfs.Store(self.conf)
         self.config(group='glance_store', **GRIDFS_CONF)
         self.store.configure()
 
     def test_cleanup_when_add_image_exception(self):
-        if pymongo is None:
-            msg = 'GridFS store can not add images, skip test.'
-            self.skipTest(msg)
-
         self.store.add('fake_image_id', StringIO.StringIO('xx'), 2)
         self.assertEqual(self.store.fs.called_commands,
                          ['exists', 'put', 'get'])
