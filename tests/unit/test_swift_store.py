@@ -41,7 +41,6 @@ from glance_store.common import auth
 from glance_store.common import utils
 from glance_store import exceptions
 from glance_store import location
-from glance_store.openstack.common import context
 from glance_store.tests import base
 from tests.unit import test_store_capabilities
 
@@ -255,7 +254,7 @@ class SwiftTests(object):
                (self.swift_store_user, FAKE_UUID))
         self.config(swift_store_multi_tenant=True)
         # NOTE(markwash): ensure the image is found
-        ctxt = context.RequestContext()
+        ctxt = mock.MagicMock()
         size = backend.get_size_from_backend(uri, context=ctxt)
         self.assertEqual(size, 5120)
 
@@ -282,7 +281,7 @@ class SwiftTests(object):
         uri = "swift://%s:key@auth_address/glance/%s" % (
             self.swift_store_user, FAKE_UUID)
         loc = location.get_location_from_uri(uri, conf=self.conf)
-        ctxt = context.RequestContext()
+        ctxt = mock.MagicMock()
         (image_swift, image_size) = self.store.get(loc, context=ctxt)
         resp_full = ''.join([chunk for chunk in image_swift.wrapped])
         resp_half = resp_full[:len(resp_full) / 2]
@@ -309,7 +308,7 @@ class SwiftTests(object):
             "swift+http://%s:key@auth_address/glance/%s" %
             (self.swift_store_user, FAKE_UUID), conf=self.conf)
 
-        ctxt = context.RequestContext()
+        ctxt = mock.MagicMock()
         (image_swift, image_size) = self.store.get(loc, context=ctxt)
         self.assertEqual(image_size, 5120)
 
@@ -626,7 +625,7 @@ class SwiftTests(object):
         self.config(swift_store_multiple_containers_seed=2)
         fake_get_endpoint = FakeGetEndpoint('https://some_endpoint')
         self.stubs.Set(auth, 'get_endpoint', fake_get_endpoint)
-        ctxt = context.RequestContext(
+        ctxt = mock.MagicMock(
             user='user', tenant='tenant', auth_token='123',
             service_catalog={})
         store = swift.MultiTenantStore(self.conf)
@@ -944,7 +943,7 @@ class SwiftTests(object):
         store.configure()
         uri = "swift+http://storeurl/glance/%s" % FAKE_UUID
         loc = location.get_location_from_uri(uri, conf=self.conf)
-        ctxt = context.RequestContext()
+        ctxt = mock.MagicMock()
         store.set_acls(loc, public=True, context=ctxt)
         container_headers = swiftclient.client.head_container('x', 'y',
                                                               'glance')
@@ -961,7 +960,7 @@ class SwiftTests(object):
         uri = "swift+http://storeurl/glance/%s" % FAKE_UUID
         loc = location.get_location_from_uri(uri, conf=self.conf)
         read_tenants = ['matt', 'mark']
-        ctxt = context.RequestContext()
+        ctxt = mock.MagicMock()
         store.set_acls(loc, read_tenants=read_tenants, context=ctxt)
         container_headers = swiftclient.client.head_container('x', 'y',
                                                               'glance')
@@ -978,7 +977,7 @@ class SwiftTests(object):
         uri = "swift+http://storeurl/glance/%s" % FAKE_UUID
         loc = location.get_location_from_uri(uri, conf=self.conf)
         read_tenants = ['frank', 'jim']
-        ctxt = context.RequestContext()
+        ctxt = mock.MagicMock()
         store.set_acls(loc, write_tenants=read_tenants, context=ctxt)
         container_headers = swiftclient.client.head_container('x', 'y',
                                                               'glance')
@@ -1092,7 +1091,7 @@ class TestSingleTenantStoreConnections(base.StoreBaseTest):
                           'endpoint_type': 'publicURL'})
 
     def test_connection_with_conf_endpoint(self):
-        ctx = context.RequestContext(user='tenant:user1', tenant='tenant')
+        ctx = mock.MagicMock(user='tenant:user1', tenant='tenant')
         self.config(swift_store_endpoint='https://internal.com')
         self.store.configure()
         connection = self.store.get_connection(self.location, context=ctx)
@@ -1207,7 +1206,7 @@ class TestMultiTenantStoreConnections(base.StoreBaseTest):
         moxfixture = self.useFixture(moxstubout.MoxStubout())
         self.stubs = moxfixture.stubs
         self.stubs.Set(swiftclient, 'Connection', FakeConnection)
-        self.context = context.RequestContext(
+        self.context = mock.MagicMock(
             user='tenant:user1', tenant='tenant', auth_token='0123')
         self.store = swift.MultiTenantStore(self.conf)
         specs = {'scheme': 'swift',
@@ -1263,7 +1262,7 @@ class TestMultiTenantStoreContext(base.StoreBaseTest):
         store.configure()
         uri = "swift+http://127.0.0.1/glance_123/123"
         loc = location.get_location_from_uri(uri, conf=self.conf)
-        ctx = context.RequestContext(
+        ctx = mock.MagicMock(
             service_catalog=self.service_catalog, user='tenant:user1',
             tenant='tenant', auth_token='0123')
 
@@ -1283,7 +1282,7 @@ class TestMultiTenantStoreContext(base.StoreBaseTest):
         store = Store(self.conf)
         store.configure()
         pseudo_file = StringIO.StringIO('Some data')
-        ctx = context.RequestContext(
+        ctx = mock.MagicMock(
             service_catalog=self.service_catalog, user='tenant:user1',
             tenant='tenant', auth_token='0123')
         store.add('123', pseudo_file, pseudo_file.len,
@@ -1356,7 +1355,7 @@ class TestCreatingLocations(base.StoreBaseTest):
         self.config(swift_store_container='container')
         fake_get_endpoint = FakeGetEndpoint('https://some_endpoint')
         self.stubs.Set(auth, 'get_endpoint', fake_get_endpoint)
-        ctxt = context.RequestContext(
+        ctxt = mock.MagicMock(
             user='user', tenant='tenant', auth_token='123',
             service_catalog={})
         store = swift.MultiTenantStore(self.conf)
@@ -1373,7 +1372,7 @@ class TestCreatingLocations(base.StoreBaseTest):
     def test_multi_tenant_location_http(self):
         fake_get_endpoint = FakeGetEndpoint('http://some_endpoint')
         self.stubs.Set(auth, 'get_endpoint', fake_get_endpoint)
-        ctxt = context.RequestContext(
+        ctxt = mock.MagicMock(
             user='user', tenant='tenant', auth_token='123',
             service_catalog={})
         store = swift.MultiTenantStore(self.conf)
@@ -1386,7 +1385,7 @@ class TestCreatingLocations(base.StoreBaseTest):
         self.config(swift_store_region='WestCarolina')
         fake_get_endpoint = FakeGetEndpoint('https://some_endpoint')
         self.stubs.Set(auth, 'get_endpoint', fake_get_endpoint)
-        ctxt = context.RequestContext(
+        ctxt = mock.MagicMock(
             user='user', tenant='tenant', auth_token='123',
             service_catalog={})
         store = swift.MultiTenantStore(self.conf)
@@ -1398,7 +1397,7 @@ class TestCreatingLocations(base.StoreBaseTest):
         self.config(swift_store_service_type='toy-store')
         fake_get_endpoint = FakeGetEndpoint('https://some_endpoint')
         self.stubs.Set(auth, 'get_endpoint', fake_get_endpoint)
-        ctxt = context.RequestContext(
+        ctxt = mock.MagicMock(
             user='user', tenant='tenant', auth_token='123',
             service_catalog={})
         store = swift.MultiTenantStore(self.conf)
@@ -1410,7 +1409,7 @@ class TestCreatingLocations(base.StoreBaseTest):
         self.config(swift_store_endpoint_type='InternalURL')
         fake_get_endpoint = FakeGetEndpoint('https://some_endpoint')
         self.stubs.Set(auth, 'get_endpoint', fake_get_endpoint)
-        ctxt = context.RequestContext(
+        ctxt = mock.MagicMock(
             user='user', tenant='tenant', auth_token='123',
             service_catalog={})
         store = swift.MultiTenantStore(self.conf)
