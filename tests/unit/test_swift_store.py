@@ -49,6 +49,7 @@ from tests.unit import test_store_capabilities
 CONF = cfg.CONF
 
 FAKE_UUID = lambda: str(uuid.uuid4())
+FAKE_UUID2 = lambda: str(uuid.uuid4())
 
 Store = swift.Store
 FIVE_KB = 5 * units.Ki
@@ -76,10 +77,11 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
         'glance/%s' % FAKE_UUID: {
             'content-length': FIVE_KB,
             'etag': 'c2e5db72bd7fd153f53ede5da5a06de3'
-        }
+        },
+        'glance/%s' % FAKE_UUID2: {'x-static-large-object': 'true', },
     }
-    fixture_objects = {'glance/%s' % FAKE_UUID:
-                       six.StringIO("*" * FIVE_KB)}
+    fixture_objects = {'glance/%s' % FAKE_UUID: six.StringIO("*" * FIVE_KB),
+                       'glance/%s' % FAKE_UUID2: six.StringIO("*" * FIVE_KB), }
 
     def fake_head_container(url, token, container, **kwargs):
         if container not in fixture_containers:
@@ -809,6 +811,47 @@ class SwiftTests(object):
         self.store.delete(loc)
 
         self.assertRaises(exceptions.NotFound, self.store.get, loc)
+
+    @mock.patch.object(swiftclient.client, 'delete_object')
+    def test_delete_slo(self, mock_del_obj):
+        """
+        Test we can delete an existing image stored as SLO, static large object
+        """
+        conf = copy.deepcopy(SWIFT_CONF)
+        self.config(**conf)
+        reload(swift)
+        self.store = Store(self.conf)
+        self.store.configure()
+
+        uri = "swift://%s:key@authurl/glance/%s" % (self.swift_store_user,
+                                                    FAKE_UUID2)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        self.store.delete(loc)
+
+        mock_del_obj.assert_called_once()
+        _, kwargs = mock_del_obj.call_args
+        self.assertEqual('multipart-manifest=delete',
+                         kwargs.get('query_string'))
+
+    @mock.patch.object(swiftclient.client, 'delete_object')
+    def test_delete_nonslo_not_deleted_as_slo(self, mock_del_obj):
+        """
+        Test that non-SLOs are not being deleted the SLO way
+        """
+        conf = copy.deepcopy(SWIFT_CONF)
+        self.config(**conf)
+        reload(swift)
+        self.store = Store(self.conf)
+        self.store.configure()
+
+        uri = "swift://%s:key@authurl/glance/%s" % (self.swift_store_user,
+                                                    FAKE_UUID)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        self.store.delete(loc)
+
+        mock_del_obj.assert_called_once()
+        _, kwargs = mock_del_obj.call_args
+        self.assertEqual(None, kwargs.get('query_string'))
 
     def test_delete_with_reference_params(self):
         """
