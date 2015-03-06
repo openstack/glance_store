@@ -66,12 +66,19 @@ _VMWARE_OPTS = [
                secret=True),
     cfg.StrOpt('vmware_datacenter_path',
                default=constants.ESX_DATACENTER_PATH,
-               help=_('Inventory path to a datacenter. '
+               help=_('DEPRECATED. Inventory path to a datacenter. '
                       'If the vmware_server_host specified is an ESX/ESXi, '
                       'the vmware_datacenter_path is optional. If specified, '
-                      'it should be "ha-datacenter".')),
+                      'it should be "ha-datacenter". This option is '
+                      'deprecated in favor of vmware_datastores and will be '
+                      'removed in the Liberty release.'),
+               deprecated_for_removal=True),
     cfg.StrOpt('vmware_datastore_name',
-               help=_('Datastore associated with the datacenter.')),
+               help=_('DEPRECATED. Datastore associated with the datacenter. '
+                      'This option is deprecated in favor of '
+                      'vmware_datastores and will be removed in the Liberty '
+                      'release.'),
+               deprecated_for_removal=True),
     cfg.IntOpt('vmware_api_retry_count',
                default=10,
                help=_('Number of times VMware ESX/VC server API must be '
