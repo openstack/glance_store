@@ -19,8 +19,10 @@ import hashlib
 import uuid
 
 import mock
-from oslo.vmware import api
 from oslo_utils import units
+from oslo_vmware import api
+from oslo_vmware.objects import datacenter as oslo_datacenter
+from oslo_vmware.objects import datastore as oslo_datastore
 import six
 
 import glance_store._drivers.vmware_datastore as vm_store
@@ -79,11 +81,20 @@ class FakeHTTPConnection(object):
         pass
 
 
+def fake_datastore_obj(*args, **kwargs):
+    dc_obj = oslo_datacenter.Datacenter(ref='fake-ref',
+                                        name='fake-name')
+    dc_obj.path = args[0]
+    return oslo_datastore.Datastore(ref='fake-ref',
+                                    datacenter=dc_obj,
+                                    name=args[1])
+
+
 class TestStore(base.StoreBaseTest,
                 test_store_capabilities.TestStoreCapabilitiesChecking):
 
-    @mock.patch('oslo.vmware.api.VMwareAPISession', autospec=True)
-    def setUp(self, mock_session):
+    @mock.patch.object(vm_store.Store, '_get_datastore')
+    def setUp(self, mock_get_datastore):
         """Establish a clean test environment."""
         super(TestStore, self).setUp()
 
@@ -98,6 +109,7 @@ class TestStore(base.StoreBaseTest,
                     vmware_datastore_name=VMWARE_DS['vmware_datastore_name'],
                     vmware_datacenter_path=VMWARE_DS['vmware_datacenter_path'])
 
+        mock_get_datastore.side_effect = fake_datastore_obj
         backend.create_stores(self.conf)
 
         self.store = backend.get_store_from_scheme('vsphere')
@@ -105,7 +117,8 @@ class TestStore(base.StoreBaseTest,
         self.store.store_image_dir = (
             VMWARE_DS['vmware_store_image_dir'])
 
-    def test_get(self):
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def test_get(self, mock_api_session):
         """Test a "normal" retrieval of an image in chunks."""
         expected_image_size = 31
         expected_returns = ['I am a teapot, short and stout\n']
@@ -119,7 +132,8 @@ class TestStore(base.StoreBaseTest,
         chunks = [c for c in image_file]
         self.assertEqual(expected_returns, chunks)
 
-    def test_get_non_existing(self):
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def test_get_non_existing(self, mock_api_session):
         """
         Test that trying to retrieve an image that doesn't exist
         raises an error
@@ -131,9 +145,12 @@ class TestStore(base.StoreBaseTest,
             HttpConn.return_value = FakeHTTPConnection(status=404)
             self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
+    @mock.patch.object(vm_store.Store, 'select_datastore')
     @mock.patch.object(vm_store._Reader, 'size')
-    def test_add(self, fake_size):
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_add(self, fake_api_session, fake_size, fake_select_datastore):
         """Test that we can add an image via the VMware backend."""
+        fake_select_datastore.return_value = self.store.datastores[0][0]
         expected_image_id = str(uuid.uuid4())
         expected_size = FIVE_KB
         expected_contents = "*" * expected_size
@@ -159,12 +176,16 @@ class TestStore(base.StoreBaseTest,
         self.assertEqual(expected_size, size)
         self.assertEqual(expected_checksum, checksum)
 
+    @mock.patch.object(vm_store.Store, 'select_datastore')
     @mock.patch.object(vm_store._Reader, 'size')
-    def test_add_size_zero(self, fake_size):
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def test_add_size_zero(self, mock_api_session, fake_size,
+                           fake_select_datastore):
         """
         Test that when specifying size zero for the image to add,
         the actual size of the image is returned.
         """
+        fake_select_datastore.return_value = self.store.datastores[0][0]
         expected_image_id = str(uuid.uuid4())
         expected_size = FIVE_KB
         expected_contents = "*" * expected_size
@@ -189,7 +210,8 @@ class TestStore(base.StoreBaseTest,
         self.assertEqual(expected_size, size)
         self.assertEqual(expected_checksum, checksum)
 
-    def test_delete(self):
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def test_delete(self, mock_api_session):
         """Test we can delete an existing image in the VMware store."""
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s?"
@@ -202,7 +224,8 @@ class TestStore(base.StoreBaseTest,
             HttpConn.return_value = FakeHTTPConnection(status=404)
             self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
-    def test_get_size(self):
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def test_get_size(self, mock_api_session):
         """
         Test we can get the size of an existing image in the VMware store
         """
@@ -214,7 +237,8 @@ class TestStore(base.StoreBaseTest,
             image_size = self.store.get_size(loc)
         self.assertEqual(image_size, 31)
 
-    def test_get_size_non_existing(self):
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def test_get_size_non_existing(self, mock_api_session):
         """
         Test that trying to retrieve an image size that doesn't exist
         raises an error
@@ -329,8 +353,64 @@ class TestStore(base.StoreBaseTest,
         except exceptions.BadStoreConfiguration:
             self.fail()
 
+    def test_sanity_check_multiple_datastores(self):
+        self.store.conf.glance_store.vmware_api_retry_count = 1
+        self.store.conf.glance_store.vmware_task_poll_interval = 1
+        # Check both vmware_datastore_name and vmware_datastores defined.
+        self.store.conf.glance_store.vmware_datastores = ['a:b:0']
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store._sanity_check)
+        # Both vmware_datastore_name and vmware_datastores are not defined.
+        self.store.conf.glance_store.vmware_datastore_name = None
+        self.store.conf.glance_store.vmware_datastores = None
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store._sanity_check)
+        self.store.conf.glance_store.vmware_datastore_name = None
+        self.store.conf.glance_store.vmware_datastores = ['a:b:0', 'a:d:0']
+        try:
+            self.store._sanity_check()
+        except exceptions.BadStoreConfiguration:
+            self.fail()
+
+    def test_parse_datastore_info_and_weight_less_opts(self):
+        datastore = 'a'
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store._parse_datastore_info_and_weight,
+                          datastore)
+
+    def test_parse_datastore_info_and_weight_invalid_weight(self):
+        datastore = 'a:b:c'
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store._parse_datastore_info_and_weight,
+                          datastore)
+
+    def test_parse_datastore_info_and_weight_empty_opts(self):
+        datastore = 'a: :0'
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store._parse_datastore_info_and_weight,
+                          datastore)
+        datastore = ':b:0'
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store._parse_datastore_info_and_weight,
+                          datastore)
+
+    def test_parse_datastore_info_and_weight(self):
+        datastore = 'a:b:100'
+        parts = self.store._parse_datastore_info_and_weight(datastore)
+        self.assertEqual('a', parts[0])
+        self.assertEqual('b', parts[1])
+        self.assertEqual('100', parts[2])
+
+    def test_parse_datastore_info_and_weight_default_weight(self):
+        datastore = 'a:b'
+        parts = self.store._parse_datastore_info_and_weight(datastore)
+        self.assertEqual('a', parts[0])
+        self.assertEqual('b', parts[1])
+        self.assertEqual(0, parts[2])
+
+    @mock.patch.object(vm_store.Store, 'select_datastore')
     @mock.patch.object(api, 'VMwareAPISession')
-    def test_unexpected_status(self, mock_api_session):
+    def test_unexpected_status(self, mock_api_session, mock_select_datastore):
         expected_image_id = str(uuid.uuid4())
         expected_size = FIVE_KB
         expected_contents = "*" * expected_size
@@ -344,6 +424,9 @@ class TestStore(base.StoreBaseTest,
 
     @mock.patch.object(api, 'VMwareAPISession')
     def test_reset_session(self, mock_api_session):
+        # Initialize session and reset mock before testing.
+        self.store.reset_session()
+        mock_api_session.reset_mock()
         self.store.reset_session(force=False)
         self.assertFalse(mock_api_session.called)
         self.store.reset_session()
@@ -353,6 +436,9 @@ class TestStore(base.StoreBaseTest,
 
     @mock.patch.object(api, 'VMwareAPISession')
     def test_build_vim_cookie_header_active(self, mock_api_session):
+        # Initialize session and reset mock before testing.
+        self.store.reset_session()
+        mock_api_session.reset_mock()
         self.store.session.is_current_session_active = mock.Mock()
         self.store.session.is_current_session_active.return_value = True
         self.store._build_vim_cookie_header(True)
@@ -360,6 +446,9 @@ class TestStore(base.StoreBaseTest,
 
     @mock.patch.object(api, 'VMwareAPISession')
     def test_build_vim_cookie_header_expired(self, mock_api_session):
+        # Initialize session and reset mock before testing.
+        self.store.reset_session()
+        mock_api_session.reset_mock()
         self.store.session.is_current_session_active = mock.Mock()
         self.store.session.is_current_session_active.return_value = False
         self.store._build_vim_cookie_header(True)
@@ -367,13 +456,18 @@ class TestStore(base.StoreBaseTest,
 
     @mock.patch.object(api, 'VMwareAPISession')
     def test_build_vim_cookie_header_expired_noverify(self, mock_api_session):
+        # Initialize session and reset mock before testing.
+        self.store.reset_session()
+        mock_api_session.reset_mock()
         self.store.session.is_current_session_active = mock.Mock()
         self.store.session.is_current_session_active.return_value = False
         self.store._build_vim_cookie_header()
         self.assertFalse(mock_api_session.called)
 
+    @mock.patch.object(vm_store.Store, 'select_datastore')
     @mock.patch.object(api, 'VMwareAPISession')
-    def test_add_ioerror(self, mock_api_session):
+    def test_add_ioerror(self, mock_api_session, mock_select_datastore):
+        mock_select_datastore.return_value = self.store.datastores[0][0]
         expected_image_id = str(uuid.uuid4())
         expected_size = FIVE_KB
         expected_contents = "*" * expected_size
@@ -390,3 +484,120 @@ class TestStore(base.StoreBaseTest,
         exp_url = 'scheme://example.com/path?key1=val1%3Fsort%3Dtrue&key2=val2'
         self.assertEqual(exp_url,
                          utils.sort_url_by_qs_keys(url))
+
+    @mock.patch.object(vm_store.Store, '_get_datastore')
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_build_datastore_weighted_map(self, mock_api_session, mock_ds_obj):
+        datastores = ['a:b:100', 'c:d:100', 'e:f:200']
+        mock_ds_obj.side_effect = fake_datastore_obj
+        ret = self.store._build_datastore_weighted_map(datastores)
+        ds = ret[200]
+        self.assertEqual('e', ds[0].datacenter.path)
+        self.assertEqual('f', ds[0].name)
+        ds = ret[100]
+        self.assertEqual(2, len(ds))
+
+    @mock.patch.object(vm_store.Store, '_get_datastore')
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_build_datastore_weighted_map_equal_weight(self, mock_api_session,
+                                                       mock_ds_obj):
+        datastores = ['a:b:200', 'a:b:200']
+        mock_ds_obj.side_effect = fake_datastore_obj
+        ret = self.store._build_datastore_weighted_map(datastores)
+        ds = ret[200]
+        self.assertEqual(2, len(ds))
+
+    @mock.patch.object(vm_store.Store, '_get_datastore')
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_build_datastore_weighted_map_empty_list(self, mock_api_session,
+                                                     mock_ds_ref):
+        datastores = []
+        ret = self.store._build_datastore_weighted_map(datastores)
+        self.assertEqual({}, ret)
+
+    @mock.patch.object(vm_store.Store, '_get_datastore')
+    @mock.patch.object(vm_store.Store, '_get_freespace')
+    def test_select_datastore_insufficient_freespace(self, mock_get_freespace,
+                                                     mock_ds_ref):
+        datastores = ['a:b:100', 'c:d:100', 'e:f:200']
+        image_size = 10
+        self.store.datastores = (
+            self.store._build_datastore_weighted_map(datastores))
+        freespaces = [5, 5, 5]
+
+        def fake_get_fp(*args, **kwargs):
+            return freespaces.pop(0)
+        mock_get_freespace.side_effect = fake_get_fp
+        self.assertRaises(exceptions.StorageFull,
+                          self.store.select_datastore, image_size)
+
+    @mock.patch.object(vm_store.Store, '_get_datastore')
+    @mock.patch.object(vm_store.Store, '_get_freespace')
+    def test_select_datastore_insufficient_fs_one_ds(self, mock_get_freespace,
+                                                     mock_ds_ref):
+        # Tests if fs is updated with just one datastore.
+        datastores = ['a:b:100']
+        image_size = 10
+        self.store.datastores = (
+            self.store._build_datastore_weighted_map(datastores))
+        freespaces = [5]
+
+        def fake_get_fp(*args, **kwargs):
+            return freespaces.pop(0)
+        mock_get_freespace.side_effect = fake_get_fp
+        self.assertRaises(exceptions.StorageFull,
+                          self.store.select_datastore, image_size)
+
+    @mock.patch.object(vm_store.Store, '_get_datastore')
+    @mock.patch.object(vm_store.Store, '_get_freespace')
+    def test_select_datastore_equal_freespace(self, mock_get_freespace,
+                                              mock_ds_obj):
+        datastores = ['a:b:100', 'c:d:100', 'e:f:200']
+        image_size = 10
+        mock_ds_obj.side_effect = fake_datastore_obj
+        self.store.datastores = (
+            self.store._build_datastore_weighted_map(datastores))
+        freespaces = [11, 11, 11]
+
+        def fake_get_fp(*args, **kwargs):
+            return freespaces.pop(0)
+        mock_get_freespace.side_effect = fake_get_fp
+
+        ds = self.store.select_datastore(image_size)
+        self.assertEqual('e', ds.datacenter.path)
+        self.assertEqual('f', ds.name)
+
+    @mock.patch.object(vm_store.Store, '_get_datastore')
+    @mock.patch.object(vm_store.Store, '_get_freespace')
+    def test_select_datastore_contention(self, mock_get_freespace,
+                                         mock_ds_obj):
+        datastores = ['a:b:100', 'c:d:100', 'e:f:200']
+        image_size = 10
+        mock_ds_obj.side_effect = fake_datastore_obj
+        self.store.datastores = (
+            self.store._build_datastore_weighted_map(datastores))
+        freespaces = [5, 11, 12]
+
+        def fake_get_fp(*args, **kwargs):
+            return freespaces.pop(0)
+        mock_get_freespace.side_effect = fake_get_fp
+        ds = self.store.select_datastore(image_size)
+        self.assertEqual('c', ds.datacenter.path)
+        self.assertEqual('d', ds.name)
+
+    def test_select_datastore_empty_list(self):
+        datastores = []
+        self.store.datastores = (
+            self.store._build_datastore_weighted_map(datastores))
+        self.assertRaises(exceptions.StorageFull,
+                          self.store.select_datastore, 10)
+
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def test_get_datacenter_ref(self, mock_api_session):
+        datacenter_path = 'Datacenter1'
+        self.store._get_datacenter(datacenter_path)
+        self.store.session.invoke_api.assert_called_with(
+            self.store.session.vim,
+            'FindByInventoryPath',
+            self.store.session.vim.service_content.searchIndex,
+            inventoryPath=datacenter_path)
