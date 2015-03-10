@@ -662,8 +662,8 @@ class SwiftTests(object):
         orig_max_size = self.store.large_object_size
         orig_temp_size = self.store.large_object_chunk_size
         try:
-            self.store.large_object_size = 1024
-            self.store.large_object_chunk_size = 1024
+            self.store.large_object_size = units.Ki
+            self.store.large_object_chunk_size = units.Ki
             loc, size, checksum, _ = self.store.add(expected_image_id,
                                                     image_swift,
                                                     expected_swift_size)
@@ -719,9 +719,9 @@ class SwiftTests(object):
         global MAX_SWIFT_OBJECT_SIZE
         orig_max_swift_object_size = MAX_SWIFT_OBJECT_SIZE
         try:
-            MAX_SWIFT_OBJECT_SIZE = 1024
-            self.store.large_object_size = 1024
-            self.store.large_object_chunk_size = 1024
+            MAX_SWIFT_OBJECT_SIZE = units.Ki
+            self.store.large_object_size = units.Ki
+            self.store.large_object_chunk_size = units.Ki
             loc, size, checksum, _ = self.store.add(expected_image_id,
                                                     image_swift, 0)
         finally:
@@ -1446,7 +1446,7 @@ class TestChunkReader(base.StoreBaseTest):
             bytes_read += len(chunk)
             if not chunk:
                 break
-        self.assertEqual(1024, bytes_read)
+        self.assertEqual(units.Ki, bytes_read)
         data_file.close()
 
 

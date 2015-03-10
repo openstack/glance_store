@@ -22,6 +22,7 @@ import math
 
 from oslo.config import cfg
 from oslo.utils import excutils
+from oslo_utils import units
 import six
 import six.moves.urllib.parse as urlparse
 import swiftclient
@@ -43,9 +44,9 @@ LOG = logging.getLogger(__name__)
 _LI = i18n._LI
 
 DEFAULT_CONTAINER = 'glance'
-DEFAULT_LARGE_OBJECT_SIZE = 5 * 1024  # 5GB
+DEFAULT_LARGE_OBJECT_SIZE = 5 * units.Ki  # 5GB
 DEFAULT_LARGE_OBJECT_CHUNK_SIZE = 200  # 200M
-ONE_MB = 1000 * 1024
+ONE_MB = units.k * units.Ki  # Here we used the mixed meaning of MB
 
 _SWIFT_OPTS = [
     cfg.StrOpt('swift_store_auth_version', default='2',

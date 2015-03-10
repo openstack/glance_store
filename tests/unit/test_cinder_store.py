@@ -15,6 +15,8 @@
 
 import mock
 
+from oslo_utils import units
+
 import glance_store
 from glance_store._drivers import cinder
 from glance_store import exceptions
@@ -70,7 +72,7 @@ class TestCinderStore(base.StoreBaseTest,
             loc = location.get_location_from_uri(uri, conf=self.conf)
             image_size = self.store.get_size(loc, context=fake_context)
             self.assertEqual(image_size,
-                             fake_volumes.values()[0].size * (1024 ** 3))
+                             fake_volumes.values()[0].size * units.Gi)
 
     def test_cinder_delete_raise_error(self):
         uri = 'cinder://12345678-9012-3455-6789-012345678901'
