@@ -34,7 +34,7 @@ LOG = logging.getLogger(__name__)
 class Store(capabilities.StoreCapability):
 
     OPTIONS = None
-    READ_CHUNKSIZE = 16 * units.Mi  # 16M
+    READ_CHUNKSIZE = 4 * units.Mi  # 4M
     WRITE_CHUNKSIZE = READ_CHUNKSIZE
 
     def __init__(self, conf):
