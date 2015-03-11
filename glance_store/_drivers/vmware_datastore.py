@@ -94,14 +94,24 @@ _VMWARE_OPTS = [
     cfg.BoolOpt('vmware_api_insecure',
                 default=False,
                 help=_('Allow to perform insecure SSL requests to ESX/VC.')),
-    cfg.MultiStrOpt('vmware_datastores',
-                    help=_('The datastores where the images are stored inside '
-                           'vCenter. The expected format is '
-                           'datacenter_path:datastore_name:weight. The weight '
-                           'will be used unless there is not enough free '
-                           'space to store the image. If the weights are '
-                           'equal, the datastore with most free space '
-                           'is chosen.'))]
+    cfg.MultiStrOpt(
+        'vmware_datastores',
+        help=_(
+            'A list of datastores where the image can be stored. This option '
+            'may be specified multiple times for specifying multiple '
+            'datastores. Either one of vmware_datastore_name or '
+            'vmware_datastores is required. The datastore name should be '
+            'specified after its datacenter path, seperated by ":". An '
+            'optional weight may be given after the datastore name, seperated '
+            'again by ":". Thus, the required format becomes '
+            '<datacenter_path>:<datastore_name>:<optional_weight>. When '
+            'adding an image, the datastore with highest weight will be '
+            'selected, unless there is not enough free space available in '
+            'cases where the image size is already known. If no weight is '
+            'given, it is assumed to be zero and the directory will be '
+            'considered for selection last. If multiple datastores have the '
+            'same weight, then the one with the most free space available is '
+            'selected.'))]
 
 
 def is_valid_ipv6(address):
