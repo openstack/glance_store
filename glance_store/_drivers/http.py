@@ -133,8 +133,7 @@ class Store(glance_store.driver.Store):
             LOG.error(reason)
             raise exceptions.RemoteServiceUnavailable()
 
-        cs = chunk_size or self.READ_CHUNKSIZE
-        iterator = http_response_iterator(conn, resp, cs)
+        iterator = http_response_iterator(conn, resp, self.READ_CHUNKSIZE)
 
         class ResponseIndexable(glance_store.Indexable):
             def another(self):

@@ -379,7 +379,7 @@ class Store(glance_store.driver.Store):
         :raises `glance_store.exceptions.NotFound` if image does not exist
         """
         key = self._retrieve_key(location)
-        cs = chunk_size or self.READ_CHUNKSIZE
+        cs = self.READ_CHUNKSIZE
         key.BufferSize = cs
 
         class ChunkedIndexable(glance_store.Indexable):

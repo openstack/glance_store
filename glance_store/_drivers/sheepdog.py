@@ -226,7 +226,7 @@ class Store(glance_store.driver.Store):
 
         loc = location.store_location
         image = SheepdogImage(self.addr, self.port, loc.image,
-                              chunk_size or self.READ_CHUNKSIZE)
+                              self.READ_CHUNKSIZE)
         if not image.exist():
             raise exceptions.NotFound(_("Sheepdog image %s does not exist")
                                       % image.name)

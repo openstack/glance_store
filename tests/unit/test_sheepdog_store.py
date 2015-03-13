@@ -19,6 +19,8 @@ import mock
 from oslo_concurrency import processutils
 
 from glance_store._drivers import sheepdog
+from glance_store import exceptions
+from glance_store import location
 from glance_store.tests import base
 from tests.unit import test_store_capabilities
 
@@ -53,3 +55,9 @@ class TestSheepdogStore(base.StoreBaseTest,
             data = StringIO.StringIO('xx')
             self.store.add('fake_image_id', data, 2)
             self.assertEqual(called_commands, ['list -r', 'create', 'write'])
+
+    def test_partial_get(self):
+        loc = location.Location('test_sheepdog_store', sheepdog.StoreLocation,
+                                self.conf, store_specs={'image': 'fake_image'})
+        self.assertRaises(exceptions.StoreRandomGetNotSupported,
+                          self.store.get, loc, chunk_size=1)

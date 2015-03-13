@@ -116,10 +116,12 @@ class ChunkedFile(object):
     something that can iterate over a large file
     """
 
-    def __init__(self, filepath, offset=0, chunk_size=None, partial=False):
-        self.partial = partial
+    def __init__(self, filepath, offset=0, chunk_size=4096,
+                 partial_length=None):
         self.filepath = filepath
         self.chunk_size = chunk_size
+        self.partial_length = partial_length
+        self.partial = self.partial_length is not None
         self.fp = open(self.filepath, 'rb')
         if offset:
             self.fp.seek(offset)
@@ -129,12 +131,19 @@ class ChunkedFile(object):
         try:
             if self.fp:
                 while True:
-                    chunk = self.fp.read(self.chunk_size)
+                    if self.partial:
+                        size = min(self.chunk_size, self.partial_length)
+                    else:
+                        size = self.chunk_size
+
+                    chunk = self.fp.read(size)
                     if chunk:
                         yield chunk
 
                         if self.partial:
-                            break
+                            self.partial_length -= len(chunk)
+                            if self.partial_length <= 0:
+                                break
                     else:
                         break
         finally:
@@ -451,8 +460,8 @@ class Store(glance_store.driver.Store):
         LOG.debug(msg)
         return (ChunkedFile(filepath,
                             offset=offset,
-                            chunk_size=chunk_size or self.READ_CHUNKSIZE,
-                            partial=chunk_size is not None),
+                            chunk_size=self.READ_CHUNKSIZE,
+                            partial_length=chunk_size),
                 chunk_size or filesize)
 
     def get_size(self, location, context=None):
