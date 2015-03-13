@@ -18,7 +18,7 @@
 
 import logging
 
-from oslo.config import cfg
+from oslo_config import cfg
 from oslo_utils import importutils
 from oslo_utils import units
 

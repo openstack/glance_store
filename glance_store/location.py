@@ -40,7 +40,7 @@ credentials and is **not** user-facing.
 import logging
 import urlparse
 
-from oslo.config import cfg
+from oslo_config import cfg
 
 from glance_store import exceptions
 
