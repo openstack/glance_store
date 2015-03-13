@@ -268,21 +268,16 @@ class Store(glance_store.Store):
                      capabilities.BitMasks.DRIVER_REUSABLE)
     OPTIONS = _VMWARE_OPTS
     WRITE_CHUNKSIZE = units.Mi
-    # FIXME(arnaud): re-visit this code once the store API is cleaned up.
-    _VMW_SESSION = None
 
     def __init__(self, conf):
         super(Store, self).__init__(conf)
         self.datastores = {}
 
-    def reset_session(self, force=False):
-        if Store._VMW_SESSION is None or force:
-            Store._VMW_SESSION = api.VMwareAPISession(
-                self.server_host, self.server_username, self.server_password,
-                self.api_retry_count, self.tpoll_interval)
-        return Store._VMW_SESSION
-
-    session = property(reset_session)
+    def reset_session(self):
+        self.session = api.VMwareAPISession(
+            self.server_host, self.server_username, self.server_password,
+            self.api_retry_count, self.tpoll_interval)
+        return self.session
 
     def get_schemes(self):
         return (STORE_SCHEME,)
@@ -325,6 +320,7 @@ class Store(glance_store.Store):
         self.api_retry_count = self.conf.glance_store.vmware_api_retry_count
         self.tpoll_interval = self.conf.glance_store.vmware_task_poll_interval
         self.api_insecure = self.conf.glance_store.vmware_api_insecure
+        self.session = self.reset_session()
         super(Store, self).configure()
 
     def _get_datacenter(self, datacenter_path):
@@ -455,7 +451,7 @@ class Store(glance_store.Store):
     def _build_vim_cookie_header(self, verify_session=False):
         """Build ESX host session cookie header."""
         if verify_session and not self.session.is_current_session_active():
-            self.reset_session(force=True)
+            self.reset_session()
         vim_cookies = self.session.vim.client.options.transport.cookiejar
         if len(list(vim_cookies)) > 0:
             cookie = list(vim_cookies)[0]
@@ -620,7 +616,7 @@ class Store(glance_store.Store):
                                                      location.image_id})
             if resp.status >= 400:
                 if resp.status == httplib.UNAUTHORIZED:
-                    self.reset_session(force=True)
+                    self.reset_session()
                     continue
                 if resp.status == httplib.NOT_FOUND:
                     reason = _('VMware datastore could not find image at URI.')
