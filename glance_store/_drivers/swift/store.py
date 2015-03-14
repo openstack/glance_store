@@ -25,7 +25,10 @@ from oslo_utils import units
 import six
 from six.moves import http_client
 from six.moves import urllib
-import swiftclient
+try:
+    import swiftclient
+except ImportError:
+    swiftclient = None
 
 import glance_store
 from glance_store._drivers.swift import utils as sutils
@@ -414,6 +417,10 @@ class BaseStore(driver.Store):
         self.insecure = glance_conf.swift_store_auth_insecure
         self.ssl_compression = glance_conf.swift_store_ssl_compression
         self.cacert = glance_conf.swift_store_cacert
+        if swiftclient is None:
+            msg = _("Missing dependency python_swiftclient.")
+            raise exceptions.BadStoreConfiguration(store_name="swift",
+                                                   reason=msg)
         super(BaseStore, self).configure(re_raise_bsc=re_raise_bsc)
 
     def _get_object(self, location, connection=None, start=None, context=None):
