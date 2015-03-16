@@ -18,5 +18,5 @@ from glance_store import exceptions
 
 
 class UnconfigurableStore(driver.Store):
-    def configure(self):
+    def configure(self, re_raise_bsc=False):
         raise exceptions.BadStoreConfiguration()

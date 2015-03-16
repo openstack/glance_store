@@ -311,7 +311,7 @@ class Store(glance_store.Store):
             raise exceptions.BadStoreConfiguration(
                 store_name='vmware_datastore', reason=msg)
 
-    def configure(self):
+    def configure(self, re_raise_bsc=False):
         self._sanity_check()
         self.scheme = STORE_SCHEME
         self.server_host = self._option_get('vmware_server_host')
@@ -321,7 +321,7 @@ class Store(glance_store.Store):
         self.tpoll_interval = self.conf.glance_store.vmware_task_poll_interval
         self.api_insecure = self.conf.glance_store.vmware_api_insecure
         self.session = self.reset_session()
-        super(Store, self).configure()
+        super(Store, self).configure(re_raise_bsc=re_raise_bsc)
 
     def _get_datacenter(self, datacenter_path):
         search_index_moref = self.session.vim.service_content.searchIndex

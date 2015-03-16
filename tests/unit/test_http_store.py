@@ -32,6 +32,7 @@ class TestHttpStore(base.StoreBaseTest,
         self.config(default_store='http', group='glance_store')
         http.Store.READ_CHUNKSIZE = 2
         self.store = http.Store(self.conf)
+        self.register_store_schemes(self.store, 'http')
 
     def _mock_httplib(self):
         """Mock httplib connection object.
@@ -139,7 +140,7 @@ class TestHttpStore(base.StoreBaseTest,
                           self.store.add, None, None, None, None)
         self.assertRaises(exceptions.StoreAddDisabled,
                           glance_store.add_to_backend, None, None,
-                          None, None, 'file')
+                          None, None, 'http')
 
     def test_http_get_size_with_non_existent_image_raises_Not_Found(self):
         self._mock_httplib()

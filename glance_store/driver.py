@@ -59,7 +59,7 @@ class Store(capabilities.StoreCapability):
         except cfg.DuplicateOptError:
             pass
 
-    def configure(self):
+    def configure(self, re_raise_bsc=False):
         """
         Configure the store to use the stored configuration options
         and initialize capabilities based on current configuration.
@@ -75,8 +75,10 @@ class Store(capabilities.StoreCapability):
             msg = (_(u"Failed to configure store correctly: %s "
                      "Disabling add method.") % utils.exception_to_str(e))
             LOG.warn(msg)
-
-        self.update_capabilities()
+            if re_raise_bsc:
+                raise
+        finally:
+            self.update_capabilities()
 
     def get_schemes(self):
         """
