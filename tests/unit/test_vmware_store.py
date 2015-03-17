@@ -21,6 +21,7 @@ import uuid
 import mock
 from oslo_utils import units
 from oslo_vmware import api
+from oslo_vmware.exceptions import FileNotFoundException
 from oslo_vmware.objects import datacenter as oslo_datacenter
 from oslo_vmware.objects import datastore as oslo_datastore
 import six
@@ -223,6 +224,18 @@ class TestStore(base.StoreBaseTest,
         with mock.patch('httplib.HTTPConnection') as HttpConn:
             HttpConn.return_value = FakeHTTPConnection(status=404)
             self.assertRaises(exceptions.NotFound, self.store.get, loc)
+
+    def test_delete_non_existing(self):
+        """
+        Test that trying to delete an image that doesn't exist raises an error
+        """
+        loc = location.get_location_from_uri(
+            "vsphere://127.0.0.1/folder/openstack_glance/%s?"
+            "dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
+        with mock.patch.object(self.store.session,
+                               'wait_for_task') as mock_task:
+            mock_task.side_effect = FileNotFoundException
+            self.assertRaises(exceptions.NotFound, self.store.delete, loc)
 
     @mock.patch('oslo_vmware.api.VMwareAPISession')
     def test_get_size(self, mock_api_session):

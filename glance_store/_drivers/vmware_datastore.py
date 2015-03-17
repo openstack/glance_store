@@ -26,6 +26,7 @@ from oslo_utils import excutils
 from oslo_utils import units
 from oslo_vmware import api
 from oslo_vmware import constants
+import oslo_vmware.exceptions as vexc
 from oslo_vmware.objects import datacenter as oslo_datacenter
 from oslo_vmware.objects import datastore as oslo_datastore
 from oslo_vmware import vim_util
@@ -589,6 +590,10 @@ class Store(glance_store.Store):
             datacenter=dc_obj.ref)
         try:
             self.session.wait_for_task(delete_task)
+        except vexc.FileNotFoundException:
+            msg = _('Image file %s not found') % file_path
+            LOG.warn(msg)
+            raise exceptions.NotFound(message=msg)
         except Exception:
             with excutils.save_and_reraise_exception():
                 LOG.exception(_LE('Failed to delete image %(image)s '
