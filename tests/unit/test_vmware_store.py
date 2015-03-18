@@ -225,7 +225,8 @@ class TestStore(base.StoreBaseTest,
             HttpConn.return_value = FakeHTTPConnection(status=404)
             self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
-    def test_delete_non_existing(self):
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def test_delete_non_existing(self, mock_api_session):
         """
         Test that trying to delete an image that doesn't exist raises an error
         """
