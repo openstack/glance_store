@@ -1,0 +1,29 @@
+# glance-rootwrap command filters for glance cinder store
+# This file should be owned by (and only-writeable by) the root user
+
+[Filters]
+# cinder store driver
+disk_chown: RegExpFilter, chown, root, chown, \d+, /dev/(?!.*/\.\.).*
+
+# os-brick
+mount: CommandFilter, mount, root
+blockdev: RegExpFilter, blockdev, root, blockdev, (--getsize64|--flushbufs), /dev/.*
+tee: CommandFilter, tee, root
+mkdir: CommandFilter, mkdir, root
+chown: RegExpFilter, chown, root, chown root:root /etc/pstorage/clusters/(?!.*/\.\.).*
+ip: CommandFilter, ip, root
+dd: CommandFilter, dd, root
+iscsiadm: CommandFilter, iscsiadm, root
+aoe-revalidate: CommandFilter, aoe-revalidate, root
+aoe-discover: CommandFilter, aoe-discover, root
+aoe-flush: CommandFilter, aoe-flush, root
+read_initiator: ReadFileFilter, /etc/iscsi/initiatorname.iscsi
+multipath: CommandFilter, multipath, root
+multipathd: CommandFilter, multipathd, root
+systool: CommandFilter, systool, root
+sg_scan: CommandFilter, sg_scan, root
+cp: CommandFilter, cp, root
+drv_cfg: CommandFilter, /opt/emc/scaleio/sdc/bin/drv_cfg, root, /opt/emc/scaleio/sdc/bin/drv_cfg, --query_guid
+sds_cli: CommandFilter, /usr/local/bin/sds/sds_cli, root
+vgc-cluster: CommandFilter, vgc-cluster, root
+scsi_id: CommandFilter, /lib/udev/scsi_id, root
