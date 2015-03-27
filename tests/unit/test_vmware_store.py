@@ -95,7 +95,8 @@ class TestStore(base.StoreBaseTest,
                 test_store_capabilities.TestStoreCapabilitiesChecking):
 
     @mock.patch.object(vm_store.Store, '_get_datastore')
-    def setUp(self, mock_get_datastore):
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def setUp(self, mock_api_session, mock_get_datastore):
         """Establish a clean test environment."""
         super(TestStore, self).setUp()
 
@@ -438,21 +439,11 @@ class TestStore(base.StoreBaseTest,
 
     @mock.patch.object(api, 'VMwareAPISession')
     def test_reset_session(self, mock_api_session):
-        # Initialize session and reset mock before testing.
         self.store.reset_session()
-        mock_api_session.reset_mock()
-        self.store.reset_session(force=False)
-        self.assertFalse(mock_api_session.called)
-        self.store.reset_session()
-        self.assertFalse(mock_api_session.called)
-        self.store.reset_session(force=True)
         self.assertTrue(mock_api_session.called)
 
     @mock.patch.object(api, 'VMwareAPISession')
     def test_build_vim_cookie_header_active(self, mock_api_session):
-        # Initialize session and reset mock before testing.
-        self.store.reset_session()
-        mock_api_session.reset_mock()
         self.store.session.is_current_session_active = mock.Mock()
         self.store.session.is_current_session_active.return_value = True
         self.store._build_vim_cookie_header(True)
@@ -460,9 +451,6 @@ class TestStore(base.StoreBaseTest,
 
     @mock.patch.object(api, 'VMwareAPISession')
     def test_build_vim_cookie_header_expired(self, mock_api_session):
-        # Initialize session and reset mock before testing.
-        self.store.reset_session()
-        mock_api_session.reset_mock()
         self.store.session.is_current_session_active = mock.Mock()
         self.store.session.is_current_session_active.return_value = False
         self.store._build_vim_cookie_header(True)
@@ -470,9 +458,6 @@ class TestStore(base.StoreBaseTest,
 
     @mock.patch.object(api, 'VMwareAPISession')
     def test_build_vim_cookie_header_expired_noverify(self, mock_api_session):
-        # Initialize session and reset mock before testing.
-        self.store.reset_session()
-        mock_api_session.reset_mock()
         self.store.session.is_current_session_active = mock.Mock()
         self.store.session.is_current_session_active.return_value = False
         self.store._build_vim_cookie_header()
