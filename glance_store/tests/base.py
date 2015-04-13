@@ -37,6 +37,7 @@ class StoreBaseTest(base.BaseTestCase):
         self.conf = self._CONF
         self.conf(args=[])
         store.register_opts(self.conf)
+        self.config(stores=[])
 
         # Ensure stores + locations cleared
         location.SCHEME_TO_CLS_MAP = {}

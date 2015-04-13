@@ -392,7 +392,7 @@ class BaseStore(driver.Store):
     def get_schemes(self):
         return ('swift+https', 'swift', 'swift+http', 'swift+config')
 
-    def configure(self):
+    def configure(self, re_raise_bsc=False):
         glance_conf = self.conf.glance_store
         _obj_size = self._option_get('swift_store_large_object_size')
         self.large_object_size = _obj_size * ONE_MB
@@ -406,7 +406,7 @@ class BaseStore(driver.Store):
         self.insecure = glance_conf.swift_store_auth_insecure
         self.ssl_compression = glance_conf.swift_store_ssl_compression
         self.cacert = glance_conf.swift_store_cacert
-        super(BaseStore, self).configure()
+        super(BaseStore, self).configure(re_raise_bsc=re_raise_bsc)
 
     def _get_object(self, location, connection=None, start=None, context=None):
         if not connection:
@@ -715,8 +715,8 @@ class SingleTenantStore(BaseStore):
         super(SingleTenantStore, self).__init__(conf)
         self.ref_params = sutils.SwiftParams(self.conf).params
 
-    def configure(self):
-        super(SingleTenantStore, self).configure()
+    def configure(self, re_raise_bsc=False):
+        super(SingleTenantStore, self).configure(re_raise_bsc=re_raise_bsc)
         self.auth_version = self._option_get('swift_store_auth_version')
 
     def configure_add(self):

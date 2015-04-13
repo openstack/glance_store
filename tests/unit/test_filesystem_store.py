@@ -49,8 +49,10 @@ class TestStore(base.StoreBaseTest,
         Store.READ_CHUNKSIZE = 10
         self.store = Store(self.conf)
         self.config(filesystem_store_datadir=self.test_dir,
+                    stores=['glance.store.filesystem.Store'],
                     group="glance_store")
         self.store.configure()
+        self.register_store_schemes(self.store, 'file')
 
     def tearDown(self):
         """Clear the test environment."""

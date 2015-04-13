@@ -13,7 +13,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import mock
+
 import glance_store as store
+from glance_store import backend
 from glance_store.tests import base
 
 
@@ -23,7 +26,15 @@ class TestStoreBase(base.StoreBaseTest):
         super(TestStoreBase, self).setUp()
         self.config(default_store='file', group='glance_store')
 
-    def test_create_store_exclude_unconfigurable_drivers(self):
-        self.config(stores=["no_conf", "file"], group='glance_store')
-        count = store.create_stores(self.conf)
-        self.assertEqual(count, 1)
+    def test_raise_on_missing_driver_conf(self):
+        self.config(stores=['file'], group='glance_store')
+        self.assertRaises(store.BadStoreConfiguration,
+                          store.create_stores,
+                          self.conf)
+
+    @mock.patch.object(store.driver, 'LOG')
+    def test_configure_does_not_raise_on_missing_driver_conf(self, mock_log):
+        self.config(stores=['file'], group='glance_store')
+        for (__, store_instance) in backend._load_stores(self.conf):
+            store_instance.configure()
+            self.assertTrue(mock_log.warn.called)
