@@ -900,14 +900,14 @@ class SwiftTests(object):
 
         def fake_get_container(container, **kwargs):
             # Returning 5 fake segments
-            return None, [{'name': '%s-%05d' % (test_image_id, x)}
+            return None, [{'name': '%s-%03d' % (test_image_id, x)}
                           for x in range(1, 6)]
 
         def fake_delete_object(container, object_name):
             # Simulate error on 1st and 3rd segments
             global SWIFT_DELETE_OBJECT_CALLS
             SWIFT_DELETE_OBJECT_CALLS += 1
-            if object_name.endswith('001') or object_name.endswith('003'):
+            if object_name.endswith('-001') or object_name.endswith('-003'):
                 raise swiftclient.ClientException('Object DELETE failed')
             else:
                 pass
