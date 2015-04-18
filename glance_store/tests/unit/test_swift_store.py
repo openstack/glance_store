@@ -42,7 +42,7 @@ from glance_store.common import utils
 from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
-from tests.unit import test_store_capabilities
+from glance_store.tests.unit import test_store_capabilities
 
 
 CONF = cfg.CONF

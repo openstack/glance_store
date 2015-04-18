@@ -21,7 +21,7 @@ from glance_store._drivers import rbd as rbd_store
 from glance_store import exceptions
 from glance_store.location import Location
 from glance_store.tests import base
-from tests.unit import test_store_capabilities
+from glance_store.tests.unit import test_store_capabilities
 
 
 class MockRados(object):

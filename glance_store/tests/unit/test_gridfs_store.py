@@ -20,7 +20,7 @@ import six
 
 from glance_store._drivers import gridfs as gfs
 from glance_store.tests import base
-from tests.unit import test_store_capabilities
+from glance_store.tests.unit import test_store_capabilities
 
 
 GRIDFS_CONF = {'mongodb_store_uri': 'mongodb://fake_store_uri',
