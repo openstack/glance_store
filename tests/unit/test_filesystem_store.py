@@ -340,6 +340,38 @@ class TestStore(base.StoreBaseTest,
                           self.store.delete,
                           loc)
 
+    def test_delete_forbidden(self):
+        """
+        Tests that trying to delete a file without permissions
+        raises the correct error
+        """
+        # First add an image
+        image_id = str(uuid.uuid4())
+        file_size = 5 * units.Ki  # 5K
+        file_contents = "*" * file_size
+        image_file = StringIO.StringIO(file_contents)
+
+        loc, size, checksum, _ = self.store.add(image_id,
+                                                image_file,
+                                                file_size)
+
+        uri = "file:///%s/%s" % (self.test_dir, image_id)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+
+        # Mock unlink to raise an OSError for lack of permissions
+        # and make sure we can't delete the image
+        with mock.patch.object(os, 'unlink') as unlink:
+            e = OSError()
+            e.errno = errno
+            unlink.side_effect = e
+
+            self.assertRaises(exceptions.Forbidden,
+                              self.store.delete,
+                              loc)
+
+            # Make sure the image didn't get deleted
+            self.store.get(loc)
+
     def test_configure_add_with_multi_datadirs(self):
         """
         Tests multiple filesystem specified by filesystem_store_datadirs
