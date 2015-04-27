@@ -19,10 +19,10 @@ import hashlib
 import httplib
 import logging
 import os
-import socket
 
 from oslo_config import cfg
 from oslo_utils import excutils
+from oslo_utils import netutils
 from oslo_utils import units
 from oslo_vmware import api
 from oslo_vmware import constants
@@ -113,14 +113,6 @@ _VMWARE_OPTS = [
             'considered for selection last. If multiple datastores have the '
             'same weight, then the one with the most free space available is '
             'selected.'))]
-
-
-def is_valid_ipv6(address):
-    try:
-        socket.inet_pton(socket.AF_INET6, address)
-        return True
-    except Exception:
-        return False
 
 
 def http_response_iterator(conn, response, size):
@@ -219,7 +211,7 @@ class StoreLocation(location.StoreLocation):
         self.query = urlparse.urlencode(param_list)
 
     def get_uri(self):
-        if is_valid_ipv6(self.server_host):
+        if netutils.is_valid_ipv6(self.server_host):
             base_url = '%s://[%s]%s' % (self.scheme,
                                         self.server_host, self.path)
         else:
