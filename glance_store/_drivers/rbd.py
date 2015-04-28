@@ -381,7 +381,9 @@ class Store(driver.Store):
                 except Exception as exc:
                     # Delete image if one was created
                     try:
-                        self._delete_image(loc.image, loc.snapshot)
+                        target_pool = loc.pool or self.pool
+                        self._delete_image(target_pool, loc.image,
+                                           loc.snapshot)
                     except exceptions.NotFound:
                         pass
 
