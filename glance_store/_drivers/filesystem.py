@@ -26,8 +26,8 @@ import stat
 import urlparse
 
 import jsonschema
-from oslo.serialization import jsonutils
 from oslo_config import cfg
+from oslo_serialization import jsonutils
 from oslo_utils import excutils
 from oslo_utils import units
 
