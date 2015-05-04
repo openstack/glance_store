@@ -186,7 +186,10 @@ class TestStore(base.StoreBaseTest,
             self.called_commands_actual.append('create')
             return self.location
 
-        def _fake_delete_image(*args, **kwargs):
+        def _fake_delete_image(target_pool, image_name, snapshot_name=None):
+            self.assertEqual(self.location.pool, target_pool)
+            self.assertEqual(self.location.image, image_name)
+            self.assertEqual(self.location.snapshot, snapshot_name)
             self.called_commands_actual.append('delete')
 
         def _fake_enter(*args, **kwargs):
@@ -234,7 +237,7 @@ class TestStore(base.StoreBaseTest,
         with mock.patch.object(MockRBD.RBD, 'remove') as remove_image:
             remove_image.side_effect = _fake_remove
 
-            self.store._delete_image('fake_pool', self.location)
+            self.store._delete_image('fake_pool', self.location.image)
             self.called_commands_expected = ['remove']
 
     @mock.patch.object(MockRBD.RBD, 'remove')
@@ -253,7 +256,7 @@ class TestStore(base.StoreBaseTest,
         remove.side_effect = _fake_remove
         unprotect.side_effect = _fake_unprotect_snap
         remove_snap.side_effect = _fake_remove_snap
-        self.store._delete_image('fake_pool', self.location,
+        self.store._delete_image('fake_pool', self.location.image,
                                  snapshot_name='snap')
 
         self.called_commands_expected = ['unprotect_snap', 'remove_snap',
@@ -268,7 +271,8 @@ class TestStore(base.StoreBaseTest,
             mocked.side_effect = _fake_unprotect_snap
 
             self.assertRaises(exceptions.NotFound, self.store._delete_image,
-                              'fake_pool', self.location, snapshot_name='snap')
+                              'fake_pool', self.location.image,
+                              snapshot_name='snap')
 
             self.called_commands_expected = ['unprotect_snap']
 
@@ -280,7 +284,8 @@ class TestStore(base.StoreBaseTest,
         with mock.patch.object(MockRBD.RBD, 'remove') as remove:
             remove.side_effect = _fake_remove
             self.assertRaises(exceptions.NotFound, self.store._delete_image,
-                              'fake_pool', self.location, snapshot_name='snap')
+                              'fake_pool', self.location.image,
+                              snapshot_name='snap')
 
             self.called_commands_expected = ['remove']
 
