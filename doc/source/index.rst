@@ -13,6 +13,20 @@ Contents
 Release Notes
 =============
 
+0.5.0
+-----
+
+* _1449639: Fix failure when creating an image which already exists in the RBD store
+* _1444663: Correctly instantiate Forbidden exception
+* _1428257: Do not raise an exception when a duplicate path on filesystem store is used. Instead emmit a warning
+* _1422699: Propagate BadStoreConfiguration to library user
+* Initialize vmware session during store creation
+
+.. _1449639: https://bugs.launchpad.net/glance-store/+bug/1449639
+.. _1444663: https://bugs.launchpad.net/glance-store/+bug/1444663
+.. _1428257: https://bugs.launchpad.net/glance-store/+bug/1428257
+.. _1422699: https://bugs.launchpad.net/glance-store/+bug/1422699
+
 0.4.0
 -----
 * Deprecate the gridfs store
