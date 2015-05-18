@@ -24,12 +24,14 @@ from oslo_config import cfg
 from oslo_utils import excutils
 from oslo_utils import netutils
 from oslo_utils import units
-from oslo_vmware import api
-from oslo_vmware import constants
-import oslo_vmware.exceptions as vexc
-from oslo_vmware.objects import datacenter as oslo_datacenter
-from oslo_vmware.objects import datastore as oslo_datastore
-from oslo_vmware import vim_util
+try:
+    from oslo_vmware import api
+    import oslo_vmware.exceptions as vexc
+    from oslo_vmware.objects import datacenter as oslo_datacenter
+    from oslo_vmware.objects import datastore as oslo_datastore
+    from oslo_vmware import vim_util
+except ImportError:
+    api = None
 
 import six
 # NOTE(jokke): simplified transition to py3, behaves like py2 xrange
@@ -66,7 +68,7 @@ _VMWARE_OPTS = [
                       'VMware ESX/VC server.'),
                secret=True),
     cfg.StrOpt('vmware_datacenter_path',
-               default=constants.ESX_DATACENTER_PATH,
+               default='ha-datacenter',
                help=_('DEPRECATED. Inventory path to a datacenter. '
                       'If the vmware_server_host specified is an ESX/ESXi, '
                       'the vmware_datacenter_path is optional. If specified, '
@@ -312,6 +314,10 @@ class Store(glance_store.Store):
         self.api_retry_count = self.conf.glance_store.vmware_api_retry_count
         self.tpoll_interval = self.conf.glance_store.vmware_task_poll_interval
         self.api_insecure = self.conf.glance_store.vmware_api_insecure
+        if api is None:
+            msg = _("Missing dependencies: oslo_vmware")
+            raise exceptions.BadStoreConfiguration(
+                store_name="vmware_datastore", reason=msg)
         self.session = self.reset_session()
         super(Store, self).configure(re_raise_bsc=re_raise_bsc)
 
