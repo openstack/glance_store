@@ -183,7 +183,7 @@ def create_stores(conf=CONF):
     for (store_entry, store_instance) in _load_stores(conf):
         try:
             schemes = store_instance.get_schemes()
-            store_instance.configure(re_raise_bsc=True)
+            store_instance.configure(re_raise_bsc=False)
         except NotImplementedError:
             continue
         if not schemes:

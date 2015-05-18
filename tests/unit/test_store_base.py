@@ -26,12 +26,6 @@ class TestStoreBase(base.StoreBaseTest):
         super(TestStoreBase, self).setUp()
         self.config(default_store='file', group='glance_store')
 
-    def test_raise_on_missing_driver_conf(self):
-        self.config(stores=['file'], group='glance_store')
-        self.assertRaises(store.BadStoreConfiguration,
-                          store.create_stores,
-                          self.conf)
-
     @mock.patch.object(store.driver, 'LOG')
     def test_configure_does_not_raise_on_missing_driver_conf(self, mock_log):
         self.config(stores=['file'], group='glance_store')
