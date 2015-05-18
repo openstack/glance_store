@@ -59,6 +59,9 @@ class MockRados(object):
         def shutdown(self, *args, **kwargs):
             pass
 
+        def conf_get(self, *args, **kwargs):
+            pass
+
 
 class MockRBD(object):
 
@@ -140,6 +143,8 @@ class MockRBD(object):
 
         def clone(self, *args, **kwargs):
             raise NotImplementedError()
+
+    RBD_FEATURE_LAYERING = 1
 
 
 class TestStore(base.StoreBaseTest,

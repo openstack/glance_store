@@ -251,7 +251,7 @@ class Store(driver.Store):
                     LOG.debug(msg)
                     raise exceptions.NotFound(msg)
 
-    def _create_image(self, fsid, ioctx, image_name,
+    def _create_image(self, fsid, conn, ioctx, image_name,
                       size, order, context=None):
         """
         Create an rbd image. If librbd supports it,
@@ -263,18 +263,17 @@ class Store(driver.Store):
         :retval `glance_store.rbd.StoreLocation` object
         """
         librbd = rbd.RBD()
-        if hasattr(rbd, 'RBD_FEATURE_LAYERING'):
-            librbd.create(ioctx, image_name, size, order, old_format=False,
-                          features=rbd.RBD_FEATURE_LAYERING)
-            return StoreLocation({
-                'fsid': fsid,
-                'pool': self.pool,
-                'image': image_name,
-                'snapshot': DEFAULT_SNAPNAME,
-            }, self.conf)
-        else:
-            librbd.create(ioctx, image_name, size, order, old_format=True)
-            return StoreLocation({'image': image_name}, self.conf)
+        features = conn.conf_get('rbd_default_features')
+        if ((features is None) or (int(features) == 0)):
+            features = rbd.RBD_FEATURE_LAYERING
+        librbd.create(ioctx, image_name, size, order, old_format=False,
+                      features=features)
+        return StoreLocation({
+            'fsid': fsid,
+            'pool': self.pool,
+            'image': image_name,
+            'snapshot': DEFAULT_SNAPNAME,
+        }, self.conf)
 
     def _delete_image(self, target_pool, image_name,
                       snapshot_name=None, context=None):
@@ -348,7 +347,7 @@ class Store(driver.Store):
                                   "will be considerably slower than normal"))
 
                 try:
-                    loc = self._create_image(fsid, ioctx, image_name,
+                    loc = self._create_image(fsid, conn, ioctx, image_name,
                                              image_size, order)
                 except rbd.ImageExists:
                     msg = _('RBD image %s already exists') % image_id
