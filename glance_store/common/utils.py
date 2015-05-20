@@ -133,7 +133,7 @@ class CooperativeReader(object):
         if self.iterator is None:
             self.iterator = self.__iter__()
         try:
-            return self.iterator.next()
+            return next(self.iterator)
         except StopIteration:
             return ''
 

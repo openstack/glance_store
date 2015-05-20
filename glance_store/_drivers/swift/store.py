@@ -440,7 +440,7 @@ class BaseStore(driver.Store):
         class ResponseIndexable(glance_store.Indexable):
             def another(self):
                 try:
-                    return self.wrapped.next()
+                    return next(self.wrapped)
                 except StopIteration:
                     return ''
 
