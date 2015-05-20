@@ -14,6 +14,7 @@
 #    under the License.
 
 from oslotest import base
+import six
 
 from glance_store.common import utils
 
@@ -29,9 +30,15 @@ class TestUtils(base.BaseTestCase):
         ret = utils.exception_to_str(Exception('error message'))
         self.assertEqual(ret, 'error message')
 
-        ret = utils.exception_to_str(Exception('\xa5 error message'))
-        self.assertEqual(ret, ' error message')
-
         ret = utils.exception_to_str(FakeException('\xa5 error message'))
         self.assertEqual(ret, "Caught '%(exception)s' exception." %
                          {'exception': 'FakeException'})
+
+    def test_exception_to_str_ignore(self):
+        if six.PY3:
+            # On Python 3, exception messages are unicode strings, they are not
+            # decoded from an encoding and so it's not possible to test the
+            # "ignore" error handler
+            self.skipTest("test specific to Python 2")
+        ret = utils.exception_to_str(Exception('\xa5 error message'))
+        self.assertEqual(ret, ' error message')
