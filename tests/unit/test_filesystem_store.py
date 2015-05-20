@@ -15,7 +15,6 @@
 
 """Tests the filesystem backend store"""
 
-import __builtin__
 import errno
 import hashlib
 import json
@@ -27,6 +26,7 @@ import uuid
 import fixtures
 from oslo_utils import units
 import six
+from six.moves import builtins
 # NOTE(jokke): simplified transition to py3, behaves like py2 xrange
 from six.moves import range
 
@@ -245,7 +245,7 @@ class TestStore(base.StoreBaseTest,
         path = os.path.join(self.test_dir, image_id)
         image_file = six.BytesIO(file_contents)
 
-        with mock.patch.object(__builtin__, 'open') as popen:
+        with mock.patch.object(builtins, 'open') as popen:
             e = IOError()
             e.errno = errno
             popen.side_effect = e

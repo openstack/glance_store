@@ -18,7 +18,6 @@
 import copy
 import fixtures
 import hashlib
-import httplib
 import mock
 import tempfile
 import uuid
@@ -28,9 +27,10 @@ from oslo_utils import units
 from oslotest import moxstubout
 import requests_mock
 import six
+from six import moves
+from six.moves import http_client
 # NOTE(jokke): simplified transition to py3, behaves like py2 xrange
 from six.moves import range
-import StringIO
 import swiftclient
 
 from glance_store._drivers.swift import store as swift
@@ -85,8 +85,8 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
     def fake_head_container(url, token, container, **kwargs):
         if container not in fixture_containers:
             msg = "No container %s found" % container
-            raise swiftclient.ClientException(msg,
-                                              http_status=httplib.NOT_FOUND)
+            status = http_client.NOT_FOUND
+            raise swiftclient.ClientException(msg, http_status=status)
         return fixture_container_headers
 
     def fake_put_container(url, token, container, **kwargs):
@@ -129,7 +129,7 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
                 msg = ('Image size:%d exceeds Swift max:%d' %
                        (read_len, MAX_SWIFT_OBJECT_SIZE))
                 raise swiftclient.ClientException(
-                    msg, http_status=httplib.REQUEST_ENTITY_TOO_LARGE)
+                    msg, http_status=http_client.REQUEST_ENTITY_TOO_LARGE)
             fixture_objects[fixture_key] = fixture_object
             fixture_headers[fixture_key] = {
                 'content-length': read_len,
@@ -139,15 +139,15 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
             msg = ("Object PUT failed - Object with key %s already exists"
                    % fixture_key)
             raise swiftclient.ClientException(msg,
-                                              http_status=httplib.CONFLICT)
+                                              http_status=http_client.CONFLICT)
 
     def fake_get_object(url, token, container, name, **kwargs):
         # GET returns the tuple (list of headers, file object)
         fixture_key = "%s/%s" % (container, name)
         if fixture_key not in fixture_headers:
             msg = "Object GET failed"
-            raise swiftclient.ClientException(msg,
-                                              http_status=httplib.NOT_FOUND)
+            status = http_client.NOT_FOUND
+            raise swiftclient.ClientException(msg, http_status=status)
 
         byte_range = None
         headers = kwargs.get('headers', dict())
@@ -184,16 +184,16 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
             return fixture_headers[fixture_key]
         except KeyError:
             msg = "Object HEAD failed - Object does not exist"
-            raise swiftclient.ClientException(msg,
-                                              http_status=httplib.NOT_FOUND)
+            status = http_client.NOT_FOUND
+            raise swiftclient.ClientException(msg, http_status=status)
 
     def fake_delete_object(url, token, container, name, **kwargs):
         # DELETE returns nothing
         fixture_key = "%s/%s" % (container, name)
         if fixture_key not in fixture_headers:
             msg = "Object DELETE failed - Object does not exist"
-            raise swiftclient.ClientException(msg,
-                                              http_status=httplib.NOT_FOUND)
+            status = http_client.NOT_FOUND
+            raise swiftclient.ClientException(msg, http_status=status)
         else:
             del fixture_headers[fixture_key]
             del fixture_objects[fixture_key]
@@ -373,7 +373,7 @@ class SwiftTests(object):
         conf = copy.deepcopy(SWIFT_CONF)
         conf['default_swift_reference'] = 'store_2'
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
         self.store = Store(self.conf)
         self.store.configure()
 
@@ -423,7 +423,7 @@ class SwiftTests(object):
             SWIFT_PUT_OBJECT_CALLS = 0
             conf['default_swift_reference'] = variation
             self.config(**conf)
-            reload(swift)
+            moves.reload_module(swift)
             self.store = Store(self.conf)
             self.store.configure()
             loc, size, checksum, _ = self.store.add(image_id, image_swift,
@@ -453,7 +453,7 @@ class SwiftTests(object):
         conf['swift_store_create_container_on_put'] = False
         conf['swift_store_container'] = 'noexist'
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
 
         self.store = Store(self.conf)
         self.store.configure()
@@ -499,7 +499,7 @@ class SwiftTests(object):
         conf['swift_store_create_container_on_put'] = True
         conf['swift_store_container'] = 'noexist'
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
         self.store = Store(self.conf)
         self.store.configure()
         loc, size, checksum, _ = self.store.add(expected_image_id,
@@ -544,7 +544,7 @@ class SwiftTests(object):
         conf['swift_store_container'] = 'randomname'
         conf['swift_store_multiple_containers_seed'] = 2
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
         self.store = Store(self.conf)
         self.store.configure()
         loc, size, checksum, _ = self.store.add(expected_image_id,
@@ -578,7 +578,7 @@ class SwiftTests(object):
         conf['swift_store_container'] = 'randomname'
         conf['swift_store_multiple_containers_seed'] = 2
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
 
         expected_image_id = str(uuid.uuid4())
         expected_container = 'randomname_' + expected_image_id[:2]
@@ -800,7 +800,7 @@ class SwiftTests(object):
         """
         conf = copy.deepcopy(SWIFT_CONF)
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
         self.store = Store(self.conf)
         self.store.configure()
 
@@ -818,7 +818,7 @@ class SwiftTests(object):
         """
         conf = copy.deepcopy(SWIFT_CONF)
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
         self.store = Store(self.conf)
         self.store.configure()
 
@@ -839,7 +839,7 @@ class SwiftTests(object):
         """
         conf = copy.deepcopy(SWIFT_CONF)
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
         self.store = Store(self.conf)
         self.store.configure()
 
@@ -858,7 +858,7 @@ class SwiftTests(object):
         """
         conf = copy.deepcopy(SWIFT_CONF)
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
         self.store = Store(self.conf)
         self.store.configure()
 
@@ -875,7 +875,7 @@ class SwiftTests(object):
         """
         conf = copy.deepcopy(SWIFT_CONF)
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
         self.store = Store(self.conf)
         self.store.configure()
 
@@ -914,7 +914,7 @@ class SwiftTests(object):
 
         conf = copy.deepcopy(SWIFT_CONF)
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
         self.store = Store(self.conf)
         self.store.configure()
 
@@ -1281,7 +1281,7 @@ class TestMultiTenantStoreContext(base.StoreBaseTest):
         self.config(swift_store_multi_tenant=True)
         store = Store(self.conf)
         store.configure()
-        pseudo_file = StringIO.StringIO('Some data')
+        pseudo_file = six.StringIO('Some data')
         ctx = mock.MagicMock(
             service_catalog=self.service_catalog, user='tenant:user1',
             tenant='tenant', auth_token='0123')
@@ -1314,7 +1314,7 @@ class TestCreatingLocations(base.StoreBaseTest):
         conf = copy.deepcopy(SWIFT_CONF)
         self.store = Store(self.conf)
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
         self.addCleanup(self.conf.reset)
 
     def test_single_tenant_location(self):
@@ -1325,7 +1325,7 @@ class TestCreatingLocations(base.StoreBaseTest):
         conf.update({'swift_store_config_file': self.swift_config_file})
         conf['default_swift_reference'] = 'ref1'
         self.config(**conf)
-        reload(swift)
+        moves.reload_module(swift)
 
         store = swift.SingleTenantStore(self.conf)
         store.configure()

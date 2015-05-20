@@ -38,9 +38,9 @@ credentials and is **not** user-facing.
 """
 
 import logging
-import urlparse
 
 from oslo_config import cfg
+from six.moves import urllib
 
 from glance_store import exceptions
 
@@ -70,7 +70,7 @@ def get_location_from_uri(uri, conf=CONF):
         file:///var/lib/glance/images/1
         cinder://volume-id
     """
-    pieces = urlparse.urlparse(uri)
+    pieces = urllib.parse.urlparse(uri)
     if pieces.scheme not in SCHEME_TO_CLS_MAP.keys():
         raise exceptions.UnknownScheme(scheme=pieces.scheme)
     scheme_info = SCHEME_TO_CLS_MAP[pieces.scheme]

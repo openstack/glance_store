@@ -15,7 +15,7 @@
 
 """Glance Store exception subclasses"""
 
-import six.moves.urllib.parse as urlparse
+from six.moves import urllib
 
 from glance_store import i18n
 
@@ -32,7 +32,7 @@ class UnsupportedBackend(BackendException):
 
 class RedirectException(Exception):
     def __init__(self, url):
-        self.url = urlparse.urlparse(url)
+        self.url = urllib.parse.urlparse(url)
 
 
 class GlanceStoreException(Exception):

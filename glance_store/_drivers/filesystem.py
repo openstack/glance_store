@@ -23,13 +23,13 @@ import hashlib
 import logging
 import os
 import stat
-import urlparse
 
 import jsonschema
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
 from oslo_utils import units
+from six.moves import urllib
 
 import glance_store
 from glance_store import capabilities
@@ -98,7 +98,7 @@ class StoreLocation(glance_store.location.StoreLocation):
         in the URL are interpreted differently in Python 2.6.1+ than prior
         versions of Python.
         """
-        pieces = urlparse.urlparse(uri)
+        pieces = urllib.parse.urlparse(uri)
         assert pieces.scheme in ('file', 'filesystem')
         self.scheme = pieces.scheme
         path = (pieces.netloc + pieces.path).strip()

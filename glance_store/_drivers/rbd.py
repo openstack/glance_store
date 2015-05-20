@@ -21,11 +21,11 @@ from __future__ import with_statement
 import hashlib
 import logging
 import math
-import urllib
 
 from oslo_config import cfg
 from oslo_utils import units
 import six
+from six.moves import urllib
 
 from glance_store import capabilities
 from glance_store.common import utils
@@ -94,10 +94,10 @@ class StoreLocation(location.StoreLocation):
     def get_uri(self):
         if self.fsid and self.pool and self.snapshot:
             # ensure nothing contains / or any other url-unsafe character
-            safe_fsid = urllib.quote(self.fsid, '')
-            safe_pool = urllib.quote(self.pool, '')
-            safe_image = urllib.quote(self.image, '')
-            safe_snapshot = urllib.quote(self.snapshot, '')
+            safe_fsid = urllib.parse.quote(self.fsid, '')
+            safe_pool = urllib.parse.quote(self.pool, '')
+            safe_image = urllib.parse.quote(self.image, '')
+            safe_snapshot = urllib.parse.quote(self.snapshot, '')
             return "rbd://%s/%s/%s/%s" % (safe_fsid, safe_pool,
                                           safe_image, safe_snapshot)
         else:
@@ -126,7 +126,7 @@ class StoreLocation(location.StoreLocation):
                 (None, None, pieces[0], None)
         elif len(pieces) == 4:
             self.fsid, self.pool, self.image, self.snapshot = \
-                map(urllib.unquote, pieces)
+                map(urllib.parse.unquote, pieces)
         else:
             reason = _('URI must have exactly 1 or 4 components')
             msg = _LI("Invalid URI: %s") % reason

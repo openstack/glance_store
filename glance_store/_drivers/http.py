@@ -13,10 +13,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import httplib
 import logging
 import socket
-import urlparse
+
+from six.moves import http_client
+from six.moves import urllib
 
 from glance_store import capabilities
 import glance_store.driver
@@ -60,7 +61,7 @@ class StoreLocation(glance_store.location.StoreLocation):
         in the URL are interpreted differently in Python 2.6.1+ than prior
         versions of Python.
         """
-        pieces = urlparse.urlparse(uri)
+        pieces = urllib.parse.urlparse(uri)
         assert pieces.scheme in ('https', 'http')
         self.scheme = pieces.scheme
         netloc = pieces.netloc
@@ -98,7 +99,7 @@ def http_response_iterator(conn, response, size):
     Return an iterator for a file-like object.
 
     :param conn: HTTP(S) Connection
-    :param response: httplib.HTTPResponse object
+    :param response: http_client.HTTPResponse object
     :param size: Chunk size to iterate with
     """
     chunk = response.read(size)
@@ -183,7 +184,7 @@ class Store(glance_store.driver.Store):
 
         # Check for bad status codes
         if resp.status >= 400:
-            if resp.status == httplib.NOT_FOUND:
+            if resp.status == http_client.NOT_FOUND:
                 reason = _("HTTP datastore could not find image at URI.")
                 LOG.debug(reason)
                 raise exceptions.NotFound(message=reason)
@@ -218,5 +219,5 @@ class Store(glance_store.driver.Store):
         Returns connection class for accessing the resource. Useful
         for dependency injection and stubouts in testing...
         """
-        return {'http': httplib.HTTPConnection,
-                'https': httplib.HTTPSConnection}[loc.scheme]
+        return {'http': http_client.HTTPConnection,
+                'https': http_client.HTTPSConnection}[loc.scheme]

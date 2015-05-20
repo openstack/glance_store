@@ -12,12 +12,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import ConfigParser
 import logging
 
 from collections import OrderedDict
 
 from oslo_config import cfg
+from six.moves import configparser
 
 from glance_store import exceptions
 from glance_store import i18n
@@ -43,7 +43,7 @@ swift_opts = [
 
 # NOTE(bourke): The default dict_type is collections.OrderedDict in py27, but
 # we must set manually for compatibility with py26
-CONFIG = ConfigParser.SafeConfigParser(dict_type=OrderedDict)
+CONFIG = configparser.SafeConfigParser(dict_type=OrderedDict)
 LOG = logging.getLogger(__name__)
 
 
@@ -99,7 +99,7 @@ class SwiftParams(object):
                 reference['user'] = CONFIG.get(ref, 'user')
                 reference['key'] = CONFIG.get(ref, 'key')
                 account_params[ref] = reference
-            except (ValueError, SyntaxError, ConfigParser.NoOptionError) as e:
+            except (ValueError, SyntaxError, configparser.NoOptionError) as e:
                 LOG.exception(i18n._("Invalid format of swift store config"
                                      "cfg"))
         return account_params

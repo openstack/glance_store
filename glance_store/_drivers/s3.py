@@ -16,18 +16,18 @@
 """Storage backend for S3 or Storage Servers that follow the S3 Protocol"""
 
 import hashlib
-import httplib
 import logging
 import math
 import re
 import tempfile
-import urlparse
 
 import eventlet
 from oslo_config import cfg
 from oslo_utils import netutils
 from oslo_utils import units
 import six
+from six.moves import http_client
+from six.moves import urllib
 
 import glance_store
 from glance_store import capabilities
@@ -207,7 +207,7 @@ class StoreLocation(glance_store.location.StoreLocation):
             LOG.info(_LI("Invalid store uri: %s") % reason)
             raise exceptions.BadStoreUri(message=reason)
 
-        pieces = urlparse.urlparse(uri)
+        pieces = urllib.parse.urlparse(uri)
         assert pieces.scheme in ('s3', 's3+http', 's3+https')
         self.scheme = pieces.scheme
         path = pieces.path.strip('/')
@@ -740,7 +740,7 @@ def create_bucket_if_missing(conf, bucket, s3_conn):
     try:
         s3_conn.get_bucket(bucket)
     except S3ResponseError as e:
-        if e.status == httplib.NOT_FOUND:
+        if e.status == http_client.NOT_FOUND:
             if conf.glance_store.s3_store_create_bucket_on_put:
                 host = conf.glance_store.s3_store_host
                 location = get_s3_location(host)

@@ -17,10 +17,10 @@
 from __future__ import absolute_import
 
 import logging
-import urlparse
 
 from oslo_config import cfg
 from oslo_utils import excutils
+from six.moves import urllib
 
 from glance_store import capabilities
 import glance_store.driver
@@ -73,7 +73,7 @@ class StoreLocation(glance_store.location.StoreLocation):
 
         :param uri: Current set URI
         """
-        parsed = urlparse.urlparse(uri)
+        parsed = urllib.parse.urlparse(uri)
         assert parsed.scheme in ('gridfs',)
         self.specs["image_id"] = parsed.netloc
 
@@ -160,7 +160,7 @@ class Store(glance_store.driver.Store):
             store_location = location.store_location
         try:
 
-            parsed = urlparse.urlparse(store_location.get_uri())
+            parsed = urllib.parse.urlparse(store_location.get_uri())
             return self.fs.get(parsed.netloc)
         except gridfs.errors.NoFile:
             msg = _("Could not find %s image in GridFS") % \

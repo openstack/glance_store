@@ -16,13 +16,13 @@
 """Tests the S3 backend store"""
 
 import hashlib
-import StringIO
 import uuid
 import xml.etree.ElementTree
 
 import boto.s3.connection
 import mock
 from oslo_utils import units
+import six
 
 from glance_store._drivers import s3
 from glance_store import capabilities
@@ -78,7 +78,7 @@ class FakeKey(object):
 
     def set_contents_from_file(self, fp, replace=False, **kwargs):
         max_read = kwargs.get('size')
-        self.data = StringIO.StringIO()
+        self.data = six.StringIO()
         checksum = hashlib.md5()
         while True:
             if max_read is None or max_read > self.BufferSize:
@@ -149,7 +149,7 @@ class FakeMPU(object):
         Complete the parts into one big FakeKey
         """
         key = FakeKey(self.bucket, self.key_name)
-        key.data = StringIO.StringIO()
+        key.data = six.StringIO()
         checksum = hashlib.md5()
         cnt = 0
         for pnum in sorted(self.parts.keys()):
@@ -230,7 +230,7 @@ def fakers():
     fixture_buckets = {'glance': FakeBucket('glance')}
     b = fixture_buckets['glance']
     k = b.new_key(FAKE_UUID)
-    k.set_contents_from_file(StringIO.StringIO("*" * FIVE_KB))
+    k.set_contents_from_file(six.StringIO("*" * FIVE_KB))
 
     def fake_connection_constructor(self, *args, **kwargs):
         host = kwargs.get('host')
@@ -367,7 +367,7 @@ class TestStore(base.StoreBaseTest,
             S3_CONF['s3_store_host'],
             S3_CONF['s3_store_bucket'],
             expected_image_id)
-        image_s3 = StringIO.StringIO(expected_s3_contents)
+        image_s3 = six.StringIO(expected_s3_contents)
 
         loc, size, checksum, _ = self.store.add(expected_image_id,
                                                 image_s3,
@@ -380,7 +380,7 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(expected_location,
                                              conf=self.conf)
         (new_image_s3, new_image_size) = self.store.get(loc)
-        new_image_contents = StringIO.StringIO()
+        new_image_contents = six.StringIO()
         for chunk in new_image_s3:
             new_image_contents.write(chunk)
         new_image_s3_size = new_image_contents.len
@@ -409,7 +409,7 @@ class TestStore(base.StoreBaseTest,
                 S3_CONF['s3_store_host'],
                 S3_CONF['s3_store_bucket'],
                 expected_image_id)
-            image_s3 = StringIO.StringIO(expected_s3_contents)
+            image_s3 = six.StringIO(expected_s3_contents)
 
             # add image
             loc, size, chksum, _ = self.store.add(expected_image_id,
@@ -424,7 +424,7 @@ class TestStore(base.StoreBaseTest,
             loc = location.get_location_from_uri(expected_location,
                                                  conf=self.conf)
             (new_image_s3, new_image_s3_size) = self.store.get(loc)
-            new_image_contents = StringIO.StringIO()
+            new_image_contents = six.StringIO()
             for chunk in new_image_s3:
                 new_image_contents.write(chunk)
             new_image_size = new_image_contents.len
@@ -457,7 +457,7 @@ class TestStore(base.StoreBaseTest,
                 new_conf['s3_store_host'],
                 new_conf['s3_store_bucket'],
                 expected_image_id)
-            image_s3 = StringIO.StringIO(expected_s3_contents)
+            image_s3 = six.StringIO(expected_s3_contents)
 
             self.config(**new_conf)
             self.store = s3.Store(self.conf)
@@ -484,7 +484,7 @@ class TestStore(base.StoreBaseTest,
         Tests that adding an image with an existing identifier
         raises an appropriate exception
         """
-        image_s3 = StringIO.StringIO("nevergonnamakeit")
+        image_s3 = six.StringIO("nevergonnamakeit")
         self.assertRaises(exceptions.Duplicate,
                           self.store.add,
                           FAKE_UUID, image_s3, 0)

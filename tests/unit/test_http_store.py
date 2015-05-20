@@ -40,12 +40,13 @@ class TestHttpStore(base.StoreBaseTest,
         Should be called when need to mock httplib response and request
         objects.
         """
-        response = mock.patch('httplib.HTTPConnection.getresponse')
+        response = mock.patch('six.moves.http_client'
+                              '.HTTPConnection.getresponse')
         self.response = response.start()
         self.response.return_value = utils.FakeHTTPResponse()
         self.addCleanup(response.stop)
 
-        request = mock.patch('httplib.HTTPConnection.request')
+        request = mock.patch('six.moves.http_client.HTTPConnection.request')
         self.request = request.start()
         self.request.side_effect = lambda w, x, y, z: None
         self.addCleanup(request.stop)

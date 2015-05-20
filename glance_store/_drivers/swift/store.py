@@ -16,7 +16,6 @@
 """Storage backend for SWIFT"""
 
 import hashlib
-import httplib
 import logging
 import math
 
@@ -24,9 +23,9 @@ from oslo_config import cfg
 from oslo_utils import excutils
 from oslo_utils import units
 import six
-import six.moves.urllib.parse as urlparse
+from six.moves import http_client
+from six.moves import urllib
 import swiftclient
-import urllib
 
 import glance_store
 from glance_store._drivers.swift import utils as sutils
@@ -195,7 +194,8 @@ class StoreLocation(location.StoreLocation):
 
     def _get_credstring(self):
         if self.user and self.key:
-            return '%s:%s' % (urllib.quote(self.user), urllib.quote(self.key))
+            return '%s:%s' % (urllib.parse.quote(self.user),
+                              urllib.parse.quote(self.key))
         return ''
 
     def get_uri(self, credentials_included=True):
@@ -270,12 +270,12 @@ class StoreLocation(location.StoreLocation):
                 raise exceptions.BadStoreUri(message=reason)
             key = cred_parts.pop()
             user = ':'.join(cred_parts)
-            creds = urllib.unquote(creds)
+            creds = urllib.parse.unquote(creds)
             try:
                 self.user, self.key = creds.rsplit(':', 1)
             except exceptions.BadStoreConfiguration:
-                self.user = urllib.unquote(user)
-                self.key = urllib.unquote(key)
+                self.user = urllib.parse.unquote(user)
+                self.key = urllib.parse.unquote(key)
         else:
             self.user = None
             self.key = None
@@ -319,7 +319,7 @@ class StoreLocation(location.StoreLocation):
             LOG.info(_LI("Invalid store URI: %(reason)s"), {'reason': reason})
             raise exceptions.BadStoreUri(message=reason)
 
-        pieces = urlparse.urlparse(uri)
+        pieces = urllib.parse.urlparse(uri)
         assert pieces.scheme in ('swift', 'swift+http', 'swift+https',
                                  'swift+config')
 
@@ -421,7 +421,7 @@ class BaseStore(driver.Store):
                 container=location.container, obj=location.obj,
                 resp_chunk_size=self.CHUNKSIZE, headers=headers)
         except swiftclient.ClientException as e:
-            if e.http_status == httplib.NOT_FOUND:
+            if e.http_status == http_client.NOT_FOUND:
                 msg = _("Swift could not find object %s.") % location.obj
                 LOG.warn(msg)
                 raise exceptions.NotFound(message=msg)
@@ -602,7 +602,7 @@ class BaseStore(driver.Store):
             return (location.get_uri(credentials_included=include_creds),
                     image_size, obj_etag, {})
         except swiftclient.ClientException as e:
-            if e.http_status == httplib.CONFLICT:
+            if e.http_status == http_client.CONFLICT:
                 msg = _("Swift already has an image at this location")
                 raise exceptions.Duplicate(message=msg)
 
@@ -630,7 +630,7 @@ class BaseStore(driver.Store):
                 dlo_manifest = headers.get('x-object-manifest')
                 slo_manifest = headers.get('x-static-large-object')
             except swiftclient.ClientException as e:
-                if e.http_status != httplib.NOT_FOUND:
+                if e.http_status != http_client.NOT_FOUND:
                     raise
 
             if _is_slo(slo_manifest):
@@ -662,7 +662,7 @@ class BaseStore(driver.Store):
             connection.delete_object(location.container, location.obj)
 
         except swiftclient.ClientException as e:
-            if e.http_status == httplib.NOT_FOUND:
+            if e.http_status == http_client.NOT_FOUND:
                 msg = _("Swift could not find image at URI.")
                 raise exceptions.NotFound(message=msg)
             else:
@@ -679,7 +679,7 @@ class BaseStore(driver.Store):
         try:
             connection.head_container(container)
         except swiftclient.ClientException as e:
-            if e.http_status == httplib.NOT_FOUND:
+            if e.http_status == http_client.NOT_FOUND:
                 if self.conf.glance_store.swift_store_create_container_on_put:
                     try:
                         msg = (_LI("Creating swift container %(container)s") %
@@ -888,7 +888,7 @@ class MultiTenantStore(BaseStore):
         try:
             connection.post_container(location.container, headers=headers)
         except swiftclient.ClientException as e:
-            if e.http_status == httplib.NOT_FOUND:
+            if e.http_status == http_client.NOT_FOUND:
                 msg = _("Swift could not find image at URI.")
                 raise exceptions.NotFound(message=msg)
             else:

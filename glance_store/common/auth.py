@@ -34,7 +34,7 @@ import logging
 from oslo_serialization import jsonutils
 # NOTE(jokke): simplified transition to py3, behaves like py2 xrange
 from six.moves import range
-import six.moves.urllib.parse as urlparse
+from six.moves import urllib
 
 from glance_store import exceptions
 
@@ -115,7 +115,7 @@ class KeystoneStrategy(BaseStrategy):
             # If OS_AUTH_URL is missing a trailing slash add one
             if not auth_url.endswith('/'):
                 auth_url += '/'
-            token_url = urlparse.urljoin(auth_url, "tokens")
+            token_url = urllib.parse.urljoin(auth_url, "tokens")
             # 1. Check Keystone version
             is_v2 = auth_url.rstrip('/').endswith('v2.0')
             if is_v2:
@@ -136,7 +136,7 @@ class KeystoneStrategy(BaseStrategy):
                 # v2.0 keystone endpoint. Also, new location does not
                 # contain real endpoint, only hostname and port.
                 if 'v2.0' not in auth_url:
-                    auth_url = urlparse.urljoin(auth_url, 'v2.0/')
+                    auth_url = urllib.parse.urljoin(auth_url, 'v2.0/')
             else:
                 # If we successfully auth'd, then memorize the correct auth_url
                 # for future use.

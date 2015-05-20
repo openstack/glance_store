@@ -119,6 +119,9 @@ class TestStore(base.StoreBaseTest,
         self.store.store_image_dir = (
             VMWARE_DS['vmware_store_image_dir'])
 
+    def _mock_http_connection(self):
+        return mock.patch('six.moves.http_client.HTTPConnection')
+
     @mock.patch('oslo_vmware.api.VMwareAPISession')
     def test_get(self, mock_api_session):
         """Test a "normal" retrieval of an image in chunks."""
@@ -127,7 +130,7 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s"
             "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('httplib.HTTPConnection') as HttpConn:
+        with self._mock_http_connection() as HttpConn:
             HttpConn.return_value = FakeHTTPConnection()
             (image_file, image_size) = self.store.get(loc)
         self.assertEqual(image_size, expected_image_size)
@@ -143,7 +146,7 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glan"
             "ce/%s?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('httplib.HTTPConnection') as HttpConn:
+        with self._mock_http_connection() as HttpConn:
             HttpConn.return_value = FakeHTTPConnection(status=404)
             self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
@@ -168,7 +171,7 @@ class TestStore(base.StoreBaseTest,
                 VMWARE_DS['vmware_datacenter_path'],
                 VMWARE_DS['vmware_datastore_name'])
             image = six.StringIO(expected_contents)
-            with mock.patch('httplib.HTTPConnection') as HttpConn:
+            with self._mock_http_connection() as HttpConn:
                 HttpConn.return_value = FakeHTTPConnection()
                 location, size, checksum, _ = self.store.add(expected_image_id,
                                                              image,
@@ -203,7 +206,7 @@ class TestStore(base.StoreBaseTest,
                 VMWARE_DS['vmware_datacenter_path'],
                 VMWARE_DS['vmware_datastore_name'])
             image = six.StringIO(expected_contents)
-            with mock.patch('httplib.HTTPConnection') as HttpConn:
+            with self._mock_http_connection() as HttpConn:
                 HttpConn.return_value = FakeHTTPConnection()
                 location, size, checksum, _ = self.store.add(expected_image_id,
                                                              image, 0)
@@ -218,11 +221,11 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s?"
             "dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('httplib.HTTPConnection') as HttpConn:
+        with self._mock_http_connection() as HttpConn:
             HttpConn.return_value = FakeHTTPConnection()
             vm_store.Store._service_content = mock.Mock()
             self.store.delete(loc)
-        with mock.patch('httplib.HTTPConnection') as HttpConn:
+        with self._mock_http_connection() as HttpConn:
             HttpConn.return_value = FakeHTTPConnection(status=404)
             self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
@@ -247,7 +250,7 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s"
             "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('httplib.HTTPConnection') as HttpConn:
+        with self._mock_http_connection() as HttpConn:
             HttpConn.return_value = FakeHTTPConnection()
             image_size = self.store.get_size(loc)
         self.assertEqual(image_size, 31)
@@ -261,7 +264,7 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glan"
             "ce/%s?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('httplib.HTTPConnection') as HttpConn:
+        with self._mock_http_connection() as HttpConn:
             HttpConn.return_value = FakeHTTPConnection(status=404)
             self.assertRaises(exceptions.NotFound, self.store.get_size, loc)
 
@@ -431,7 +434,7 @@ class TestStore(base.StoreBaseTest,
         expected_contents = "*" * expected_size
         image = six.StringIO(expected_contents)
         self.session = mock.Mock()
-        with mock.patch('httplib.HTTPConnection') as HttpConn:
+        with self._mock_http_connection() as HttpConn:
             HttpConn.return_value = FakeHTTPConnection(status=401)
             self.assertRaises(exceptions.BackendException,
                               self.store.add,
@@ -472,7 +475,7 @@ class TestStore(base.StoreBaseTest,
         expected_contents = "*" * expected_size
         image = six.StringIO(expected_contents)
         self.session = mock.Mock()
-        with mock.patch('httplib.HTTPConnection') as HttpConn:
+        with self._mock_http_connection() as HttpConn:
             HttpConn.request.side_effect = IOError
             self.assertRaises(exceptions.BackendException,
                               self.store.add,
