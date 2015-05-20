@@ -221,12 +221,13 @@ class StoreLocation(glance_store.location.StoreLocation):
             try:
                 access_key = cred_parts[0]
                 secret_key = cred_parts[1]
-                # NOTE(jaypipes): Need to encode to UTF-8 here because of a
-                # bug in the HMAC library that boto uses.
-                # See: http://bugs.python.org/issue5285
-                # See: http://trac.edgewall.org/ticket/8083
-                access_key = access_key.encode('utf-8')
-                secret_key = secret_key.encode('utf-8')
+                if six.PY2:
+                    # NOTE(jaypipes): Need to encode to UTF-8 here because of a
+                    # bug in the HMAC library that boto uses.
+                    # See: http://bugs.python.org/issue5285
+                    # See: http://trac.edgewall.org/ticket/8083
+                    access_key = access_key.encode('utf-8')
+                    secret_key = secret_key.encode('utf-8')
                 self.accesskey = access_key
                 self.secretkey = secret_key
             except IndexError:
@@ -277,7 +278,7 @@ class ChunkedFile(object):
 
     def getvalue(self):
         """Return entire string value... used in testing."""
-        data = ""
+        data = b""
         self.len = 0
         for chunk in self:
             read_bytes = len(chunk)
@@ -315,12 +316,15 @@ class Store(glance_store.driver.Store):
         self.s3_host = self._option_get('s3_store_host')
         access_key = self._option_get('s3_store_access_key')
         secret_key = self._option_get('s3_store_secret_key')
-        # NOTE(jaypipes): Need to encode to UTF-8 here because of a
-        # bug in the HMAC library that boto uses.
-        # See: http://bugs.python.org/issue5285
-        # See: http://trac.edgewall.org/ticket/8083
-        self.access_key = access_key.encode('utf-8')
-        self.secret_key = secret_key.encode('utf-8')
+        if six.PY2:
+            # NOTE(jaypipes): Need to encode to UTF-8 here because of a
+            # bug in the HMAC library that boto uses.
+            # See: http://bugs.python.org/issue5285
+            # See: http://trac.edgewall.org/ticket/8083
+            access_key = access_key.encode('utf-8')
+            secret_key = secret_key.encode('utf-8')
+        self.access_key = access_key
+        self.secret_key = secret_key
         self.bucket = self._option_get('s3_store_bucket')
 
         self.scheme = 's3'
@@ -583,7 +587,7 @@ class Store(glance_store.driver.Store):
         write_chunk_size = max(self.s3_store_large_object_chunk_size,
                                chunk_size)
         it = utils.chunkreadable(image_file, self.WRITE_CHUNKSIZE)
-        buffered_chunk = ''
+        buffered_chunk = b''
         while True:
             try:
                 buffered_clen = len(buffered_chunk)

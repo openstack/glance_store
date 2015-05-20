@@ -78,7 +78,7 @@ class FakeKey(object):
 
     def set_contents_from_file(self, fp, replace=False, **kwargs):
         max_read = kwargs.get('size')
-        self.data = six.StringIO()
+        self.data = six.BytesIO()
         checksum = hashlib.md5()
         while True:
             if max_read is None or max_read > self.BufferSize:
@@ -94,7 +94,7 @@ class FakeKey(object):
             self.data.write(chunk)
             if max_read is not None:
                 max_read -= len(chunk)
-        self.size = self.data.len
+        self.size = self.data.tell()
         # Reset the buffer to start
         self.data.seek(0)
         self.etag = checksum.hexdigest()
@@ -149,7 +149,7 @@ class FakeMPU(object):
         Complete the parts into one big FakeKey
         """
         key = FakeKey(self.bucket, self.key_name)
-        key.data = six.StringIO()
+        key.data = six.BytesIO()
         checksum = hashlib.md5()
         cnt = 0
         for pnum in sorted(self.parts.keys()):
@@ -160,7 +160,7 @@ class FakeMPU(object):
                 checksum.update(chunk)
                 key.data.write(chunk)
                 chunk = part.data.read(key.BufferSize)
-        key.size = key.data.len
+        key.size = key.data.tell()
         key.data.seek(0)
         key.etag = checksum.hexdigest() + '-%d' % cnt
         key.read = key.data.read
@@ -230,7 +230,7 @@ def fakers():
     fixture_buckets = {'glance': FakeBucket('glance')}
     b = fixture_buckets['glance']
     k = b.new_key(FAKE_UUID)
-    k.set_contents_from_file(six.StringIO("*" * FIVE_KB))
+    k.set_contents_from_file(six.BytesIO(b"*" * FIVE_KB))
 
     def fake_connection_constructor(self, *args, **kwargs):
         host = kwargs.get('host')
@@ -294,8 +294,8 @@ class TestStore(base.StoreBaseTest,
 
         self.assertEqual(image_size, FIVE_KB)
 
-        expected_data = "*" * FIVE_KB
-        data = ""
+        expected_data = b"*" * FIVE_KB
+        data = b""
 
         for chunk in image_s3:
             data += chunk
@@ -359,7 +359,7 @@ class TestStore(base.StoreBaseTest,
         """Test that we can add an image via the s3 backend."""
         expected_image_id = str(uuid.uuid4())
         expected_s3_size = FIVE_KB
-        expected_s3_contents = "*" * expected_s3_size
+        expected_s3_contents = b"*" * expected_s3_size
         expected_checksum = hashlib.md5(expected_s3_contents).hexdigest()
         expected_location = format_s3_location(
             S3_CONF['s3_store_access_key'],
@@ -367,7 +367,7 @@ class TestStore(base.StoreBaseTest,
             S3_CONF['s3_store_host'],
             S3_CONF['s3_store_bucket'],
             expected_image_id)
-        image_s3 = six.StringIO(expected_s3_contents)
+        image_s3 = six.BytesIO(expected_s3_contents)
 
         loc, size, checksum, _ = self.store.add(expected_image_id,
                                                 image_s3,
@@ -380,10 +380,10 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(expected_location,
                                              conf=self.conf)
         (new_image_s3, new_image_size) = self.store.get(loc)
-        new_image_contents = six.StringIO()
+        new_image_contents = six.BytesIO()
         for chunk in new_image_s3:
             new_image_contents.write(chunk)
-        new_image_s3_size = new_image_contents.len
+        new_image_s3_size = new_image_contents.tell()
 
         self.assertEqual(expected_s3_contents, new_image_contents.getvalue())
         self.assertEqual(expected_s3_size, new_image_s3_size)
@@ -401,7 +401,7 @@ class TestStore(base.StoreBaseTest,
         for (vsize, vcnt) in variations:
             expected_image_id = str(uuid.uuid4())
             expected_s3_size = vsize
-            expected_s3_contents = "12345678" * (expected_s3_size / 8)
+            expected_s3_contents = b"12345678" * (expected_s3_size // 8)
             expected_chksum = hashlib.md5(expected_s3_contents).hexdigest()
             expected_location = format_s3_location(
                 S3_CONF['s3_store_access_key'],
@@ -409,7 +409,7 @@ class TestStore(base.StoreBaseTest,
                 S3_CONF['s3_store_host'],
                 S3_CONF['s3_store_bucket'],
                 expected_image_id)
-            image_s3 = six.StringIO(expected_s3_contents)
+            image_s3 = six.BytesIO(expected_s3_contents)
 
             # add image
             loc, size, chksum, _ = self.store.add(expected_image_id,
@@ -424,10 +424,10 @@ class TestStore(base.StoreBaseTest,
             loc = location.get_location_from_uri(expected_location,
                                                  conf=self.conf)
             (new_image_s3, new_image_s3_size) = self.store.get(loc)
-            new_image_contents = six.StringIO()
+            new_image_contents = six.BytesIO()
             for chunk in new_image_s3:
                 new_image_contents.write(chunk)
-            new_image_size = new_image_contents.len
+            new_image_size = new_image_contents.tell()
             self.assertEqual(expected_s3_size, new_image_s3_size)
             self.assertEqual(expected_s3_size, new_image_size)
             self.assertEqual(expected_s3_contents,
@@ -447,7 +447,7 @@ class TestStore(base.StoreBaseTest,
         for variation in variations:
             expected_image_id = str(uuid.uuid4())
             expected_s3_size = FIVE_KB
-            expected_s3_contents = "*" * expected_s3_size
+            expected_s3_contents = b"*" * expected_s3_size
             expected_checksum = hashlib.md5(expected_s3_contents).hexdigest()
             new_conf = S3_CONF.copy()
             new_conf['s3_store_host'] = variation
@@ -457,7 +457,7 @@ class TestStore(base.StoreBaseTest,
                 new_conf['s3_store_host'],
                 new_conf['s3_store_bucket'],
                 expected_image_id)
-            image_s3 = six.StringIO(expected_s3_contents)
+            image_s3 = six.BytesIO(expected_s3_contents)
 
             self.config(**new_conf)
             self.store = s3.Store(self.conf)
@@ -484,7 +484,7 @@ class TestStore(base.StoreBaseTest,
         Tests that adding an image with an existing identifier
         raises an appropriate exception
         """
-        image_s3 = six.StringIO("nevergonnamakeit")
+        image_s3 = six.BytesIO(b"nevergonnamakeit")
         self.assertRaises(exceptions.Duplicate,
                           self.store.add,
                           FAKE_UUID, image_s3, 0)
