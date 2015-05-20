@@ -22,7 +22,6 @@ import json
 import mock
 import os
 import stat
-import StringIO
 import uuid
 
 import fixtures
@@ -72,8 +71,8 @@ class TestStore(base.StoreBaseTest,
     def _store_image(self, in_metadata):
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 10
-        expected_file_contents = "*" * expected_file_size
-        image_file = StringIO.StringIO(expected_file_contents)
+        expected_file_contents = b"*" * expected_file_size
+        image_file = six.BytesIO(expected_file_contents)
         self.store.FILESYSTEM_STORE_METADATA = in_metadata
         return self.store.add(expected_image_id, image_file,
                               expected_file_size)
@@ -82,8 +81,8 @@ class TestStore(base.StoreBaseTest,
         """Test a "normal" retrieval of an image in chunks."""
         # First add an image...
         image_id = str(uuid.uuid4())
-        file_contents = "chunk00000remainder"
-        image_file = StringIO.StringIO(file_contents)
+        file_contents = b"chunk00000remainder"
+        image_file = six.BytesIO(file_contents)
 
         loc, size, checksum, _ = self.store.add(image_id,
                                                 image_file,
@@ -94,9 +93,9 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(uri, conf=self.conf)
         (image_file, image_size) = self.store.get(loc)
 
-        expected_data = "chunk00000remainder"
+        expected_data = b"chunk00000remainder"
         expected_num_chunks = 2
-        data = ""
+        data = b""
         num_chunks = 0
 
         for chunk in image_file:
@@ -109,8 +108,8 @@ class TestStore(base.StoreBaseTest,
         """Test a "normal" retrieval of an image in chunks."""
         # First add an image...
         image_id = str(uuid.uuid4())
-        file_contents = "chunk00000remainder"
-        image_file = StringIO.StringIO(file_contents)
+        file_contents = b"chunk00000remainder"
+        image_file = six.BytesIO(file_contents)
 
         loc, size, checksum, _ = self.store.add(image_id,
                                                 image_file,
@@ -120,7 +119,7 @@ class TestStore(base.StoreBaseTest,
         uri = "file:///%s/%s" % (self.test_dir, image_id)
         loc = location.get_location_from_uri(uri, conf=self.conf)
 
-        data = ""
+        data = b""
         for offset in range(len(file_contents)):
             (image_file, image_size) = self.store.get(loc,
                                                       offset=offset,
@@ -130,7 +129,7 @@ class TestStore(base.StoreBaseTest,
 
         self.assertEqual(data, file_contents)
 
-        data = ""
+        data = b""
         chunk_size = 5
         (image_file, image_size) = self.store.get(loc,
                                                   offset=chunk_size,
@@ -138,7 +137,7 @@ class TestStore(base.StoreBaseTest,
         for chunk in image_file:
             data += chunk
 
-        self.assertEqual(data, '00000')
+        self.assertEqual(data, b'00000')
         self.assertEqual(image_size, chunk_size)
 
     def test_get_non_existing(self):
@@ -157,11 +156,11 @@ class TestStore(base.StoreBaseTest,
         ChunkedFile.CHUNKSIZE = units.Ki
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
-        expected_file_contents = "*" * expected_file_size
+        expected_file_contents = b"*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (self.test_dir,
                                               expected_image_id)
-        image_file = StringIO.StringIO(expected_file_contents)
+        image_file = six.BytesIO(expected_file_contents)
 
         loc, size, checksum, _ = self.store.add(expected_image_id,
                                                 image_file,
@@ -174,7 +173,7 @@ class TestStore(base.StoreBaseTest,
         uri = "file:///%s/%s" % (self.test_dir, expected_image_id)
         loc = location.get_location_from_uri(uri, conf=self.conf)
         (new_image_file, new_image_size) = self.store.get(loc)
-        new_image_contents = ""
+        new_image_contents = b""
         new_image_file_size = 0
 
         for chunk in new_image_file:
@@ -210,8 +209,8 @@ class TestStore(base.StoreBaseTest,
         self.config(filesystem_store_metadata_file=jsonfilename,
                     group="glance_store")
         expected_file_size = 10
-        expected_file_contents = "*" * expected_file_size
-        image_file = StringIO.StringIO(expected_file_contents)
+        expected_file_contents = b"*" * expected_file_size
+        image_file = six.BytesIO(expected_file_contents)
 
         location, size, checksum, metadata = self.store.add(expected_image_id,
                                                             image_file,
@@ -227,13 +226,13 @@ class TestStore(base.StoreBaseTest,
         ChunkedFile.CHUNKSIZE = units.Ki
         image_id = str(uuid.uuid4())
         file_size = 5 * units.Ki  # 5K
-        file_contents = "*" * file_size
-        image_file = StringIO.StringIO(file_contents)
+        file_contents = b"*" * file_size
+        image_file = six.BytesIO(file_contents)
 
         location, size, checksum, _ = self.store.add(image_id,
                                                      image_file,
                                                      file_size)
-        image_file = StringIO.StringIO("nevergonnamakeit")
+        image_file = six.BytesIO(b"nevergonnamakeit")
         self.assertRaises(exceptions.Duplicate,
                           self.store.add,
                           image_id, image_file, 0)
@@ -242,9 +241,9 @@ class TestStore(base.StoreBaseTest,
         ChunkedFile.CHUNKSIZE = units.Ki
         image_id = str(uuid.uuid4())
         file_size = 5 * units.Ki  # 5K
-        file_contents = "*" * file_size
+        file_contents = b"*" * file_size
         path = os.path.join(self.test_dir, image_id)
-        image_file = StringIO.StringIO(file_contents)
+        image_file = six.BytesIO(file_contents)
 
         with mock.patch.object(__builtin__, 'open') as popen:
             e = IOError()
@@ -293,9 +292,9 @@ class TestStore(base.StoreBaseTest,
         ChunkedFile.CHUNKSIZE = units.Ki
         image_id = str(uuid.uuid4())
         file_size = 5 * units.Ki  # 5K
-        file_contents = "*" * file_size
+        file_contents = b"*" * file_size
         path = os.path.join(self.test_dir, image_id)
-        image_file = StringIO.StringIO(file_contents)
+        image_file = six.BytesIO(file_contents)
 
         def fake_Error(size):
             raise AttributeError()
@@ -315,8 +314,8 @@ class TestStore(base.StoreBaseTest,
         # First add an image
         image_id = str(uuid.uuid4())
         file_size = 5 * units.Ki  # 5K
-        file_contents = "*" * file_size
-        image_file = StringIO.StringIO(file_contents)
+        file_contents = b"*" * file_size
+        image_file = six.BytesIO(file_contents)
 
         loc, size, checksum, _ = self.store.add(image_id,
                                                 image_file,
@@ -348,8 +347,8 @@ class TestStore(base.StoreBaseTest,
         # First add an image
         image_id = str(uuid.uuid4())
         file_size = 5 * units.Ki  # 5K
-        file_contents = "*" * file_size
-        image_file = StringIO.StringIO(file_contents)
+        file_contents = b"*" * file_size
+        image_file = six.BytesIO(file_contents)
 
         loc, size, checksum, _ = self.store.add(image_id,
                                                 image_file,
@@ -508,11 +507,11 @@ class TestStore(base.StoreBaseTest,
         ChunkedFile.CHUNKSIZE = 1024
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
-        expected_file_contents = "*" * expected_file_size
+        expected_file_contents = b"*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store_map[1],
                                               expected_image_id)
-        image_file = six.StringIO(expected_file_contents)
+        image_file = six.BytesIO(expected_file_contents)
 
         loc, size, checksum, _ = self.store.add(expected_image_id,
                                                 image_file,
@@ -525,7 +524,7 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(expected_location,
                                              conf=self.conf)
         (new_image_file, new_image_size) = self.store.get(loc)
-        new_image_contents = ""
+        new_image_contents = b""
         new_image_file_size = 0
 
         for chunk in new_image_file:
@@ -552,11 +551,11 @@ class TestStore(base.StoreBaseTest,
         ChunkedFile.CHUNKSIZE = units.Ki
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
-        expected_file_contents = "*" * expected_file_size
+        expected_file_contents = b"*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store_map[1],
                                               expected_image_id)
-        image_file = six.StringIO(expected_file_contents)
+        image_file = six.BytesIO(expected_file_contents)
 
         loc, size, checksum, _ = self.store.add(expected_image_id,
                                                 image_file,
@@ -569,7 +568,7 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(expected_location,
                                              conf=self.conf)
         (new_image_file, new_image_size) = self.store.get(loc)
-        new_image_contents = ""
+        new_image_contents = b""
         new_image_file_size = 0
 
         for chunk in new_image_file:
@@ -604,8 +603,8 @@ class TestStore(base.StoreBaseTest,
             ChunkedFile.CHUNKSIZE = units.Ki
             expected_image_id = str(uuid.uuid4())
             expected_file_size = 5 * units.Ki  # 5K
-            expected_file_contents = "*" * expected_file_size
-            image_file = six.StringIO(expected_file_contents)
+            expected_file_contents = b"*" * expected_file_size
+            image_file = six.BytesIO(expected_file_contents)
 
             self.assertRaises(exceptions.StorageFull, self.store.add,
                               expected_image_id, image_file,
@@ -657,11 +656,11 @@ class TestStore(base.StoreBaseTest,
         Store.WRITE_CHUNKSIZE = units.Ki
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
-        expected_file_contents = "*" * expected_file_size
+        expected_file_contents = b"*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store,
                                               expected_image_id)
-        image_file = six.StringIO(expected_file_contents)
+        image_file = six.BytesIO(expected_file_contents)
 
         location, size, checksum, _ = self.store.add(expected_image_id,
                                                      image_file,
@@ -698,11 +697,11 @@ class TestStore(base.StoreBaseTest,
         Store.WRITE_CHUNKSIZE = units.Ki
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
-        expected_file_contents = "*" * expected_file_size
+        expected_file_contents = b"*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store,
                                               expected_image_id)
-        image_file = six.StringIO(expected_file_contents)
+        image_file = six.BytesIO(expected_file_contents)
 
         location, size, checksum, _ = self.store.add(expected_image_id,
                                                      image_file,

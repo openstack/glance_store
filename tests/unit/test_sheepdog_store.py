@@ -13,10 +13,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import StringIO
-
 import mock
 from oslo_concurrency import processutils
+import six
 
 from glance_store._drivers import sheepdog
 from glance_store import exceptions
@@ -52,7 +51,7 @@ class TestSheepdogStore(base.StoreBaseTest,
 
         with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
             cmd.side_effect = _fake_run_command
-            data = StringIO.StringIO('xx')
+            data = six.BytesIO(b'xx')
             self.store.add('fake_image_id', data, 2)
             self.assertEqual(called_commands, ['list -r', 'create', 'write'])
 
