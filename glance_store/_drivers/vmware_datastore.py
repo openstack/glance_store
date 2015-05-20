@@ -155,18 +155,18 @@ class _ChunkReader(_Reader):
 
     def __init__(self, data, blocksize=8192):
         self.blocksize = blocksize
-        self.current_chunk = ""
+        self.current_chunk = b""
         self.closed = False
         super(_ChunkReader, self).__init__(data)
 
     def read(self, size=None):
-        ret = ""
+        ret = b""
         while size is None or size >= len(self.current_chunk):
             ret += self.current_chunk
             if size is not None:
                 size -= len(self.current_chunk)
             if self.closed:
-                self.current_chunk = ""
+                self.current_chunk = b""
                 break
             self._get_chunk()
         else:
@@ -181,9 +181,14 @@ class _ChunkReader(_Reader):
             self._size += chunk_len
             self.checksum.update(chunk)
             if chunk:
-                self.current_chunk = '%x\r\n%s\r\n' % (chunk_len, chunk)
+                if six.PY3:
+                    size_header = ('%x\r\n' % chunk_len).encode('ascii')
+                    self.current_chunk = b''.join((size_header, chunk,
+                                                   b'\r\n'))
+                else:
+                    self.current_chunk = b'%x\r\n%s\r\n' % (chunk_len, chunk)
             else:
-                self.current_chunk = '0\r\n\r\n'
+                self.current_chunk = b'0\r\n\r\n'
                 self.closed = True
 
 
