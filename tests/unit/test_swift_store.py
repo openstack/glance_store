@@ -1447,6 +1447,7 @@ class TestChunkReader(base.StoreBaseTest):
                 break
         self.assertEqual(units.Ki, bytes_read)
         data_file.close()
+        infile.close()
 
 
 class TestMultipleContainers(base.StoreBaseTest):
