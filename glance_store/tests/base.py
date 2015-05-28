@@ -20,6 +20,7 @@ import shutil
 import fixtures
 from oslo_config import cfg
 from oslotest import base
+import six
 
 import glance_store as store
 from glance_store import location
@@ -66,7 +67,7 @@ class StoreBaseTest(base.BaseTestCase):
         test by the fixtures cleanup process.
         """
         group = kw.pop('group', 'glance_store')
-        for k, v in kw.iteritems():
+        for k, v in six.iteritems(kw):
             self.conf.set_override(k, v, group)
 
     def register_store_schemes(self, store, store_entry):

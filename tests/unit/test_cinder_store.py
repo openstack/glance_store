@@ -14,8 +14,8 @@
 #    under the License.
 
 import mock
-
 from oslo_utils import units
+import six
 
 import glance_store
 from glance_store._drivers import cinder
@@ -27,7 +27,7 @@ from tests.unit import test_store_capabilities
 
 class FakeObject(object):
     def __init__(self, **kwargs):
-        for name, value in kwargs.iteritems():
+        for name, value in six.iteritems(kwargs):
             setattr(self, name, value)
 
 
@@ -52,8 +52,9 @@ class TestCinderStore(base.StoreBaseTest,
 
     def test_cinder_get_size(self):
         fake_client = FakeObject(auth_token=None, management_url=None)
-        fake_volumes = {'12345678-9012-3455-6789-012345678901':
-                        FakeObject(size=5)}
+        fake_volume_uuid = '12345678-9012-3455-6789-012345678901'
+        fake_volume = FakeObject(size=5)
+        fake_volumes = {fake_volume_uuid: fake_volume}
 
         with mock.patch.object(cinder, 'get_cinderclient') as mocked_cc:
             mocked_cc.return_value = FakeObject(client=fake_client,
@@ -68,11 +69,10 @@ class TestCinderStore(base.StoreBaseTest,
                                       auth_tok='fake_token',
                                       tenant='fake_tenant')
 
-            uri = 'cinder://%s' % fake_volumes.keys()[0]
+            uri = 'cinder://%s' % fake_volume_uuid
             loc = location.get_location_from_uri(uri, conf=self.conf)
             image_size = self.store.get_size(loc, context=fake_context)
-            self.assertEqual(image_size,
-                             fake_volumes.values()[0].size * units.Gi)
+            self.assertEqual(image_size, fake_volume.size * units.Gi)
 
     def test_cinder_delete_raise_error(self):
         uri = 'cinder://12345678-9012-3455-6789-012345678901'

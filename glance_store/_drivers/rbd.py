@@ -25,6 +25,7 @@ import urllib
 
 from oslo_config import cfg
 from oslo_utils import units
+import six
 
 from glance_store import capabilities
 from glance_store.common import utils
@@ -83,7 +84,7 @@ class StoreLocation(location.StoreLocation):
 
     def process_specs(self):
         # convert to ascii since librbd doesn't handle unicode
-        for key, value in self.specs.iteritems():
+        for key, value in six.iteritems(self.specs):
             self.specs[key] = str(value)
         self.fsid = self.specs.get('fsid')
         self.pool = self.specs.get('pool')

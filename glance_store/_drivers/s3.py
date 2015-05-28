@@ -792,7 +792,7 @@ def get_calling_format(bucket_format=None,
 
 def get_mpu_xml(pedict):
     xml = '<CompleteMultipartUpload>\n'
-    for pnum, etag in pedict.iteritems():
+    for pnum, etag in six.iteritems(pedict):
         xml += '  <Part>\n'
         xml += '    <PartNumber>%d</PartNumber>\n' % pnum
         xml += '    <ETag>%s</ETag>\n' % etag

@@ -256,7 +256,7 @@ class Store(glance_store.driver.Store):
         :raises: BadStoreConfiguration exception if metadata is not valid.
         """
         try:
-            with open(metadata_file, 'r') as fptr:
+            with open(metadata_file, 'rb') as fptr:
                 metadata = jsonutils.load(fptr)
 
             if isinstance(metadata, dict):
@@ -388,7 +388,7 @@ class Store(glance_store.driver.Store):
                empty directory path is specified.
         """
         priority = 0
-        parts = map(lambda x: x.strip(), datadir.rsplit(":", 1))
+        parts = [part.strip() for part in datadir.rsplit(":", 1)]
         datadir_path = parts[0]
         if len(parts) == 2 and parts[1]:
             priority = parts[1]

@@ -356,7 +356,7 @@ class Store(glance_store.Store):
 
     def _parse_datastore_info_and_weight(self, datastore):
         weight = 0
-        parts = map(lambda x: x.strip(), datastore.rsplit(":", 2))
+        parts = [part.strip() for part in datastore.rsplit(":", 2)]
         if len(parts) < 2:
             msg = _('vmware_datastores format must be '
                     'datacenter_path:datastore_name:weight or '
@@ -490,7 +490,8 @@ class Store(glance_store.Store):
                              'image_id': image_id}, self.conf)
         # NOTE(arnaud): use a decorator when the config is not tied to self
         cookie = self._build_vim_cookie_header(True)
-        headers = dict(headers.items() + {'Cookie': cookie}.items())
+        headers = dict(headers)
+        headers['Cookie'] = cookie
         conn_class = self._get_http_conn_class()
         conn = conn_class(loc.server_host)
         url = urlparse.quote('%s?%s' % (loc.path, loc.query))
@@ -548,7 +549,7 @@ class Store(glance_store.Store):
 
             def another(self):
                 try:
-                    return self.wrapped.next()
+                    return next(self.wrapped)
                 except StopIteration:
                     return ''
 
