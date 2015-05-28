@@ -2,7 +2,7 @@ glance_store
 ============
 
 The glance_store library supports the creation, deletion and gather of data
-assets from/to a set of several, different, storage technologies
+assets from/to a set of several, different, storage technologies.
 
 Contents
 ========
@@ -12,6 +12,16 @@ Contents
 
 Release Notes
 =============
+
+0.6.0
+-----
+
+* Dropped py26 support
+* Disable propagating BadStoreConfiguration
+* _1454695: Sync with global-requirements
+* Handle optional dependency in vmware store
+
+.. _1454695: https://bugs.launchpad.net/glance-store/+bug/1454695
 
 0.5.0
 -----
