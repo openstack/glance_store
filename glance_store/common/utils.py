@@ -150,4 +150,6 @@ def exception_to_str(exc):
         except UnicodeError:
             error = ("Caught '%(exception)s' exception." %
                      {"exception": exc.__class__.__name__})
-    return encodeutils.safe_encode(error, errors='ignore')
+    if six.PY2:
+        error = encodeutils.safe_encode(error, errors='ignore')
+    return error
