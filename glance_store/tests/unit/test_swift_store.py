@@ -1041,6 +1041,15 @@ class TestStoreAuthV2(TestStoreAuthV1):
         self.assertEqual('swift', loc.store_name)
 
 
+class TestStoreAuthV3(TestStoreAuthV1):
+
+    def getConfig(self):
+        conf = super(TestStoreAuthV3, self).getConfig()
+        conf['swift_store_auth_version'] = '3'
+        conf['swift_store_user'] = 'tenant:user1'
+        return conf
+
+
 class FakeConnection(object):
     def __init__(self, authurl, user, key, retries=5, preauthurl=None,
                  preauthtoken=None, starting_backoff=1, tenant_name=None,
@@ -1201,6 +1210,52 @@ class TestSingleTenantStoreConnections(base.StoreBaseTest):
         self.assertRaises(exceptions.BadStoreUri,
                           self.location.parse_uri,
                           self.location.uri)
+
+    def test_ref_overrides_defaults(self):
+        self.config(swift_store_auth_version='2',
+                    swift_store_user='testuser',
+                    swift_store_key='testpass',
+                    swift_store_auth_address='testaddress',
+                    swift_store_endpoint_type='internalURL',
+                    swift_store_config_file='somefile')
+
+        self.store.ref_params = {'ref1': {'auth_address': 'authurl.com',
+                                          'auth_version': '3',
+                                          'user': 'user:pass',
+                                          'user_domain_id': 'default',
+                                          'user_domain_name': 'ignored',
+                                          'project_domain_id': 'default',
+                                          'project_domain_name': 'ignored'}}
+
+        self.store.configure()
+
+        self.assertEqual('user:pass', self.store.user)
+        self.assertEqual('3', self.store.auth_version)
+        self.assertEqual('authurl.com', self.store.auth_address)
+        self.assertEqual('default', self.store.user_domain_id)
+        self.assertEqual('ignored', self.store.user_domain_name)
+        self.assertEqual('default', self.store.project_domain_id)
+        self.assertEqual('ignored', self.store.project_domain_name)
+
+    def test_with_v3_auth(self):
+        self.store.ref_params = {'ref1': {'auth_address': 'authurl.com',
+                                          'auth_version': '3',
+                                          'user': 'user:pass',
+                                          'key': 'password',
+                                          'user_domain_id': 'default',
+                                          'user_domain_name': 'ignored',
+                                          'project_domain_id': 'default',
+                                          'project_domain_name': 'ignored'}}
+        self.store.configure()
+        connection = self.store.get_connection(self.location)
+        self.assertEqual('3', connection.auth_version)
+        self.assertEqual(connection.os_options,
+                         {'service_type': 'object-store',
+                          'endpoint_type': 'publicURL',
+                          'user_domain_id': 'default',
+                          'user_domain_name': 'ignored',
+                          'project_domain_id': 'default',
+                          'project_domain_name': 'ignored'})
 
 
 class TestMultiTenantStoreConnections(base.StoreBaseTest):

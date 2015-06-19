@@ -48,10 +48,6 @@ DEFAULT_LARGE_OBJECT_CHUNK_SIZE = 200  # 200M
 ONE_MB = units.k * units.Ki  # Here we used the mixed meaning of MB
 
 _SWIFT_OPTS = [
-    cfg.StrOpt('swift_store_auth_version', default='2',
-               help=_('Version of the authentication service to use. '
-                      'Valid versions are 2 for keystone and 1 for swauth '
-                      'and rackspace. (deprecated)')),
     cfg.BoolOpt('swift_store_auth_insecure', default=False,
                 help=_('If True, swiftclient won\'t check for a valid SSL '
                        'certificate when authenticating.')),
@@ -728,8 +724,14 @@ class SingleTenantStore(BaseStore):
         self.ref_params = sutils.SwiftParams(self.conf).params
 
     def configure(self, re_raise_bsc=False):
-        super(SingleTenantStore, self).configure(re_raise_bsc=re_raise_bsc)
+        # set configuration before super so configure_add can override
         self.auth_version = self._option_get('swift_store_auth_version')
+        self.user_domain_id = None
+        self.user_domain_name = None
+        self.project_domain_id = None
+        self.project_domain_name = None
+
+        super(SingleTenantStore, self).configure(re_raise_bsc=re_raise_bsc)
 
     def configure_add(self):
         default_ref = self.conf.glance_store.default_swift_reference
@@ -746,8 +748,15 @@ class SingleTenantStore(BaseStore):
         else:
             self.scheme = 'swift+https'
         self.container = self.conf.glance_store.swift_store_container
+        self.auth_version = default_swift_reference.get('auth_version')
         self.user = default_swift_reference.get('user')
         self.key = default_swift_reference.get('key')
+        self.user_domain_id = default_swift_reference.get('user_domain_id')
+        self.user_domain_name = default_swift_reference.get('user_domain_name')
+        self.project_domain_id = default_swift_reference.get(
+            'project_domain_id')
+        self.project_domain_name = default_swift_reference.get(
+            'project_domain_name')
 
         if not (self.user or self.key):
             reason = _("A value for swift_store_ref_params is required.")
@@ -811,7 +820,7 @@ class SingleTenantStore(BaseStore):
         if not auth_url.endswith('/'):
             auth_url += '/'
 
-        if self.auth_version == '2':
+        if self.auth_version in ('2', '3'):
             try:
                 tenant_name, user = location.user.split(':')
             except ValueError:
@@ -828,6 +837,14 @@ class SingleTenantStore(BaseStore):
             os_options['region_name'] = self.region
         os_options['endpoint_type'] = self.endpoint_type
         os_options['service_type'] = self.service_type
+        if self.user_domain_id:
+            os_options['user_domain_id'] = self.user_domain_id
+        if self.user_domain_name:
+            os_options['user_domain_name'] = self.user_domain_name
+        if self.project_domain_id:
+            os_options['project_domain_id'] = self.project_domain_id
+        if self.project_domain_name:
+            os_options['project_domain_name'] = self.project_domain_name
 
         return swiftclient.Connection(
             auth_url, user, location.key, preauthurl=self.conf_endpoint,
