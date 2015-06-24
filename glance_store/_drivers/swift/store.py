@@ -418,7 +418,7 @@ class BaseStore(driver.Store):
 
         try:
             resp_headers, resp_body = connection.get_object(
-                container=location.container, obj=location.obj,
+                location.container, location.obj,
                 resp_chunk_size=self.CHUNKSIZE, headers=headers)
         except swiftclient.ClientException as e:
             if e.http_status == http_client.NOT_FOUND:
@@ -456,7 +456,7 @@ class BaseStore(driver.Store):
             connection = self.get_connection(location, context=context)
         try:
             resp_headers = connection.head_object(
-                container=location.container, obj=location.obj)
+                location.container, location.obj)
             return int(resp_headers.get('content-length', 0))
         except Exception:
             return 0
