@@ -126,6 +126,18 @@ _SWIFT_OPTS = [
 
 
 def swift_retry_iter(resp_iter, length, store, location, context):
+    if not length and isinstance(resp_iter, six.BytesIO):
+        if six.PY3:
+            # On Python 3, io.BytesIO does not have a len attribute, instead
+            # go the end using seek to get the size of the file
+            pos = resp_iter.tell()
+            resp_iter.seek(0, 2)
+            length = resp_iter.tell()
+            resp_iter.seek(pos)
+        else:
+            # On Python 2, StringIO has a len attribute
+            length = resp_iter.len
+
     length = length if length else (resp_iter.len
                                     if hasattr(resp_iter, 'len') else 0)
     retries = 0
@@ -577,7 +589,7 @@ class BaseStore(driver.Store):
                 # Now we write the object manifest and return the
                 # manifest's etag...
                 manifest = "%s/%s-" % (location.container, location.obj)
-                headers = {'ETag': hashlib.md5("").hexdigest(),
+                headers = {'ETag': hashlib.md5(b"").hexdigest(),
                            'X-Object-Manifest': manifest}
 
                 # The ETag returned for the manifest is actually the
