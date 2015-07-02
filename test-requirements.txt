@@ -37,3 +37,6 @@ python-swiftclient>=2.2.0
 
 # GridFS backend
 pymongo>=2.6.3
+
+# Cinder backend
+python-cinderclient>=1.2.1
