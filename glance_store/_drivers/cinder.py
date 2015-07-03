@@ -14,9 +14,6 @@
 
 import logging
 
-from cinderclient import exceptions as cinder_exception
-from cinderclient import service_catalog
-from cinderclient.v2 import client as cinderclient
 from oslo_config import cfg
 from oslo_utils import units
 
@@ -26,6 +23,15 @@ import glance_store.driver
 from glance_store import exceptions
 from glance_store.i18n import _
 import glance_store.location
+
+try:
+    from cinderclient import exceptions as cinder_exception
+    from cinderclient import service_catalog
+    from cinderclient.v2 import client as cinderclient
+except ImportError:
+    cinder_exception = None
+    service_catalog = None
+    cinderclient = None
 
 LOG = logging.getLogger(__name__)
 
