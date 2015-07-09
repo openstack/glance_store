@@ -50,6 +50,7 @@ DEFAULT_SNAPNAME = 'snap'
 
 LOG = logging.getLogger(__name__)
 _LI = i18n._LI
+_LE = i18n._LE
 
 _RBD_OPTS = [
     cfg.IntOpt('rbd_store_chunk_size', default=DEFAULT_CHUNKSIZE,
@@ -379,6 +380,12 @@ class Store(driver.Store):
                             image.create_snap(loc.snapshot)
                             image.protect_snap(loc.snapshot)
                 except Exception as exc:
+                    log_msg = (_LE("Failed to store image %(img_name)s "
+                                   "Store Exception %(store_exc)s") %
+                               {'img_name': image_name,
+                                'store_exc': exc})
+                    LOG.error(log_msg)
+
                     # Delete image if one was created
                     try:
                         target_pool = loc.pool or self.pool
