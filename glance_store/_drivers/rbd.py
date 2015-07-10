@@ -15,9 +15,7 @@
 
 """Storage backend for RBD
    (RADOS (Reliable Autonomic Distributed Object Store) Block Device)"""
-from __future__ import absolute_import
-from __future__ import with_statement
-
+import contextlib
 import hashlib
 import logging
 import math
@@ -69,6 +67,10 @@ _RBD_OPTS = [
                       'If using cephx authentication, this file should '
                       'include a reference to the right keyring '
                       'in a client.<USER> section')),
+    cfg.IntOpt('rados_connect_timeout', default=0,
+               help=_('Timeout value (in seconds) used when connecting to '
+                      'ceph cluster. If value <= 0, no timeout is set and '
+                      'default librados value is used.'))
 ]
 
 
@@ -154,11 +156,12 @@ class ImageIterator(object):
         self.user = store.user
         self.conf_file = store.conf_file
         self.chunk_size = chunk_size or store.READ_CHUNKSIZE
+        self.store = store
 
     def __iter__(self):
         try:
-            with rados.Rados(conffile=self.conf_file,
-                             rados_id=self.user) as conn:
+            with self.store.get_connection(conffile=self.conf_file,
+                                           rados_id=self.user) as conn:
                 with conn.open_ioctx(self.pool) as ioctx:
                     with rbd.Image(ioctx, self.name,
                                    snapshot=self.snapshot) as image:
@@ -187,6 +190,21 @@ class Store(driver.Store):
     def get_schemes(self):
         return ('rbd',)
 
+    @contextlib.contextmanager
+    def get_connection(self, conffile, rados_id):
+        client = rados.Rados(conffile=conffile, rados_id=rados_id)
+
+        try:
+            client.connect(timeout=self.connect_timeout)
+        except rados.Error:
+            msg = _LE("Error connecting to ceph cluster.")
+            LOG.exception(msg)
+            raise exceptions.BackendException()
+        try:
+            yield client
+        finally:
+            client.shutdown()
+
     def configure_add(self):
         """
         Configure the Store to use the stored configuration options
@@ -205,6 +223,7 @@ class Store(driver.Store):
             self.pool = str(self.conf.glance_store.rbd_store_pool)
             self.user = str(self.conf.glance_store.rbd_store_user)
             self.conf_file = str(self.conf.glance_store.rbd_store_ceph_conf)
+            self.connect_timeout = self.conf.glance_store.rados_connect_timeout
         except cfg.ConfigFileValueError as e:
             reason = _("Error in store configuration: %s") % e
             LOG.error(reason)
@@ -239,8 +258,8 @@ class Store(driver.Store):
         # if there is a pool specific in the location, use it; otherwise
         # we fall back to the default pool specified in the config
         target_pool = loc.pool or self.pool
-        with rados.Rados(conffile=self.conf_file,
-                         rados_id=self.user) as conn:
+        with self.get_connection(conffile=self.conf_file,
+                                 rados_id=self.user) as conn:
             with conn.open_ioctx(target_pool) as ioctx:
                 try:
                     with rbd.Image(ioctx, loc.image,
@@ -287,7 +306,8 @@ class Store(driver.Store):
         :raises NotFound if image does not exist;
                 InUseByStore if image is in use or snapshot unprotect failed
         """
-        with rados.Rados(conffile=self.conf_file, rados_id=self.user) as conn:
+        with self.get_connection(conffile=self.conf_file,
+                                 rados_id=self.user) as conn:
             with conn.open_ioctx(target_pool) as ioctx:
                 try:
                     # First remove snapshot.
@@ -334,7 +354,8 @@ class Store(driver.Store):
         """
         checksum = hashlib.md5()
         image_name = str(image_id)
-        with rados.Rados(conffile=self.conf_file, rados_id=self.user) as conn:
+        with self.get_connection(conffile=self.conf_file,
+                                 rados_id=self.user) as conn:
             fsid = None
             if hasattr(conn, 'get_fsid'):
                 fsid = conn.get_fsid()
