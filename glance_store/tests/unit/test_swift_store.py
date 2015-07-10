@@ -830,7 +830,7 @@ class SwiftTests(object):
         loc = location.get_location_from_uri(uri, conf=self.conf)
         self.store.delete(loc)
 
-        mock_del_obj.assert_called_once()
+        self.assertEqual(1, mock_del_obj.call_count)
         _, kwargs = mock_del_obj.call_args
         self.assertEqual('multipart-manifest=delete',
                          kwargs.get('query_string'))
@@ -851,7 +851,7 @@ class SwiftTests(object):
         loc = location.get_location_from_uri(uri, conf=self.conf)
         self.store.delete(loc)
 
-        mock_del_obj.assert_called_once()
+        self.assertEqual(1, mock_del_obj.call_count)
         _, kwargs = mock_del_obj.call_args
         self.assertEqual(None, kwargs.get('query_string'))
 
