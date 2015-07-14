@@ -195,6 +195,10 @@ class UnsupportedHeaderFeature(GlanceStoreException):
     message = _("Provided header feature is unsupported: %(feature)s")
 
 
+class HasSnapshot(GlanceStoreException):
+    message = _("The image cannot be deleted because it has snapshot(s).")
+
+
 class InUseByStore(GlanceStoreException):
     message = _("The image cannot be deleted because it is in use through "
                 "the backend store outside of Glance.")
