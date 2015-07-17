@@ -268,7 +268,7 @@ class Store(driver.Store):
         if ((features is None) or (int(features) == 0)):
             features = rbd.RBD_FEATURE_LAYERING
         librbd.create(ioctx, image_name, size, order, old_format=False,
-                      features=features)
+                      features=int(features))
         return StoreLocation({
             'fsid': fsid,
             'pool': self.pool,
