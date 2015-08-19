@@ -40,7 +40,12 @@ S3_CONF = {'s3_store_access_key': 'user',
            's3_store_host': 'localhost:8080',
            's3_store_bucket': 'glance',
            's3_store_large_object_size': 5,        # over 5MB is large
-           's3_store_large_object_chunk_size': 6}  # part size is 6MB
+           's3_store_large_object_chunk_size': 6,  # part size is 6MB
+           's3_store_enable_proxy': False,
+           's3_store_proxy_host': None,
+           's3_store_proxy_port': 8080,
+           's3_store_proxy_user': 'user',
+           's3_store_proxy_password': 'foobar'}
 
 # ensure that mpu api is used and parts are uploaded as expected
 mpu_parts_uploaded = 0
@@ -586,3 +591,45 @@ class TestStore(base.StoreBaseTest,
     def test_calling_format_default(self):
         self.assertIsInstance(s3.get_calling_format(),
                               boto.s3.connection.SubdomainCallingFormat)
+
+    def test_image_get_with_proxy_without_host(self):
+        """Test s3 backend with unconfigured proxy connection."""
+        self.config(s3_store_enable_proxy=True)
+
+        loc = location.get_location_from_uri(
+            "s3://user:key@auth_address/glance/%s" % FAKE_UUID,
+            conf=self.conf)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.get, loc)
+
+    def test_image_get_with_proxy(self):
+        """Test s3 get with proxy connection."""
+        self.config(s3_store_enable_proxy=True)
+        proxy_host = '127.0.0.1'
+        self.config(s3_store_proxy_host=proxy_host)
+
+        with mock.patch.object(boto.s3.connection, 'S3Connection') as m:
+            cf = s3.get_calling_format(bucket_format=None,
+                                       s3_store_bucket_url_format='subdomain')
+
+            with mock.patch.object(s3, 'get_calling_format') as gcf:
+                gcf.return_value = cf
+
+                loc = location.get_location_from_uri(
+                    "s3://user:key@auth_address/glance/%s" % FAKE_UUID,
+                    conf=self.conf)
+                self.store.get(loc)
+
+                accesskey = S3_CONF['s3_store_access_key']
+                secretkey = S3_CONF['s3_store_secret_key']
+                proxy_port = S3_CONF['s3_store_proxy_port']
+                proxy_pass = S3_CONF['s3_store_proxy_password']
+                proxy_user = S3_CONF['s3_store_proxy_user']
+
+                m.assert_called_with(accesskey, secretkey,
+                                     calling_format=cf,
+                                     is_secure=False,
+                                     proxy=proxy_host,
+                                     proxy_pass=proxy_pass,
+                                     proxy_port=proxy_port,
+                                     proxy_user=proxy_user)

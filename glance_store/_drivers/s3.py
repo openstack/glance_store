@@ -78,6 +78,18 @@ _S3_OPTS = [
     cfg.IntOpt('s3_store_thread_pools', default=DEFAULT_THREAD_POOLS,
                help=_('The number of thread pools to perform a multipart '
                       'upload in S3.')),
+    cfg.BoolOpt('s3_store_enable_proxy', default=False,
+                help=_('Enable the use of a proxy.')),
+    cfg.StrOpt('s3_store_proxy_host',
+               help=_('Address or hostname for the proxy server.')),
+    cfg.IntOpt('s3_store_proxy_port', default=8080,
+               help=_('The port to use when connecting over a proxy.')),
+    cfg.StrOpt('s3_store_proxy_user',
+               default=None,
+               help=_('The username to connect to the proxy.')),
+    cfg.StrOpt('s3_store_proxy_password', secret=True,
+               default=None,
+               help=_('The password to use when connecting over a proxy.'))
 ]
 
 
@@ -371,6 +383,33 @@ class Store(glance_store.driver.Store):
                                                    reason=reason)
         return result
 
+    def _create_connection(self, loc):
+        from boto.s3.connection import S3Connection
+
+        s3host, s3port = netutils.parse_host_port(loc.s3serviceurl, 80)
+        uformat = self.conf.glance_store.s3_store_bucket_url_format
+        calling_format = get_calling_format(s3_store_bucket_url_format=uformat)
+        use_proxy = self.conf.glance_store.s3_store_enable_proxy
+
+        if use_proxy:
+            proxy_host = self._option_get('s3_store_proxy_host')
+            proxy_user = self.conf.glance_store.s3_store_proxy_user
+            proxy_pass = self.conf.glance_store.s3_store_proxy_password
+            proxy_port = self.conf.glance_store.s3_store_proxy_port
+
+            return S3Connection(loc.accesskey, loc.secretkey,
+                                proxy=proxy_host,
+                                proxy_port=proxy_port,
+                                proxy_user=proxy_user,
+                                proxy_pass=proxy_pass,
+                                is_secure=(loc.scheme == 's3+https'),
+                                calling_format=calling_format)
+
+        return S3Connection(loc.accesskey, loc.secretkey,
+                            host=s3host, port=s3port,
+                            is_secure=(loc.scheme == 's3+https'),
+                            calling_format=calling_format)
+
     @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
         """
@@ -410,16 +449,7 @@ class Store(glance_store.driver.Store):
 
     def _retrieve_key(self, location):
         loc = location.store_location
-        s3host, s3port = netutils.parse_host_port(loc.s3serviceurl, 80)
-        from boto.s3.connection import S3Connection
-
-        uformat = self.conf.glance_store.s3_store_bucket_url_format
-        calling_format = get_calling_format(s3_store_bucket_url_format=uformat)
-
-        s3_conn = S3Connection(loc.accesskey, loc.secretkey,
-                               host=s3host, port=s3port,
-                               is_secure=(loc.scheme == 's3+https'),
-                               calling_format=calling_format)
+        s3_conn = self._create_connection(loc)
         bucket_obj = get_bucket(s3_conn, loc.bucket)
 
         key = get_key(bucket_obj, loc.key)
@@ -459,8 +489,6 @@ class Store(glance_store.driver.Store):
             <BUCKET> = ``s3_store_bucket``
             <ID> = The id of the image being added
         """
-        from boto.s3.connection import S3Connection
-
         loc = StoreLocation({'scheme': self.scheme,
                              'bucket': self.bucket,
                              'key': image_id,
@@ -468,14 +496,7 @@ class Store(glance_store.driver.Store):
                              'accesskey': self.access_key,
                              'secretkey': self.secret_key}, self.conf)
 
-        s3host, s3port = netutils.parse_host_port(loc.s3serviceurl, 80)
-        uformat = self.conf.glance_store.s3_store_bucket_url_format
-        calling_format = get_calling_format(s3_store_bucket_url_format=uformat)
-
-        s3_conn = S3Connection(loc.accesskey, loc.secretkey,
-                               host=s3host, port=s3port,
-                               is_secure=(loc.scheme == 's3+https'),
-                               calling_format=calling_format)
+        s3_conn = self._create_connection(loc)
 
         create_bucket_if_missing(self.conf, self.bucket, s3_conn)
 
@@ -671,16 +692,7 @@ class Store(glance_store.driver.Store):
         :raises NotFound if image does not exist
         """
         loc = location.store_location
-        s3host, s3port = netutils.parse_host_port(loc.s3serviceurl, 80)
-        from boto.s3.connection import S3Connection
-
-        uformat = self.conf.glance_store.s3_store_bucket_url_format
-        calling_format = get_calling_format(s3_store_bucket_url_format=uformat)
-
-        s3_conn = S3Connection(loc.accesskey, loc.secretkey,
-                               host=s3host, port=s3port,
-                               is_secure=(loc.scheme == 's3+https'),
-                               calling_format=calling_format)
+        s3_conn = self._create_connection(loc)
         bucket_obj = get_bucket(s3_conn, loc.bucket)
 
         # Close the key when we're through.
