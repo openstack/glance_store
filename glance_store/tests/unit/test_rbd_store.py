@@ -26,6 +26,9 @@ from glance_store.tests.unit import test_store_capabilities
 
 class MockRados(object):
 
+    class Error(Exception):
+        pass
+
     class ioctx(object):
         def __init__(self, *args, **kwargs):
             pass
@@ -298,6 +301,23 @@ class TestStore(base.StoreBaseTest,
                        store_specs=self.store_specs)
         self.assertRaises(exceptions.StoreRandomGetNotSupported,
                           self.store.get, loc, chunk_size=1)
+
+    @mock.patch.object(MockRados.Rados, 'connect')
+    def test_rados_connect_timeout(self, mock_rados_connect):
+        socket_timeout = 1.5
+        self.config(rados_connect_timeout=socket_timeout)
+        self.store.configure()
+        with self.store.get_connection('conffile', 'rados_id'):
+            mock_rados_connect.assert_called_with(timeout=socket_timeout)
+
+    @mock.patch.object(MockRados.Rados, 'connect', side_effect=MockRados.Error)
+    def test_rados_connect_error(self, _):
+        rbd_store.rados.Error = MockRados.Error
+
+        def test():
+            with self.store.get_connection('conffile', 'rados_id'):
+                pass
+        self.assertRaises(exceptions.BackendException, test)
 
     def test_create_image_conf_features(self):
         # Tests that we use non-0 features from ceph.conf and cast to int.

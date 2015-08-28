@@ -76,6 +76,7 @@ class OptsTestCase(base.StoreBaseTest):
             'rbd_store_chunk_size',
             'rbd_store_pool',
             'rbd_store_user',
+            'rados_connect_timeout',
             's3_store_access_key',
             's3_store_bucket',
             's3_store_bucket_url_format',
