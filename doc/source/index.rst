@@ -13,6 +13,16 @@ Contents
 Release Notes
 =============
 
+0.9.0
+-----
+
+* s3-proxy-support_: Proxy support to S3 Store
+* rados-timeout_: Better handling of glance-api connections to rbd store
+
+.. _s3-proxy-support: https://blueprints.launchpad.net/glance/+spec/http-proxy-support-for-s3
+.. _rados-timeout: https://bugs.launchpad.net/glance-store/+bug/1469246
+
+
 0.6.0
 -----
 
