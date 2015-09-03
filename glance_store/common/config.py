@@ -27,6 +27,7 @@ from paste import deploy
 
 from glance.version import version_info as version
 from glance_store.common import utils
+from glance_store.i18n import _
 
 paste_deploy_opts = [
     cfg.StrOpt('flavor',
