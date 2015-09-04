@@ -507,7 +507,8 @@ class Store(glance_store.driver.Store):
                 LOG.debug(_("Deleting image at %(fn)s"), {'fn': fn})
                 os.unlink(fn)
             except OSError:
-                raise exceptions.Forbidden(_("You cannot delete file %s") % fn)
+                raise exceptions.Forbidden(
+                    message=(_("You cannot delete file %s") % fn))
         else:
             raise exceptions.NotFound(image=fn)
 
