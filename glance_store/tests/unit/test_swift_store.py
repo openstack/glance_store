@@ -92,7 +92,7 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
     def fake_put_container(url, token, container, **kwargs):
         fixture_containers.append(container)
 
-    def fake_post_container(url, token, container, headers, http_conn=None):
+    def fake_post_container(url, token, container, headers, **kwargs):
         for key, value in six.iteritems(headers):
             fixture_container_headers[key] = value
 
