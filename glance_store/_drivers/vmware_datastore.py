@@ -509,7 +509,7 @@ class Store(glance_store.Store):
             # error instead of returning the response.
             # See http://bugs.python.org/issue16062. Here, we log the error
             # and continue to look into the response.
-            msg = _LE('Communication error sending http %(method)s request'
+            msg = _LE('Communication error sending http %(method)s request '
                       'to the url %(url)s.\n'
                       'Got IOError %(e)s') % {'method': 'PUT',
                                               'url': url,
