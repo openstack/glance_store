@@ -15,7 +15,8 @@
 
 """Glance Store exception subclasses"""
 
-from six.moves import urllib
+import six
+import six.moves.urllib.parse as urlparse
 
 from glance_store import i18n
 
@@ -32,7 +33,7 @@ class UnsupportedBackend(BackendException):
 
 class RedirectException(Exception):
     def __init__(self, url):
-        self.url = urllib.parse.urlparse(url)
+        self.url = urlparse.urlparse(url)
 
 
 class GlanceStoreException(Exception):
@@ -43,11 +44,24 @@ class GlanceStoreException(Exception):
     a 'message' property. That message will get printf'd
     with the keyword arguments provided to the constructor.
     """
-    message = ''
+    message = _("An unknown exception occurred")
 
-    def __init__(self, **kwargs):
-        self.msg = kwargs.pop('message', None) or self.message % kwargs
-        super(Exception, self).__init__(self.msg)
+    def __init__(self, message=None, **kwargs):
+        if not message:
+            message = self.message
+        try:
+            if kwargs:
+                message = message % kwargs
+        except Exception:
+                pass
+        self.msg = message
+        super(GlanceStoreException, self).__init__(message)
+
+    def __unicode__(self):
+        # NOTE(flwang): By default, self.msg is an instance of Message, which
+        # can't be converted by str(). Based on the definition of
+        # __unicode__, it should return unicode always.
+        return six.text_type(self.msg)
 
 
 class MissingCredentialError(GlanceStoreException):
