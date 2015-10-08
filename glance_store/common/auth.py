@@ -37,6 +37,7 @@ from six.moves import range
 from six.moves import urllib
 
 from glance_store import exceptions
+from glance_store.i18n import _
 
 
 LOG = logging.getLogger(__name__)

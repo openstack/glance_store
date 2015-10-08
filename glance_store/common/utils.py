@@ -28,6 +28,8 @@ except ImportError:
 from oslo_utils import encodeutils
 import six
 
+from glance_store.i18n import _
+
 
 LOG = logging.getLogger(__name__)
 
