@@ -47,6 +47,7 @@ _LW = i18n._LW
 
 _FILESYSTEM_CONFIGS = [
     cfg.StrOpt('filesystem_store_datadir',
+               default='/var/lib/glance/images',
                help=_('Directory to which the Filesystem backend '
                       'store writes images.')),
     cfg.MultiStrOpt('filesystem_store_datadirs',

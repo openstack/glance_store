@@ -1,0 +1,5 @@
+---
+other:
+  - For years, `/var/lib/glance/images` has been presented as the default dir
+    for the filesystem store. It was not part of the default value until now.
+    New deployments and ppl overriding config files should watch for this.
