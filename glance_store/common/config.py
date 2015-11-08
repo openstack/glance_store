@@ -107,7 +107,7 @@ common_opts = [
                 help=_("Deploy the v1 OpenStack Images API.")),
     cfg.BoolOpt('enable_v2_api', default=True,
                 help=_("Deploy the v2 OpenStack Images API.")),
-    cfg.StrOpt('pydev_worker_debug_host', default=None,
+    cfg.StrOpt('pydev_worker_debug_host',
                help=_('The hostname/IP of the pydev process listening for '
                       'debug connections')),
     cfg.IntOpt('pydev_worker_debug_port', default=5678,

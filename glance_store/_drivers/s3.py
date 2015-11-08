@@ -85,10 +85,8 @@ _S3_OPTS = [
     cfg.IntOpt('s3_store_proxy_port', default=8080,
                help=_('The port to use when connecting over a proxy.')),
     cfg.StrOpt('s3_store_proxy_user',
-               default=None,
                help=_('The username to connect to the proxy.')),
     cfg.StrOpt('s3_store_proxy_password', secret=True,
-               default=None,
                help=_('The password to use when connecting over a proxy.'))
 ]
 

@@ -62,7 +62,6 @@ _SWIFT_OPTS = [
                       'single tenant. This setting is only necessary if the '
                       'tenant has multiple swift endpoints.')),
     cfg.StrOpt('swift_store_endpoint',
-               default=None,
                help=_('If set, the configured endpoint will be used. If '
                       'None, the storage url from the auth response will be '
                       'used.')),
