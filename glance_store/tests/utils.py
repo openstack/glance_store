@@ -46,7 +46,8 @@ class FakeHTTPResponse(object):
         self.read = self.data.read
         self.status = status
         self.headers = headers or {'content-length': len(data)}
-        self.body = None
+        if not kwargs.get('no_response_body', False):
+            self.body = None
 
     def getheader(self, name, default=None):
         return self.headers.get(name.lower(), default)
