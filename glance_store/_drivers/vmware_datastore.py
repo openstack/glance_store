@@ -531,7 +531,7 @@ class Store(glance_store.Store):
                        '\nThe response body:\n%(body)s') %
                    {'image': image_id,
                     'status': res.status,
-                    'body': res.body})
+                    'body': getattr(res, 'body', None)})
             LOG.error(msg)
             raise exceptions.BackendException(msg)
 

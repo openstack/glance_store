@@ -70,10 +70,12 @@ class FakeHTTPConnection(object):
 
     def __init__(self, status=200, *args, **kwargs):
         self.status = status
+        self.no_response_body = kwargs.get('no_response_body', False)
         pass
 
     def getresponse(self):
-        return utils.FakeHTTPResponse(status=self.status)
+        return utils.FakeHTTPResponse(status=self.status,
+                                      no_response_body=self.no_response_body)
 
     def request(self, *_args, **_kwargs):
         pass
@@ -443,6 +445,22 @@ class TestStore(base.StoreBaseTest,
         self.session = mock.Mock()
         with self._mock_http_connection() as HttpConn:
             HttpConn.return_value = FakeHTTPConnection(status=401)
+            self.assertRaises(exceptions.BackendException,
+                              self.store.add,
+                              expected_image_id, image, expected_size)
+
+    @mock.patch.object(vm_store.Store, 'select_datastore')
+    @mock.patch.object(api, 'VMwareAPISession')
+    def test_unexpected_status_no_response_body(self, mock_api_session,
+                                                mock_select_datastore):
+        expected_image_id = str(uuid.uuid4())
+        expected_size = FIVE_KB
+        expected_contents = b"*" * expected_size
+        image = six.BytesIO(expected_contents)
+        self.session = mock.Mock()
+        with self._mock_http_connection() as HttpConn:
+            HttpConn.return_value = FakeHTTPConnection(status=500,
+                                                       no_response_body=True)
             self.assertRaises(exceptions.BackendException,
                               self.store.add,
                               expected_image_id, image, expected_size)
