@@ -13,6 +13,29 @@ Contents
 Release Notes
 =============
 
+0.10.0
+------
+
+* Updated from global requirements
+* Imported Translations from Zanata
+* ATTN: After upgrading to glance_store 0.10.1 store options defined in config files under [DEFAULT] section will not work. Logic taking them was removed after deprecation period.
+
+* be3d7a6 Remove useless config.py file
+* 1517275_: vmware: check for response body in error conditions
+* 1323975_: remove default=None for config options
+* d59254e: Remove deprecated glance_store opts from default section
+* 1501443_: Improving GlanceStoreException
+* 1502332_: '_' is used by i18n
+* cc36d53: VMware: Fix missing space in error message
+* c2b8702: Handle swift store's optional dependency
+* 1485792_: Catch InvalidURL when requesting store size
+
+.. _1517275: https://bugs.launchpad.net/glance-store/+bug/1517275
+.. _1323975: https://bugs.launchpad.net/glance/+bug/1323975
+.. _1501443: https://bugs.launchpad.net/glance-store/+bug/1501443
+.. _1502332: https://bugs.launchpad.net/glance-store/+bug/1502332
+.. _1485792: https://bugs.launchpad.net/glance-store/+bug/1485792
+
 0.9.0
 -----
 
