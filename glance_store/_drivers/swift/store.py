@@ -33,7 +33,6 @@ except ImportError:
 import glance_store
 from glance_store._drivers.swift import utils as sutils
 from glance_store import capabilities
-from glance_store.common import auth
 from glance_store.common import utils as cutils
 from glance_store import driver
 from glance_store import exceptions
@@ -870,9 +869,10 @@ class MultiTenantStore(BaseStore):
                                                    reason=reason)
         self.storage_url = self.conf_endpoint
         if not self.storage_url:
-            self.storage_url = auth.get_endpoint(
-                context.service_catalog, service_type=self.service_type,
-                endpoint_region=self.region, endpoint_type=self.endpoint_type)
+
+            self.storage_url = context.service_catalog.url_for(
+                service_type=self.service_type, region_name=self.region,
+                endpoint_type=self.endpoint_type)
 
         if self.storage_url.startswith('http://'):
             self.scheme = 'swift+http'
