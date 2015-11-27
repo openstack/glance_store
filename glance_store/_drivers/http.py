@@ -89,6 +89,15 @@ class StoreLocation(glance_store.location.StoreLocation):
         if netloc == '':
             LOG.info(_("No address specified in HTTP URL"))
             raise exceptions.BadStoreUri(uri=uri)
+        else:
+            # IPv6 address has the following format [1223:0:0:..]:<some_port>
+            # we need to be sure that we are validating port in both IPv4,IPv6
+            delimiter = "]:" if netloc.count(":") > 1 else ":"
+            host, dlm, port = netloc.partition(delimiter)
+            # if port is present in location then validate port format
+            if port and not port.isdigit():
+                raise exceptions.BadStoreUri(uri=uri)
+
         self.netloc = netloc
         self.path = path
 

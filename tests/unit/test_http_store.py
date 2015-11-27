@@ -150,6 +150,27 @@ class TestHttpStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(uri, conf=self.conf)
         self.assertRaises(exceptions.NotFound, self.store.get_size, loc)
 
+    def test_http_store_location_initialization(self):
+        """Test store location initialization from valid uris"""
+        uris = [
+            "http://127.0.0.1:8000/ubuntu.iso",
+            "http://openstack.com:80/ubuntu.iso",
+            "http://[1080::8:800:200C:417A]:80/ubuntu.iso"
+        ]
+        for uri in uris:
+            location.get_location_from_uri(uri)
+
+    def test_http_store_location_initialization_with_invalid_url(self):
+        """Test store location initialization from incorrect uris."""
+        incorrect_uris = [
+            "http://127.0.0.1:~/ubuntu.iso",
+            "http://openstack.com:some_text/ubuntu.iso",
+            "http://[1080::8:800:200C:417A]:some_text/ubuntu.iso"
+        ]
+        for uri in incorrect_uris:
+            self.assertRaises(exceptions.BadStoreUri,
+                              location.get_location_from_uri, uri)
+
     def test_http_get_raises_remote_service_unavailable(self):
         """Test http store raises RemoteServiceUnavailable."""
         uri = "http://netloc/path/to/file.tar.gz"
