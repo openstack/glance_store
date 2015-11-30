@@ -42,8 +42,11 @@ class TestSheepdogStore(base.StoreBaseTest,
         self.addCleanup(execute.stop)
         self.store = sheepdog.Store(self.conf)
         self.store.configure()
+        self.store_specs = {'image': 'fake_image',
+                            'addr': 'fake_addr',
+                            'port': 'fake_port'}
 
-    def test_cleanup_when_add_image_exception(self):
+    def test_add_image(self):
         called_commands = []
 
         def _fake_run_command(command, data, *params):
@@ -52,11 +55,81 @@ class TestSheepdogStore(base.StoreBaseTest,
         with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
             cmd.side_effect = _fake_run_command
             data = six.BytesIO(b'xx')
-            self.store.add('fake_image_id', data, 2)
+            ret = self.store.add('fake_image_id', data, 2)
             self.assertEqual(called_commands, ['list -r', 'create', 'write'])
+            self.assertEqual(ret[1], 2)
+
+    def test_cleanup_when_add_image_exception(self):
+        called_commands = []
+
+        def _fake_run_command(command, data, *params):
+            if command == 'write':
+                raise exceptions.BackendException
+            else:
+                called_commands.append(command)
+
+        with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
+            cmd.side_effect = _fake_run_command
+            data = six.BytesIO(b'xx')
+            self.assertRaises(exceptions.BackendException, self.store.add,
+                              'fake_image_id', data, 2)
+            self.assertTrue('delete' in called_commands)
+
+    def test_add_duplicate_image(self):
+        def _fake_run_command(command, data, *params):
+            if command == "list -r":
+                return "= fake_volume 0 1000"
+
+        with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
+            cmd.side_effect = _fake_run_command
+            data = six.BytesIO(b'xx')
+            self.assertRaises(exceptions.Duplicate, self.store.add,
+                              'fake_image_id', data, 2)
+
+    def test_get(self):
+        def _fake_run_command(command, data, *params):
+            if command == "list -r":
+                return "= fake_volume 0 1000"
+
+        with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
+            cmd.side_effect = _fake_run_command
+            loc = location.Location('test_sheepdog_store',
+                                    sheepdog.StoreLocation,
+                                    self.conf, store_specs=self.store_specs)
+            ret = self.store.get(loc)
+            self.assertEqual(ret[1], 1000)
 
     def test_partial_get(self):
         loc = location.Location('test_sheepdog_store', sheepdog.StoreLocation,
-                                self.conf, store_specs={'image': 'fake_image'})
+                                self.conf, store_specs=self.store_specs)
         self.assertRaises(exceptions.StoreRandomGetNotSupported,
                           self.store.get, loc, chunk_size=1)
+
+    def test_get_size(self):
+        def _fake_run_command(command, data, *params):
+            if command == "list -r":
+                return "= fake_volume 0 1000"
+
+        with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
+            cmd.side_effect = _fake_run_command
+            loc = location.Location('test_sheepdog_store',
+                                    sheepdog.StoreLocation,
+                                    self.conf, store_specs=self.store_specs)
+            ret = self.store.get_size(loc)
+            self.assertEqual(ret, 1000)
+
+    def test_delete(self):
+        called_commands = []
+
+        def _fake_run_command(command, data, *params):
+            called_commands.append(command)
+            if command == "list -r":
+                return "= fake_volume 0 1000"
+
+        with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
+            cmd.side_effect = _fake_run_command
+            loc = location.Location('test_sheepdog_store',
+                                    sheepdog.StoreLocation,
+                                    self.conf, store_specs=self.store_specs)
+            self.store.delete(loc)
+            self.assertEqual(called_commands, ['list -r', 'delete'])

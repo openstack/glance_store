@@ -81,7 +81,7 @@ class SheepdogImage(object):
         Sheepdog Usage: collie vdi list -r -a address -p port image
         """
         out = self._run_command("list -r", None)
-        return long(out.split(' ')[3])
+        return int(out.split(' ')[3])
 
     def read(self, offset, count):
         """
@@ -134,22 +134,34 @@ class StoreLocation(glance_store.location.StoreLocation):
     """
     Class describing a Sheepdog URI. This is of the form:
 
-        sheepdog://image
+        sheepdog://addr:port:image
 
     """
 
     def process_specs(self):
         self.image = self.specs.get('image')
+        self.addr = self.specs.get('addr')
+        self.port = self.specs.get('port')
 
     def get_uri(self):
-        return "sheepdog://%s" % self.image
+        return "sheepdog://%(addr)s:%(port)s:%(image)s" % {
+            'addr': self.addr,
+            'port': self.port,
+            'image': self.image}
 
     def parse_uri(self, uri):
         valid_schema = 'sheepdog://'
         if not uri.startswith(valid_schema):
-            reason = _("URI must start with '%s://'") % valid_schema
+            reason = _("URI must start with '%s'") % valid_schema
             raise exceptions.BadStoreUri(message=reason)
-        self.image = uri[11:]
+        pieces = uri[len(valid_schema):].split(':')
+        if len(pieces) == 3:
+            self.addr, self.port, self.image = pieces
+        # This is used for backwards compatibility.
+        else:
+            self.image = pieces[0]
+            self.port = self.conf.glance_store.sheepdog_store_port
+            self.addr = self.conf.glance_store.sheepdog_store_address
 
 
 class ImageIterator(object):
@@ -177,7 +189,7 @@ class Store(glance_store.driver.Store):
     _CAPABILITIES = (capabilities.BitMasks.RW_ACCESS |
                      capabilities.BitMasks.DRIVER_REUSABLE)
     OPTIONS = _SHEEPDOG_OPTS
-    EXAMPLE_URL = "sheepdog://image"
+    EXAMPLE_URL = "sheepdog://addr:port:image"
 
     def get_schemes(self):
         return ('sheepdog',)
@@ -225,7 +237,7 @@ class Store(glance_store.driver.Store):
         """
 
         loc = location.store_location
-        image = SheepdogImage(self.addr, self.port, loc.image,
+        image = SheepdogImage(loc.addr, loc.port, loc.image,
                               self.READ_CHUNKSIZE)
         if not image.exist():
             raise exceptions.NotFound(_("Sheepdog image %s does not exist")
@@ -244,7 +256,7 @@ class Store(glance_store.driver.Store):
         """
 
         loc = location.store_location
-        image = SheepdogImage(self.addr, self.port, loc.image,
+        image = SheepdogImage(loc.addr, loc.port, loc.image,
                               self.READ_CHUNKSIZE)
         if not image.exist():
             raise exceptions.NotFound(_("Sheepdog image %s does not exist")
@@ -273,7 +285,11 @@ class Store(glance_store.driver.Store):
             raise exceptions.Duplicate(_("Sheepdog image %s already exists")
                                        % image_id)
 
-        location = StoreLocation({'image': image_id}, self.conf)
+        location = StoreLocation({
+            'image': image_id,
+            'addr': self.addr,
+            'port': self.port
+        }, self.conf)
         checksum = hashlib.md5()
 
         image.create(image_size)
@@ -307,7 +323,7 @@ class Store(glance_store.driver.Store):
         """
 
         loc = location.store_location
-        image = SheepdogImage(self.addr, self.port, loc.image,
+        image = SheepdogImage(loc.addr, loc.port, loc.image,
                               self.WRITE_CHUNKSIZE)
         if not image.exist():
             raise exceptions.NotFound(_("Sheepdog image %s does not exist") %
