@@ -1078,6 +1078,37 @@ class SwiftTests(object):
         self.assertEqual(container_headers['X-Container-Write'],
                          'frank:*,jim:*')
 
+    @mock.patch("glance_store._drivers.swift."
+                "connection_manager.MultiTenantConnectionManager")
+    def test_get_connection_manager_multi_tenant(self, manager_class):
+        manager = mock.MagicMock()
+        manager_class.return_value = manager
+        self.config(swift_store_multi_tenant=True)
+        store = Store(self.conf)
+        store.configure()
+        loc = mock.MagicMock()
+        swift.get_manager_for_store(store, loc)
+        self.assertEqual(swift.get_manager_for_store(store, loc),
+                         manager)
+
+    @mock.patch("glance_store._drivers.swift."
+                "connection_manager.SingleTenantConnectionManager")
+    def test_get_connection_manager_single_tenant(self, manager_class):
+        manager = mock.MagicMock()
+        manager_class.return_value = manager
+        store = Store(self.conf)
+        store.configure()
+        loc = mock.MagicMock()
+        swift.get_manager_for_store(store, loc)
+        self.assertEqual(swift.get_manager_for_store(store, loc),
+                         manager)
+
+    def test_get_connection_manager_failed(self):
+        store = mock.MagicMock()
+        loc = mock.MagicMock()
+        self.assertRaises(NotImplementedError, swift.get_manager_for_store,
+                          store, loc)
+
 
 class TestStoreAuthV1(base.StoreBaseTest, SwiftTests,
                       test_store_capabilities.TestStoreCapabilitiesChecking):
