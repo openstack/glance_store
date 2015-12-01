@@ -34,7 +34,9 @@ _ = i18n._
 
 _STORE_OPTS = [
     cfg.ListOpt('stores', default=['file', 'http'],
-                help=_('List of stores enabled')),
+                help=_("List of stores enabled. Valid stores are: "
+                       "cinder, file, http, rbd, sheepdog, swift, "
+                       "s3, vsphere")),
     cfg.StrOpt('default_store', default='file',
                help=_("Default scheme to use to store image data. The "
                       "scheme must be registered by one of the stores "
