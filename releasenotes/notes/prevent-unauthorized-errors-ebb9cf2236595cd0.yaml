@@ -1,0 +1,12 @@
+---
+prelude: >
+    Prevent Unauthorized errors during uploading or
+    donwloading data to Swift store.
+features:
+  - Allow glance_store to refresh token when upload or download data to Swift
+  store. glance_store identifies if token is going to expire soon when
+  executing request to Swift and refresh the token. For multi-tenant swift
+  store glance_store uses trusts, for single-tenant swift store glance_store
+  uses credentials from swift store configurations. Please also note that
+  this feature is enabled if and only if Keystone V3 API is available
+  and enabled.
