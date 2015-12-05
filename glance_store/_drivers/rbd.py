@@ -318,26 +318,38 @@ class Store(driver.Store):
                         with rbd.Image(ioctx, image_name) as image:
                             try:
                                 image.unprotect_snap(snapshot_name)
-                            except rbd.ImageBusy:
-                                log_msg = _("snapshot %(image)s@%(snap)s "
-                                            "could not be unprotected because "
-                                            "it is in use")
-                                LOG.debug(log_msg %
-                                          {'image': image_name,
-                                           'snap': snapshot_name})
+                                image.remove_snap(snapshot_name)
+                            except rbd.ImageNotFound as exc:
+                                msg = (_("Snap Operating Exception "
+                                         "%(snap_exc)s "
+                                         "Snapshot does not exist.") %
+                                       {'snap_exc': exc})
+                                LOG.debug(msg)
+                            except rbd.ImageBusy as exc:
+                                log_msg = (_LE("Snap Operating Exception "
+                                               "%(snap_exc)s "
+                                               "Snapshot is in use.") %
+                                           {'snap_exc': exc})
+                                LOG.error(log_msg)
                                 raise exceptions.InUseByStore()
-                            image.remove_snap(snapshot_name)
 
                     # Then delete image.
                     rbd.RBD().remove(ioctx, image_name)
+                except rbd.ImageHasSnapshots:
+                    log_msg = (_LE("Remove image %(img_name)s failed. "
+                                   "It has snapshot(s) left.") %
+                               {'img_name': image_name})
+                    LOG.error(log_msg)
+                    raise exceptions.HasSnapshot()
+                except rbd.ImageBusy:
+                    log_msg = (_LE("Remove image %(img_name)s failed. "
+                                   "It is in use.") %
+                               {'img_name': image_name})
+                    LOG.error(log_msg)
+                    raise exceptions.InUseByStore()
                 except rbd.ImageNotFound:
                     msg = _("RBD image %s does not exist") % image_name
                     raise exceptions.NotFound(message=msg)
-                except rbd.ImageBusy:
-                    log_msg = _("image %s could not be removed "
-                                "because it is in use")
-                    LOG.debug(log_msg % image_name)
-                    raise exceptions.InUseByStore()
 
     @capabilities.check
     def add(self, image_id, image_file, image_size, context=None):
