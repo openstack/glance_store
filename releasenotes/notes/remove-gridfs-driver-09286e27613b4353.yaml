@@ -1,0 +1,7 @@
+---
+prelude: >
+    glance_store._drivers.gridfs
+deprecations:
+  - The gridfs driver has been removed from the tree.
+    The environments using this driver that were not
+    migrated will stop working after the upgrade.

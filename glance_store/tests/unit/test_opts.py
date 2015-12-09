@@ -69,8 +69,6 @@ class OptsTestCase(base.StoreBaseTest):
             'filesystem_store_datadirs',
             'filesystem_store_file_perm',
             'filesystem_store_metadata_file',
-            'mongodb_store_db',
-            'mongodb_store_uri',
             'os_region_name',
             'rbd_store_ceph_conf',
             'rbd_store_chunk_size',
