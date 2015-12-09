@@ -422,9 +422,9 @@ class Store(glance_store.driver.Store):
         where to find the image file, and returns a tuple of generator
         (for reading the image file) and image_size
 
-        :param location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                         from glance_store.location.get_location_from_uri()
-        :raises `glance_store.exceptions.NotFound` if image does not exist
+        :raises: `glance_store.exceptions.NotFound` if image does not exist
         """
         key = self._retrieve_key(location)
         cs = self.READ_CHUNKSIZE
@@ -443,7 +443,7 @@ class Store(glance_store.driver.Store):
         where to find the image file, and returns the image_size (or 0
         if unavailable)
 
-        :param location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                         from glance_store.location.get_location_from_uri()
         """
         try:
@@ -482,9 +482,9 @@ class Store(glance_store.driver.Store):
         :param image_size: The size of the image data to write, in bytes
         :param verifier: An object used to verify signatures for images
 
-        :retval tuple of URL in backing store, bytes written, checksum
+        :retval: tuple of URL in backing store, bytes written, checksum
                 and a dictionary with storage system specific information
-        :raises `glance_store.exceptions.Duplicate` if the image already
+        :raises: `glance_store.exceptions.Duplicate` if the image already
                 existed
 
         S3 writes the image data using the scheme:
@@ -703,10 +703,10 @@ class Store(glance_store.driver.Store):
         Takes a `glance_store.location.Location` object that indicates
         where to find the image file to delete
 
-        :location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                   from glance_store.location.get_location_from_uri()
 
-        :raises NotFound if image does not exist
+        :raises: NotFound if image does not exist
         """
         loc = location.store_location
         s3_conn = self._create_connection(loc)
@@ -732,7 +732,7 @@ def get_bucket(conn, bucket_id):
 
     :param conn: The ``boto.s3.connection.S3Connection``
     :param bucket_id: ID of the bucket to fetch
-    :raises ``glance_store.exceptions.NotFound`` if bucket is not found.
+    :raises: ``glance_store.exceptions.NotFound`` if bucket is not found.
     """
 
     bucket = conn.get_bucket(bucket_id)
@@ -799,7 +799,7 @@ def get_key(bucket, obj):
 
     :param bucket: The ``boto.s3.Bucket``
     :param obj: Object to get the key for
-    :raises ``glance_store.exceptions.NotFound`` if key is not found.
+    :raises: ``glance_store.exceptions.NotFound`` if key is not found.
     """
 
     key = bucket.get_key(obj)

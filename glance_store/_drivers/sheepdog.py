@@ -231,9 +231,9 @@ class Store(glance_store.driver.Store):
         where to find the image file, and returns a generator for reading
         the image file
 
-        :param location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                         from glance_store.location.get_location_from_uri()
-        :raises `glance_store.exceptions.NotFound` if image does not exist
+        :raises: `glance_store.exceptions.NotFound` if image does not exist
         """
 
         loc = location.store_location
@@ -249,10 +249,10 @@ class Store(glance_store.driver.Store):
         Takes a `glance_store.location.Location` object that indicates
         where to find the image file and returns the image size
 
-        :param location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                         from glance_store.location.get_location_from_uri()
-        :raises `glance_store.exceptions.NotFound` if image does not exist
-        :rtype int
+        :raises: `glance_store.exceptions.NotFound` if image does not exist
+        :param rtype: int
         """
 
         loc = location.store_location
@@ -276,8 +276,8 @@ class Store(glance_store.driver.Store):
         :param image_size: The size of the image data to write, in bytes
         :param verifier: An object used to verify signatures for images
 
-        :retval tuple of URL in backing store, bytes written, and checksum
-        :raises `glance_store.exceptions.Duplicate` if the image already
+        :retval: tuple of URL in backing store, bytes written, and checksum
+        :raises: `glance_store.exceptions.Duplicate` if the image already
                 existed
         """
 
@@ -320,10 +320,10 @@ class Store(glance_store.driver.Store):
         Takes a `glance_store.location.Location` object that indicates
         where to find the image file to delete
 
-        :location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                   from glance_store.location.get_location_from_uri()
 
-        :raises NotFound if image does not exist
+        :raises: NotFound if image does not exist
         """
 
         loc = location.store_location
