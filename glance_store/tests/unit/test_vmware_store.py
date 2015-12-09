@@ -217,6 +217,36 @@ class TestStore(base.StoreBaseTest,
         self.assertEqual(expected_size, size)
         self.assertEqual(expected_checksum, checksum)
 
+    @mock.patch.object(vm_store.Store, 'select_datastore')
+    @mock.patch('glance_store._drivers.vmware_datastore._Reader')
+    def test_add_with_verifier(self, fake_reader, fake_select_datastore):
+        """Test that the verifier is passed to the _Reader during add."""
+        verifier = mock.MagicMock(name='mock_verifier')
+        image_id = str(uuid.uuid4())
+        size = FIVE_KB
+        contents = b"*" * size
+        image = six.BytesIO(contents)
+        with self._mock_http_connection() as HttpConn:
+            HttpConn.return_value = FakeHTTPConnection()
+            self.store.add(image_id, image, size, verifier=verifier)
+
+        fake_reader.assert_called_with(image, verifier)
+
+    @mock.patch.object(vm_store.Store, 'select_datastore')
+    @mock.patch('glance_store._drivers.vmware_datastore._ChunkReader')
+    def test_add_with_verifier_size_zero(self, fake_reader, fake_select_ds):
+        """Test that the verifier is passed to the _ChunkReader during add."""
+        verifier = mock.MagicMock(name='mock_verifier')
+        image_id = str(uuid.uuid4())
+        size = FIVE_KB
+        contents = b"*" * size
+        image = six.BytesIO(contents)
+        with self._mock_http_connection() as HttpConn:
+            HttpConn.return_value = FakeHTTPConnection()
+            self.store.add(image_id, image, 0, verifier=verifier)
+
+        fake_reader.assert_called_with(image, verifier)
+
     @mock.patch('oslo_vmware.api.VMwareAPISession')
     def test_delete(self, mock_api_session):
         """Test we can delete an existing image in the VMware store."""
@@ -290,6 +320,14 @@ class TestStore(base.StoreBaseTest,
         self.assertEqual(expected_checksum, reader.checksum.hexdigest())
         self.assertEqual(1, reader.size)
 
+    def test_reader_with_verifier(self):
+        content = b'XXX'
+        image = six.BytesIO(content)
+        verifier = mock.MagicMock(name='mock_verifier')
+        reader = vm_store._Reader(image, verifier)
+        reader.read()
+        verifier.update.assert_called_with(content)
+
     def test_chunkreader_image_fits_in_blocksize(self):
         """
         Test that the image file reader returns the expected chunk of data
@@ -351,6 +389,14 @@ class TestStore(base.StoreBaseTest,
         self.assertEqual(expected_checksum, reader.checksum.hexdigest())
         self.assertEqual(len(content), reader.size)
         self.assertTrue(reader.closed)
+
+    def test_chunkreader_with_verifier(self):
+        content = b'XXX'
+        image = six.BytesIO(content)
+        verifier = mock.MagicMock(name='mock_verifier')
+        reader = vm_store._ChunkReader(image, verifier)
+        reader.read(size=3)
+        verifier.update.assert_called_with(content)
 
     def test_sanity_check_api_retry_count(self):
         """Test that sanity check raises if api_retry_count is <= 0."""

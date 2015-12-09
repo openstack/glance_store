@@ -264,7 +264,8 @@ class Store(glance_store.driver.Store):
         return image.get_size()
 
     @capabilities.check
-    def add(self, image_id, image_file, image_size, context=None):
+    def add(self, image_id, image_file, image_size, context=None,
+            verifier=None):
         """
         Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -273,6 +274,7 @@ class Store(glance_store.driver.Store):
         :param image_id: The opaque image identifier
         :param image_file: The image data to write, as a file-like object
         :param image_size: The size of the image data to write, in bytes
+        :param verifier: An object used to verify signatures for images
 
         :retval tuple of URL in backing store, bytes written, and checksum
         :raises `glance_store.exceptions.Duplicate` if the image already
@@ -302,6 +304,8 @@ class Store(glance_store.driver.Store):
                 image.write(data, total - left, length)
                 left -= length
                 checksum.update(data)
+                if verifier:
+                    verifier.update(data)
         except Exception:
             # Note(zhiyan): clean up already received data when
             # error occurs such as ImageSizeLimitExceeded exceptions.

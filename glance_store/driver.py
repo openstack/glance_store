@@ -125,7 +125,8 @@ class Store(capabilities.StoreCapability):
         raise NotImplementedError
 
     @capabilities.check
-    def add(self, image_id, image_file, image_size, context=None):
+    def add(self, image_id, image_file, image_size, context=None,
+            verifier=None):
         """
         Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information

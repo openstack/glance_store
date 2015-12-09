@@ -227,6 +227,20 @@ class TestStore(base.StoreBaseTest,
                               'fake_image_id', self.data_iter, self.data_len)
             self.called_commands_expected = ['create']
 
+    def test_add_with_verifier(self):
+        """Assert 'verifier.update' is called when verifier is provided."""
+        self.store.chunk_size = units.Ki
+        verifier = mock.MagicMock(name='mock_verifier')
+        image_id = 'fake_image_id'
+        file_size = 5 * units.Ki  # 5K
+        file_contents = b"*" * file_size
+        image_file = six.BytesIO(file_contents)
+
+        with mock.patch.object(rbd_store.rbd.Image, 'write'):
+            self.store.add(image_id, image_file, file_size, verifier=verifier)
+
+        verifier.update.assert_called_with(file_contents)
+
     def test_delete(self):
         def _fake_remove(*args, **kwargs):
             self.called_commands_actual.append('remove')

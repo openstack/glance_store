@@ -497,7 +497,7 @@ class BaseStore(driver.Store):
 
     @capabilities.check
     def add(self, image_id, image_file, image_size,
-            connection=None, context=None):
+            connection=None, context=None, verifier=None):
         location = self.create_location(image_id, context=context)
         if not connection:
             connection = self.get_connection(location, context=context)
@@ -544,7 +544,8 @@ class BaseStore(driver.Store):
                         content_length = chunk_size
 
                     chunk_name = "%s-%05d" % (location.obj, chunk_id)
-                    reader = ChunkReader(image_file, checksum, chunk_size)
+                    reader = ChunkReader(image_file, checksum, chunk_size,
+                                         verifier)
                     try:
                         chunk_etag = connection.put_object(
                             location.container, chunk_name, reader,
@@ -944,10 +945,11 @@ class MultiTenantStore(BaseStore):
 
 
 class ChunkReader(object):
-    def __init__(self, fd, checksum, total):
+    def __init__(self, fd, checksum, total, verifier=None):
         self.fd = fd
         self.checksum = checksum
         self.total = total
+        self.verifier = verifier
         self.bytes_read = 0
 
     def read(self, i):
@@ -960,4 +962,6 @@ class ChunkReader(object):
             raise exceptions.ZeroSizeChunk()
         self.bytes_read += len(result)
         self.checksum.update(result)
+        if self.verifier:
+            self.verifier.update(result)
         return result

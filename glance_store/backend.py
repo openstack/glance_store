@@ -322,7 +322,8 @@ def check_location_metadata(val, key=''):
                                           % dict(key=key, type=type(val)))
 
 
-def store_add_to_backend(image_id, data, size, store, context=None):
+def store_add_to_backend(image_id, data, size, store, context=None,
+                         verifier=None):
     """
     A wrapper around a call to each stores add() method.  This gives glance
     a common place to check the output
@@ -339,7 +340,8 @@ def store_add_to_backend(image_id, data, size, store, context=None):
     (location, size, checksum, metadata) = store.add(image_id,
                                                      data,
                                                      size,
-                                                     context=context)
+                                                     context=context,
+                                                     verifier=verifier)
     if metadata is not None:
         if not isinstance(metadata, dict):
             msg = (_("The storage driver %(driver)s returned invalid "
@@ -360,11 +362,13 @@ def store_add_to_backend(image_id, data, size, store, context=None):
     return (location, size, checksum, metadata)
 
 
-def add_to_backend(conf, image_id, data, size, scheme=None, context=None):
+def add_to_backend(conf, image_id, data, size, scheme=None, context=None,
+                   verifier=None):
     if scheme is None:
         scheme = conf['glance_store']['default_store']
     store = get_store_from_scheme(scheme)
-    return store_add_to_backend(image_id, data, size, store, context)
+    return store_add_to_backend(image_id, data, size, store, context,
+                                verifier)
 
 
 def set_acls(location_uri, public=False, read_tenants=[],
