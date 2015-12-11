@@ -771,7 +771,6 @@ class SwiftTests(object):
                 capabilities.BitMasks.WRITE_ACCESS)
         except Exception:
             return False
-        return False
 
     def test_no_store_credentials(self):
         """

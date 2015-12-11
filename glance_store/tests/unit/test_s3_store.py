@@ -506,7 +506,6 @@ class TestStore(base.StoreBaseTest,
                 capabilities.BitMasks.WRITE_ACCESS)
         except Exception:
             return False
-        return False
 
     def test_no_access_key(self):
         """
