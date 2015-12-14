@@ -853,7 +853,7 @@ class SwiftTests(object):
 
         self.assertEqual(1, mock_del_obj.call_count)
         _, kwargs = mock_del_obj.call_args
-        self.assertEqual(None, kwargs.get('query_string'))
+        self.assertIsNone(kwargs.get('query_string'))
 
     def test_delete_with_reference_params(self):
         """
