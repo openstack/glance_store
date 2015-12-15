@@ -59,8 +59,6 @@ SWIFT_CONF = {'swift_store_auth_address': 'localhost:8080',
               'swift_store_container': 'glance',
               'swift_store_user': 'user',
               'swift_store_key': 'key',
-              'swift_store_auth_address': 'localhost:8080',
-              'swift_store_container': 'glance',
               'swift_store_retry_get_count': 1,
               'default_swift_reference': 'ref1'
               }
