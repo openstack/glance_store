@@ -27,6 +27,7 @@ import stat
 import jsonschema
 from oslo_config import cfg
 from oslo_serialization import jsonutils
+from oslo_utils import encodeutils
 from oslo_utils import excutils
 from oslo_utils import units
 from six.moves import urllib
@@ -271,18 +272,20 @@ class Store(glance_store.driver.Store):
             self.FILESYSTEM_STORE_METADATA = metadata
         except (jsonschema.exceptions.ValidationError,
                 exceptions.BackendException, ValueError) as vee:
+            err_msg = encodeutils.exception_to_unicode(vee)
             reason = _('The JSON in the metadata file %(file)s is '
                        'not valid and it can not be used: '
                        '%(vee)s.') % dict(file=metadata_file,
-                                          vee=utils.exception_to_str(vee))
+                                          vee=err_msg)
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(
                 store_name="filesystem", reason=reason)
         except IOError as ioe:
+            err_msg = encodeutils.exception_to_unicode(ioe)
             reason = _('The path for the metadata file %(file)s could '
                        'not be accessed: '
                        '%(ioe)s.') % dict(file=metadata_file,
-                                          ioe=utils.exception_to_str(ioe))
+                                          ioe=err_msg)
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(
                 store_name="filesystem", reason=reason)
@@ -635,4 +638,5 @@ class Store(glance_store.driver.Store):
         except Exception as e:
             msg = _('Unable to remove partial image '
                     'data for image %(iid)s: %(e)s')
-            LOG.error(msg % dict(iid=iid, e=utils.exception_to_str(e)))
+            LOG.error(msg % dict(iid=iid,
+                                 e=encodeutils.exception_to_unicode(e)))

@@ -16,12 +16,12 @@
 import logging
 
 from oslo_config import cfg
+from oslo_utils import encodeutils
 import six
 from stevedore import driver
 from stevedore import extension
 
 from glance_store import capabilities
-from glance_store.common import utils
 from glance_store import exceptions
 from glance_store import i18n
 from glance_store import location
@@ -352,9 +352,9 @@ def store_add_to_backend(image_id, data, size, store, context=None):
         except exceptions.BackendException as e:
             e_msg = (_("A bad metadata structure was returned from the "
                        "%(driver)s storage driver: %(metadata)s.  %(e)s.") %
-                     dict(driver=utils.exception_to_str(store),
-                          metadata=utils.exception_to_str(metadata),
-                          e=utils.exception_to_str(e)))
+                     dict(driver=encodeutils.exception_to_unicode(store),
+                          metadata=encodeutils.exception_to_unicode(metadata),
+                          e=encodeutils.exception_to_unicode(e)))
             LOG.error(e_msg)
             raise exceptions.BackendException(e_msg)
     return (location, size, checksum, metadata)
