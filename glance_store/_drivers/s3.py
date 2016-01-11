@@ -21,6 +21,7 @@ import math
 import re
 import tempfile
 
+import debtcollector
 import eventlet
 from oslo_config import cfg
 from oslo_utils import netutils
@@ -303,6 +304,11 @@ class ChunkedFile(object):
             self.fp = None
 
 
+@debtcollector.removals.remove(message=("This store has been marked as "
+                                        "deprecated due to the lack of "
+                                        "support and maintenance. Its removal "
+                                        "is scheduled for tentatively N-2 "
+                                        "milestone."))
 class Store(glance_store.driver.Store):
     """An implementation of the s3 adapter."""
 
