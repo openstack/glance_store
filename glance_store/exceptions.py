@@ -81,6 +81,10 @@ class NotFound(GlanceStoreException):
     message = _("Image %(image)s not found")
 
 
+class ZeroSizeChunk(GlanceStoreException):
+    message = _("Zero size chunk")
+
+
 class UnknownScheme(GlanceStoreException):
     message = _("Unknown scheme '%(scheme)s' found in URI")
 

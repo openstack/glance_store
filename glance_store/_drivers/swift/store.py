@@ -545,6 +545,9 @@ class BaseStore(driver.Store):
                             location.container, chunk_name, reader,
                             content_length=content_length)
                         written_chunks.append(chunk_name)
+                    except exceptions.ZeroSizeChunk:
+                        LOG.debug('Not writing zero-length chunk')
+                        break
                     except Exception:
                         # Delete orphaned segments from swift backend
                         with excutils.save_and_reraise_exception():
@@ -565,14 +568,6 @@ class BaseStore(driver.Store):
                             'bytes_read': bytes_read,
                             'chunk_etag': chunk_etag})
                     LOG.debug(msg)
-
-                    if bytes_read == 0:
-                        # Delete the last chunk, because it's of zero size.
-                        # This will happen if size == 0.
-                        LOG.debug("Deleting final zero-length chunk")
-                        connection.delete_object(location.container,
-                                                 chunk_name)
-                        break
 
                     chunk_id += 1
                     combined_chunks_size += bytes_read
@@ -954,6 +949,9 @@ class ChunkReader(object):
         if i > left:
             i = left
         result = self.fd.read(i)
+        if len(result) == 0 and self.bytes_read == 0:
+            # fd was empty
+            raise exceptions.ZeroSizeChunk()
         self.bytes_read += len(result)
         self.checksum.update(result)
         return result
