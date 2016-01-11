@@ -1500,10 +1500,11 @@ class TestChunkReader(base.StoreBaseTest):
         bytes_read = 0
         while True:
             cr = swift.ChunkReader(infile, checksum, CHUNKSIZE)
-            chunk = cr.read(CHUNKSIZE)
-            bytes_read += len(chunk)
-            if not chunk:
+            try:
+                chunk = cr.read(CHUNKSIZE)
+            except exceptions.ZeroSizeChunk:
                 break
+            bytes_read += len(chunk)
         self.assertEqual(units.Ki, bytes_read)
         data_file.close()
         infile.close()
