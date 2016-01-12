@@ -654,6 +654,44 @@ class SwiftTests(object):
 
     @mock.patch('glance_store._drivers.swift.utils'
                 '.is_multiple_swift_store_accounts_enabled',
+                mock.Mock(return_value=True))
+    def test_add_with_verifier_small(self):
+        """Test that the verifier is updated for smaller images."""
+        swift_size = FIVE_KB
+        base_byte = b"12345678"
+        swift_contents = base_byte * (swift_size // 8)
+        image_id = str(uuid.uuid4())
+        image_swift = six.BytesIO(swift_contents)
+
+        self.store = Store(self.conf)
+        self.store.configure()
+        orig_max_size = self.store.large_object_size
+        orig_temp_size = self.store.large_object_chunk_size
+        custom_size = 6 * units.Ki
+        verifier = mock.MagicMock(name='mock_verifier')
+
+        try:
+            self.store.large_object_size = custom_size
+            self.store.large_object_chunk_size = custom_size
+            self.store.add(image_id, image_swift, swift_size,
+                           verifier=verifier)
+        finally:
+            self.store.large_object_chunk_size = orig_temp_size
+            self.store.large_object_size = orig_max_size
+
+        # Confirm verifier update called expected number of times
+        self.assertEqual(verifier.update.call_count, 2)
+
+        # define one chunk of the contents
+        swift_contents_piece = base_byte * (swift_size // 8)
+
+        # confirm all expected calls to update have occurred
+        calls = [mock.call(swift_contents_piece),
+                 mock.call(b'')]
+        verifier.update.assert_has_calls(calls)
+
+    @mock.patch('glance_store._drivers.swift.utils'
+                '.is_multiple_swift_store_accounts_enabled',
                 mock.Mock(return_value=False))
     def test_multi_container_doesnt_impact_multi_tenant_add(self):
         expected_swift_size = FIVE_KB
