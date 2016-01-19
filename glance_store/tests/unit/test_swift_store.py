@@ -1327,8 +1327,61 @@ class TestMultiTenantStoreConnections(base.StoreBaseTest):
         self.location = swift.StoreLocation(specs, self.conf)
         self.addCleanup(self.conf.reset)
 
-    def test_basic_connection(self):
+    def test_basic_connection_no_catalog(self):
         self.store.configure()
+        connection = self.store.get_connection(self.location,
+                                               context=self.context)
+        self.assertIsNone(connection.authurl)
+        self.assertEqual(connection.auth_version, '1')
+        self.assertIsNone(connection.user)
+        self.assertIsNone(connection.tenant_name)
+        self.assertIsNone(connection.key)
+        self.assertEqual(connection.preauthurl, 'https://example.com')
+        self.assertEqual(connection.preauthtoken, '0123')
+        self.assertEqual(connection.os_options, {})
+
+    def test_connection_with_endpoint_from_catalog(self):
+        self.store.configure()
+        self.context.service_catalog = [
+            {
+                'endpoint_links': [],
+                'endpoints': [
+                    {
+                        'region': 'RegionOne',
+                        'publicURL': 'https://scexample.com',
+                    },
+                ],
+                'type': 'object-store',
+                'name': 'Object Storage Service',
+            }
+        ]
+        connection = self.store.get_connection(self.location,
+                                               context=self.context)
+        self.assertIsNone(connection.authurl)
+        self.assertEqual(connection.auth_version, '1')
+        self.assertIsNone(connection.user)
+        self.assertIsNone(connection.tenant_name)
+        self.assertIsNone(connection.key)
+        self.assertEqual(connection.preauthurl, 'https://scexample.com')
+        self.assertEqual(connection.preauthtoken, '0123')
+        self.assertEqual(connection.os_options, {})
+
+    def test_connection_with_no_endpoint_found(self):
+        self.store.configure()
+        self.context.service_catalog = [
+            {
+                'endpoint_links': [],
+                'endpoints': [
+                    {
+                        'region': 'RegionOne',
+                        'publicURL': 'https://scexample.com',
+                    },
+                ],
+                'type': 'object-store',
+                'name': 'Object Storage Service',
+            }
+        ]
+        self.store.service_type = 'incorrect-store'
         connection = self.store.get_connection(self.location,
                                                context=self.context)
         self.assertIsNone(connection.authurl)
