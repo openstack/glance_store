@@ -10,6 +10,14 @@ Contents
 .. toctree::
    :maxdepth: 1
 
+Store Drivers
+=============
+
+.. toctree::
+   :maxdepth: 1
+
+   drivers/index
+
 Release Notes
 =============
 
