@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.abspath('../..'))
@@ -48,8 +49,11 @@ html_static_path = ['static']
 # Output file base name for HTML help builder.
 htmlhelp_basename = '%sdoc' % project
 
-git_cmd = "git log --pretty=format:'%ad, commit %h' --date=local -n1"
-html_last_updated_fmt = os.popen(git_cmd).read()
+git_cmd = ["git", "log", "--pretty=format:'%ad, commit %h'", "--date=local",
+           "-n1"]
+html_last_updated_fmt = subprocess.Popen(git_cmd,
+                                         stdout=subprocess.PIPE).communicate()[0]
+
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass
