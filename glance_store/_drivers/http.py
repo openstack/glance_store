@@ -15,7 +15,9 @@
 
 import logging
 
+from oslo_config import cfg
 from oslo_utils import encodeutils
+
 from six.moves import urllib
 
 import requests
@@ -30,6 +32,26 @@ LOG = logging.getLogger(__name__)
 
 
 MAX_REDIRECTS = 5
+
+_HTTP_OPTS = [
+    cfg.StrOpt('https_ca_certificates_file',
+               help=_('Specify the path to the CA bundle file to use in '
+                      'verifying the remote server certificate.')),
+    cfg.BoolOpt('https_insecure',
+                default=True,
+                help=_('If true, the remote server certificate is not '
+                       'verified. If false, then the default CA truststore is '
+                       'used for verification. This option is ignored if '
+                       '"https_ca_certificates_file" is set.')),
+    cfg.DictOpt('http_proxy_information',
+                default={},
+                help=_('Specify the http/https proxy information that should '
+                       'be used to connect to the remote server. The proxy '
+                       'information should be a key value pair of the '
+                       'scheme and proxy. e.g. http:10.0.0.1:3128. You can '
+                       'specify proxies for multiple schemes by seperating '
+                       'the key value pairs with a comma.'
+                       'e.g. http:10.0.0.1:3128, https:10.0.0.1:1080.'))]
 
 
 class StoreLocation(glance_store.location.StoreLocation):
@@ -126,6 +148,7 @@ class Store(glance_store.driver.Store):
 
     _CAPABILITIES = (capabilities.BitMasks.READ_ACCESS |
                      capabilities.BitMasks.DRIVER_REUSABLE)
+    OPTIONS = _HTTP_OPTS
 
     @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
@@ -253,5 +276,9 @@ class Store(glance_store.driver.Store):
     def _get_response(self, location, verb):
         if not hasattr(self, 'session'):
             self.session = requests.Session()
+        ca_bundle = self.conf.glance_store.https_ca_certificates_file
+        disable_https = self.conf.glance_store.https_insecure
+        self.session.verify = ca_bundle if ca_bundle else not disable_https
+        self.session.proxies = self.conf.glance_store.http_proxy_information
         return self.session.request(verb, location.get_uri(), stream=True,
                                     allow_redirects=False)
