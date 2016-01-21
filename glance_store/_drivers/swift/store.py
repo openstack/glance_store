@@ -937,11 +937,9 @@ class MultiTenantStore(BaseStore):
 
     def get_connection(self, location, context=None):
         return swiftclient.Connection(
-            None, context.user, None,
             preauthurl=location.swift_url,
             preauthtoken=context.auth_token,
-            tenant_name=context.tenant,
-            auth_version='2', insecure=self.insecure,
+            insecure=self.insecure,
             ssl_compression=self.ssl_compression,
             cacert=self.cacert)
 
