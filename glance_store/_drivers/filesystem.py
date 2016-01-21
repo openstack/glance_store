@@ -565,7 +565,8 @@ class Store(glance_store.driver.Store):
         return best_datadir
 
     @capabilities.check
-    def add(self, image_id, image_file, image_size, context=None):
+    def add(self, image_id, image_file, image_size, context=None,
+            verifier=None):
         """
         Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -574,6 +575,7 @@ class Store(glance_store.driver.Store):
         :param image_id: The opaque image identifier
         :param image_file: The image data to write, as a file-like object
         :param image_size: The size of the image data to write, in bytes
+        :param verifier: An object used to verify signatures for images
 
         :retval tuple of URL in backing store, bytes written, checksum
                 and a dictionary with storage system specific information
@@ -600,6 +602,8 @@ class Store(glance_store.driver.Store):
                                                self.WRITE_CHUNKSIZE):
                     bytes_written += len(buf)
                     checksum.update(buf)
+                    if verifier:
+                        verifier.update(buf)
                     f.write(buf)
         except IOError as e:
             if e.errno != errno.EACCES:

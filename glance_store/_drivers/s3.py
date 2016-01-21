@@ -470,7 +470,8 @@ class Store(glance_store.driver.Store):
         return key
 
     @capabilities.check
-    def add(self, image_id, image_file, image_size, context=None):
+    def add(self, image_id, image_file, image_size, context=None,
+            verifier=None):
         """
         Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -479,6 +480,7 @@ class Store(glance_store.driver.Store):
         :param image_id: The opaque image identifier
         :param image_file: The image data to write, as a file-like object
         :param image_size: The size of the image data to write, in bytes
+        :param verifier: An object used to verify signatures for images
 
         :retval tuple of URL in backing store, bytes written, checksum
                 and a dictionary with storage system specific information
@@ -524,23 +526,25 @@ class Store(glance_store.driver.Store):
                   self._sanitize(loc.get_uri()))
 
         if image_size < self.s3_store_large_object_size:
-            return self.add_singlepart(image_file, bucket_obj, obj_name, loc)
+            return self.add_singlepart(image_file, bucket_obj, obj_name, loc,
+                                       verifier)
         else:
             return self.add_multipart(image_file, image_size, bucket_obj,
-                                      obj_name, loc)
+                                      obj_name, loc, verifier)
 
     def _sanitize(self, uri):
         return re.sub('//.*:.*@',
                       '//s3_store_secret_key:s3_store_access_key@',
                       uri)
 
-    def add_singlepart(self, image_file, bucket_obj, obj_name, loc):
+    def add_singlepart(self, image_file, bucket_obj, obj_name, loc, verifier):
         """
         Stores an image file with a single part upload to S3 backend
 
         :param image_file: The image data to write, as a file-like object
         :param bucket_obj: S3 bucket object
         :param obj_name: The object name to be stored(image identifier)
+        :param verifier: An object used to verify signatures for images
         :loc: The Store Location Info
         """
 
@@ -567,6 +571,8 @@ class Store(glance_store.driver.Store):
         checksum = hashlib.md5()
         for chunk in utils.chunkreadable(image_file, self.WRITE_CHUNKSIZE):
             checksum.update(chunk)
+            if verifier:
+                verifier.update(chunk)
             temp_file.write(chunk)
         temp_file.flush()
 
@@ -588,13 +594,15 @@ class Store(glance_store.driver.Store):
 
         return (loc.get_uri(), size, checksum_hex, {})
 
-    def add_multipart(self, image_file, image_size, bucket_obj, obj_name, loc):
+    def add_multipart(self, image_file, image_size, bucket_obj, obj_name, loc,
+                      verifier):
         """
         Stores an image file with a multi part upload to S3 backend
 
         :param image_file: The image data to write, as a file-like object
         :param bucket_obj: S3 bucket object
         :param obj_name: The object name to be stored(image identifier)
+        :param verifier: An object used to verify signatures for images
         :loc: The Store Location Info
         """
 
@@ -626,6 +634,8 @@ class Store(glance_store.driver.Store):
                     write_chunk = buffered_chunk[:write_chunk_size]
                     remained_data = buffered_chunk[write_chunk_size:]
                     checksum.update(write_chunk)
+                    if verifier:
+                        verifier.update(write_chunk)
                     fp = six.BytesIO(write_chunk)
                     fp.seek(0)
                     part = UploadPart(mpu, fp, cstart + 1, len(write_chunk))
@@ -638,6 +648,8 @@ class Store(glance_store.driver.Store):
                     # Write the last chunk data
                     write_chunk = buffered_chunk
                     checksum.update(write_chunk)
+                    if verifier:
+                        verifier.update(write_chunk)
                     fp = six.BytesIO(write_chunk)
                     fp.seek(0)
                     part = UploadPart(mpu, fp, cstart + 1, len(write_chunk))

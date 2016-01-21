@@ -15,6 +15,7 @@
 
 import mock
 from oslo_concurrency import processutils
+from oslo_utils import units
 import six
 
 from glance_store._drivers import sheepdog
@@ -133,3 +134,21 @@ class TestSheepdogStore(base.StoreBaseTest,
                                     self.conf, store_specs=self.store_specs)
             self.store.delete(loc)
             self.assertEqual(called_commands, ['list -r', 'delete'])
+
+    def test_add_with_verifier(self):
+        """Test that 'verifier.update' is called when verifier is provided."""
+        verifier = mock.MagicMock(name='mock_verifier')
+        self.store.chunk_size = units.Ki
+        image_id = 'fake_image_id'
+        file_size = units.Ki  # 1K
+        file_contents = b"*" * file_size
+        image_file = six.BytesIO(file_contents)
+
+        def _fake_run_command(command, data, *params):
+            pass
+
+        with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
+            cmd.side_effect = _fake_run_command
+            self.store.add(image_id, image_file, file_size, verifier=verifier)
+
+        verifier.update.assert_called_with(file_contents)

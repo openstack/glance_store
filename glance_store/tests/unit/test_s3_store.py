@@ -438,6 +438,47 @@ class TestStore(base.StoreBaseTest,
             self.assertEqual(expected_s3_contents,
                              new_image_contents.getvalue())
 
+    def test_add_with_verifier(self):
+        """
+        Assert 'verifier.update' is called when verifier is provided, both
+        for multipart and for single uploads.
+        """
+        one_part_max = 6 * units.Mi
+        variations = [(FIVE_KB, 1),  # simple put   (5KB < 5MB)
+                      (5 * units.Mi, 1),  # 1 part       (5MB <= 5MB < 6MB)
+                      (one_part_max, 1),  # 1 part exact (5MB <= 6MB <= 6MB)
+                      (one_part_max + one_part_max // 2, 2),  # 1.5 parts
+                      (one_part_max * 2, 2)]  # 2 parts exact
+
+        for (s3_size, update_calls) in variations:
+            image_id = str(uuid.uuid4())
+            base_byte = b"12345678"
+            s3_contents = base_byte * (s3_size // 8)
+            image_s3 = six.BytesIO(s3_contents)
+            verifier = mock.MagicMock(name='mock_verifier')
+
+            # add image
+            self.store.add(image_id, image_s3, s3_size, verifier=verifier)
+
+            # confirm update called expected number of times
+            self.assertEqual(verifier.update.call_count, update_calls)
+
+            if (update_calls <= 1):
+                # the contents weren't broken into pieces
+                verifier.update.assert_called_with(s3_contents)
+            else:
+                # most calls to update should be with the max one part size
+                s3_contents_max_part = base_byte * (one_part_max // 8)
+
+                # the last call to verify.update should be with what's left
+                s3_contents_last_part = base_byte * ((s3_size - one_part_max)
+                                                     // 8)
+
+                # confirm all expected calls to update have occurred
+                calls = [mock.call(s3_contents_max_part),
+                         mock.call(s3_contents_last_part)]
+                verifier.update.assert_has_calls(calls)
+
     def test_add_host_variations(self):
         """
         Test that having http(s):// in the s3serviceurl in config
