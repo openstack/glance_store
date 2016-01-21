@@ -378,8 +378,9 @@ class TestStore(base.StoreBaseTest,
         """
         store_map = [self.useFixture(fixtures.TempDir()).path,
                      self.useFixture(fixtures.TempDir()).path]
-        self.conf.clear_override('filesystem_store_datadir',
-                                 group='glance_store')
+        self.conf.set_override('filesystem_store_datadir',
+                               override=None,
+                               group='glance_store')
         self.conf.set_override('filesystem_store_datadirs',
                                [store_map[0] + ":100",
                                 store_map[1] + ":200"],
@@ -491,8 +492,9 @@ class TestStore(base.StoreBaseTest,
         """
         store_map = [self.useFixture(fixtures.TempDir()).path,
                      self.useFixture(fixtures.TempDir()).path]
-        self.conf.clear_override('filesystem_store_datadir',
-                                 group='glance_store')
+        self.conf.set_override('filesystem_store_datadir',
+                               override=None,
+                               group='glance_store')
         self.conf.set_override('filesystem_store_datadirs',
                                [store_map[0] + ":100",
                                 store_map[1] + ":200",
@@ -538,8 +540,10 @@ class TestStore(base.StoreBaseTest,
         """Test adding multiple filesystem directories."""
         store_map = [self.useFixture(fixtures.TempDir()).path,
                      self.useFixture(fixtures.TempDir()).path]
-        self.conf.clear_override('filesystem_store_datadir',
-                                 group='glance_store')
+        self.conf.set_override('filesystem_store_datadir',
+                               override=None,
+                               group='glance_store')
+
         self.conf.set_override('filesystem_store_datadirs',
                                [store_map[0] + ":100",
                                 store_map[1] + ":200"],
@@ -585,8 +589,9 @@ class TestStore(base.StoreBaseTest,
         """
         store_map = [self.useFixture(fixtures.TempDir()).path,
                      self.useFixture(fixtures.TempDir()).path]
-        self.conf.clear_override('filesystem_store_datadir',
-                                 group='glance_store')
+        self.conf.set_override('filesystem_store_datadir',
+                               override=None,
+                               group='glance_store')
         self.conf.set_override('filesystem_store_datadirs',
                                [store_map[0] + ":100",
                                 store_map[1] + ":200"],
