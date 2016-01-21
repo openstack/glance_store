@@ -23,6 +23,7 @@ import tempfile
 import uuid
 
 from oslo_config import cfg
+from oslo_utils import encodeutils
 from oslo_utils import units
 from oslotest import moxstubout
 import requests_mock
@@ -37,7 +38,6 @@ from glance_store._drivers.swift import store as swift
 from glance_store import backend
 from glance_store import BackendException
 from glance_store import capabilities
-from glance_store.common import utils
 from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
@@ -471,8 +471,8 @@ class SwiftTests(object):
             self.store.add(str(uuid.uuid4()), image_swift, 0)
         except BackendException as e:
             exception_caught = True
-            self.assertIn("container noexist does not exist "
-                          "in Swift", utils.exception_to_str(e))
+            self.assertIn("container noexist does not exist in Swift",
+                          encodeutils.exception_to_unicode(e))
         self.assertTrue(exception_caught)
         self.assertEqual(SWIFT_PUT_OBJECT_CALLS, 0)
 
@@ -601,7 +601,7 @@ class SwiftTests(object):
             exception_caught = True
             expected_msg = "container %s does not exist in Swift"
             expected_msg = expected_msg % expected_container
-            self.assertIn(expected_msg, utils.exception_to_str(e))
+            self.assertIn(expected_msg, encodeutils.exception_to_unicode(e))
         self.assertTrue(exception_caught)
         self.assertEqual(SWIFT_PUT_OBJECT_CALLS, 0)
 

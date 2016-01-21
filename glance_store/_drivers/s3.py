@@ -24,6 +24,7 @@ import tempfile
 import debtcollector
 import eventlet
 from oslo_config import cfg
+from oslo_utils import encodeutils
 from oslo_utils import netutils
 from oslo_utils import units
 import six
@@ -769,7 +770,7 @@ def create_bucket_if_missing(conf, bucket, s3_conn):
                 except S3ResponseError as e:
                     msg = (_("Failed to add bucket to S3.\n"
                              "Got error from S3: %s.") %
-                           utils.exception_to_str(e))
+                           encodeutils.exception_to_unicode(e))
                     raise glance_store.BackendException(msg)
             else:
                 msg = (_("The bucket %(bucket)s does not exist in "

@@ -19,11 +19,11 @@
 import logging
 
 from oslo_config import cfg
+from oslo_utils import encodeutils
 from oslo_utils import importutils
 from oslo_utils import units
 
 from glance_store import capabilities
-from glance_store.common import utils
 from glance_store import exceptions
 from glance_store import i18n
 
@@ -67,7 +67,8 @@ class Store(capabilities.StoreCapability):
         except exceptions.BadStoreConfiguration as e:
             self.unset_capabilities(capabilities.BitMasks.WRITE_ACCESS)
             msg = (_(u"Failed to configure store correctly: %s "
-                     "Disabling add method.") % utils.exception_to_str(e))
+                     "Disabling add method.")
+                   % encodeutils.exception_to_unicode(e))
             LOG.warn(msg)
             if re_raise_bsc:
                 raise
