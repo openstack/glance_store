@@ -47,34 +47,36 @@ class TestSheepdogStore(base.StoreBaseTest,
                             'addr': 'fake_addr',
                             'port': 'fake_port'}
 
-    def test_add_image(self):
-        called_commands = []
+    @mock.patch.object(sheepdog.SheepdogImage, 'write')
+    @mock.patch.object(sheepdog.SheepdogImage, 'create')
+    @mock.patch.object(sheepdog.SheepdogImage, 'exist')
+    def test_add_image(self, mock_exist, mock_create, mock_write):
+        data = six.BytesIO(b'xx')
+        mock_exist.return_value = False
 
-        def _fake_run_command(command, data, *params):
-            called_commands.append(command)
+        (uri, size, checksum, loc) = self.store.add('fake_image_id', data, 2)
 
-        with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
-            cmd.side_effect = _fake_run_command
-            data = six.BytesIO(b'xx')
-            ret = self.store.add('fake_image_id', data, 2)
-            self.assertEqual(called_commands, ['list -r', 'create', 'write'])
-            self.assertEqual(ret[1], 2)
+        mock_exist.assert_called_once_with()
+        mock_create.assert_called_once_with(2)
+        mock_write.assert_called_once_with(b'xx', 0, 2)
 
-    def test_cleanup_when_add_image_exception(self):
-        called_commands = []
+    @mock.patch.object(sheepdog.SheepdogImage, 'delete')
+    @mock.patch.object(sheepdog.SheepdogImage, 'write')
+    @mock.patch.object(sheepdog.SheepdogImage, 'create')
+    @mock.patch.object(sheepdog.SheepdogImage, 'exist')
+    def test_cleanup_when_add_image_exception(self, mock_exist, mock_create,
+                                              mock_write, mock_delete):
+        data = six.BytesIO(b'xx')
+        mock_exist.return_value = False
+        mock_write.side_effect = exceptions.BackendException
 
-        def _fake_run_command(command, data, *params):
-            if command == 'write':
-                raise exceptions.BackendException
-            else:
-                called_commands.append(command)
+        self.assertRaises(exceptions.BackendException, self.store.add,
+                          'fake_image_id', data, 2)
 
-        with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
-            cmd.side_effect = _fake_run_command
-            data = six.BytesIO(b'xx')
-            self.assertRaises(exceptions.BackendException, self.store.add,
-                              'fake_image_id', data, 2)
-            self.assertTrue('delete' in called_commands)
+        mock_exist.assert_called_once_with()
+        mock_create.assert_called_once_with(2)
+        mock_write.assert_called_once_with(b'xx', 0, 2)
+        mock_delete.assert_called_once_with()
 
     def test_add_duplicate_image(self):
         def _fake_run_command(command, data, *params):
