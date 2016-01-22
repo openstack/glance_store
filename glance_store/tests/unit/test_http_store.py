@@ -15,6 +15,8 @@
 
 import mock
 
+from six.moves import http_client
+
 import glance_store
 from glance_store._drivers import http
 from glance_store import exceptions
@@ -151,6 +153,14 @@ class TestHttpStore(base.StoreBaseTest,
         uri = "http://netloc/path/to/file.tar.gz"
         loc = location.get_location_from_uri(uri, conf=self.conf)
         self.assertRaises(exceptions.NotFound, self.store.get_size, loc)
+
+    def test_http_get_size_bad_status_line(self):
+        self._mock_httplib()
+        self.response.side_effect = http_client.BadStatusLine(line='')
+
+        uri = "http://netloc/path/to/file.tar.gz"
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        self.assertRaises(exceptions.BadStoreUri, self.store.get_size, loc)
 
     def test_http_store_location_initialization(self):
         """Test store location initialization from valid uris"""

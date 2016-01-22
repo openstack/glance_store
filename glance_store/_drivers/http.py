@@ -16,6 +16,7 @@
 import logging
 import socket
 
+from oslo_utils import encodeutils
 from six.moves import http_client
 from six.moves import urllib
 
@@ -167,16 +168,13 @@ class Store(glance_store.driver.Store):
         """
         try:
             size = self._query(location, 'HEAD')[2]
-        except socket.error:
-            reason = _("The HTTP URL is invalid.")
+        except (socket.error, http_client.HTTPException) as exc:
+            err_msg = encodeutils.exception_to_unicode(exc)
+            reason = _("The HTTP URL is invalid: %s") % err_msg
             LOG.info(reason)
             raise exceptions.BadStoreUri(message=reason)
         except exceptions.NotFound:
             raise
-        except Exception:
-            # NOTE(flaper87): Catch more granular exceptions,
-            # keeping this branch for backwards compatibility.
-            return 0
         return size
 
     def _query(self, location, verb, depth=0):
