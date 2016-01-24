@@ -2,15 +2,15 @@
 # of appearance. Changing the order has an impact on the overall integration
 # process, which may cause wedges in the gate later.
 oslo.config>=3.2.0 # Apache-2.0
-oslo.i18n>=1.5.0 # Apache-2.0
+oslo.i18n>=2.1.0 # Apache-2.0
 oslo.serialization>=1.10.0 # Apache-2.0
 oslo.utils>=3.4.0 # Apache-2.0
 oslo.concurrency>=2.3.0 # Apache-2.0
 stevedore>=1.5.0 # Apache-2.0
 enum34;python_version=='2.7' or python_version=='2.6' or python_version=='3.3' # BSD
 
-eventlet>=0.17.4 # MIT
+eventlet!=0.18.0,>=0.17.4 # MIT
 six>=1.9.0 # MIT
-debtcollector>=0.3.0 # Apache-2.0
+debtcollector>=1.2.0 # Apache-2.0
 
 jsonschema!=2.5.0,<3.0.0,>=2.0.0 # MIT
