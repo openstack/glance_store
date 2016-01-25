@@ -173,8 +173,6 @@ class Store(glance_store.driver.Store):
             reason = _("The HTTP URL is invalid: %s") % err_msg
             LOG.info(reason)
             raise exceptions.BadStoreUri(message=reason)
-        except exceptions.NotFound:
-            raise
         return size
 
     def _query(self, location, verb, depth=0):
