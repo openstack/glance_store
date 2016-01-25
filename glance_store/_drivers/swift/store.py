@@ -540,14 +540,14 @@ class BaseStore(driver.Store):
 
                     chunk_name = "%s-%05d" % (location.obj, chunk_id)
                     reader = ChunkReader(image_file, checksum, chunk_size)
+                    if reader.is_zero_size is True:
+                        LOG.debug('Not writing zero-length chunk.')
+                        break
                     try:
                         chunk_etag = connection.put_object(
                             location.container, chunk_name, reader,
                             content_length=content_length)
                         written_chunks.append(chunk_name)
-                    except exceptions.ZeroSizeChunk:
-                        LOG.debug('Not writing zero-length chunk')
-                        break
                     except Exception:
                         # Delete orphaned segments from swift backend
                         with excutils.save_and_reraise_exception():
@@ -943,15 +943,23 @@ class ChunkReader(object):
         self.checksum = checksum
         self.total = total
         self.bytes_read = 0
+        self.is_zero_size = False
+        self.byteone = fd.read(1)
+        if len(self.byteone) == 0:
+            self.is_zero_size = True
+
+    def do_read(self, i):
+        if self.bytes_read == 0 and i > 0 and self.byteone is not None:
+            return self.byteone + self.fd.read(i - 1)
+        else:
+            return self.fd.read(i)
 
     def read(self, i):
         left = self.total - self.bytes_read
         if i > left:
             i = left
-        result = self.fd.read(i)
-        if len(result) == 0 and self.bytes_read == 0:
-            # fd was empty
-            raise exceptions.ZeroSizeChunk()
+
+        result = self.do_read(i)
         self.bytes_read += len(result)
         self.checksum.update(result)
         return result

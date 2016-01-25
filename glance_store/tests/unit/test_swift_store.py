@@ -734,11 +734,8 @@ class SwiftTests(object):
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_swift_size, size)
         self.assertEqual(expected_checksum, checksum)
-        # Expecting 7 calls to put_object -- 5 chunks, a zero chunk which is
-        # then deleted, and the manifest.  Note the difference with above
-        # where the image_size is specified in advance (there's no zero chunk
-        # in that case).
-        self.assertEqual(SWIFT_PUT_OBJECT_CALLS, 7)
+        # Expecting 6 calls to put_object -- 5 chunks, and the manifest.
+        self.assertEqual(SWIFT_PUT_OBJECT_CALLS, 6)
 
         loc = location.get_location_from_uri(expected_location, conf=self.conf)
         (new_image_swift, new_image_size) = self.store.get(loc)
@@ -1502,12 +1499,37 @@ class TestChunkReader(base.StoreBaseTest):
         bytes_read = 0
         while True:
             cr = swift.ChunkReader(infile, checksum, CHUNKSIZE)
-            try:
-                chunk = cr.read(CHUNKSIZE)
-            except exceptions.ZeroSizeChunk:
+            chunk = cr.read(CHUNKSIZE)
+            if len(chunk) == 0:
+                self.assertEqual(True, cr.is_zero_size)
                 break
             bytes_read += len(chunk)
         self.assertEqual(units.Ki, bytes_read)
+        self.assertEqual('fb10c6486390bec8414be90a93dfff3b',
+                         cr.checksum.hexdigest())
+        data_file.close()
+        infile.close()
+
+    def test_read_zero_size_data(self):
+        """
+        Replicate what goes on in the Swift driver with the
+        repeated creation of the ChunkReader object
+        """
+        CHUNKSIZE = 100
+        checksum = hashlib.md5()
+        data_file = tempfile.NamedTemporaryFile()
+        infile = open(data_file.name, 'rb')
+        bytes_read = 0
+        while True:
+            cr = swift.ChunkReader(infile, checksum, CHUNKSIZE)
+            chunk = cr.read(CHUNKSIZE)
+            if len(chunk) == 0:
+                break
+            bytes_read += len(chunk)
+        self.assertEqual(True, cr.is_zero_size)
+        self.assertEqual(0, bytes_read)
+        self.assertEqual('d41d8cd98f00b204e9800998ecf8427e',
+                         cr.checksum.hexdigest())
         data_file.close()
         infile.close()
 
