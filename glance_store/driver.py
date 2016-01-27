@@ -156,8 +156,8 @@ class Store(capabilities.StoreCapability):
         """
         raise NotImplementedError
 
-    def set_acls(self, location, public=False, read_tenants=[],
-                 write_tenants=[], context=None):
+    def set_acls(self, location, public=False, read_tenants=None,
+                 write_tenants=None, context=None):
         """
         Sets the read and write access control list for an image in the
         backend store.
