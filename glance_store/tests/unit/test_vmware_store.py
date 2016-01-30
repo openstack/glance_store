@@ -47,20 +47,19 @@ VMWARE_DS = {
     'vmware_server_host': '127.0.0.1',
     'vmware_server_username': 'username',
     'vmware_server_password': 'password',
-    'vmware_datacenter_path': 'dc1',
-    'vmware_datastore_name': 'ds1',
     'vmware_store_image_dir': '/openstack_glance',
     'vmware_api_insecure': 'True',
+    'vmware_datastores': ['a:b:0'],
 }
 
 
-def format_location(host_ip, folder_name,
-                    image_id, datacenter_path, datastore_name):
+def format_location(host_ip, folder_name, image_id, datastores):
     """
     Helper method that returns a VMware Datastore store URI given
     the component pieces.
     """
     scheme = 'vsphere'
+    (datacenter_path, datastore_name, weight) = datastores[0].split(':')
     return ("%s://%s/folder%s/%s?dcPath=%s&dsName=%s"
             % (scheme, host_ip, folder_name,
                image_id, datacenter_path, datastore_name))
@@ -110,8 +109,7 @@ class TestStore(base.StoreBaseTest,
                     vmware_server_password='admin',
                     vmware_server_host=VMWARE_DS['vmware_server_host'],
                     vmware_api_insecure=VMWARE_DS['vmware_api_insecure'],
-                    vmware_datastore_name=VMWARE_DS['vmware_datastore_name'],
-                    vmware_datacenter_path=VMWARE_DS['vmware_datacenter_path'])
+                    vmware_datastores=VMWARE_DS['vmware_datastores'])
 
         mock_get_datastore.side_effect = fake_datastore_obj
         backend.create_stores(self.conf)
@@ -170,8 +168,7 @@ class TestStore(base.StoreBaseTest,
                 VMWARE_DS['vmware_server_host'],
                 VMWARE_DS['vmware_store_image_dir'],
                 expected_image_id,
-                VMWARE_DS['vmware_datacenter_path'],
-                VMWARE_DS['vmware_datastore_name'])
+                VMWARE_DS['vmware_datastores'])
             image = six.BytesIO(expected_contents)
             with self._mock_http_connection() as HttpConn:
                 HttpConn.return_value = FakeHTTPConnection()
@@ -205,8 +202,7 @@ class TestStore(base.StoreBaseTest,
                 VMWARE_DS['vmware_server_host'],
                 VMWARE_DS['vmware_store_image_dir'],
                 expected_image_id,
-                VMWARE_DS['vmware_datacenter_path'],
-                VMWARE_DS['vmware_datastore_name'])
+                VMWARE_DS['vmware_datastores'])
             image = six.BytesIO(expected_contents)
             with self._mock_http_connection() as HttpConn:
                 HttpConn.return_value = FakeHTTPConnection()
@@ -429,16 +425,6 @@ class TestStore(base.StoreBaseTest,
     def test_sanity_check_multiple_datastores(self):
         self.store.conf.glance_store.vmware_api_retry_count = 1
         self.store.conf.glance_store.vmware_task_poll_interval = 1
-        # Check both vmware_datastore_name and vmware_datastores defined.
-        self.store.conf.glance_store.vmware_datastores = ['a:b:0']
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store._sanity_check)
-        # Both vmware_datastore_name and vmware_datastores are not defined.
-        self.store.conf.glance_store.vmware_datastore_name = None
-        self.store.conf.glance_store.vmware_datastores = None
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store._sanity_check)
-        self.store.conf.glance_store.vmware_datastore_name = None
         self.store.conf.glance_store.vmware_datastores = ['a:b:0', 'a:d:0']
         try:
             self.store._sanity_check()
