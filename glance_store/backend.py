@@ -155,8 +155,8 @@ def _load_store(conf, store_entry, invoke_load=True):
                                    invoke_on_load=invoke_load)
         return mgr.driver
     except RuntimeError as e:
-        LOG.warn("Failed to load driver %(driver)s."
-                 "The driver will be disabled" % dict(driver=str([driver, e])))
+        LOG.warning("Failed to load driver %(driver)s. The "
+                    "driver will be disabled" % dict(driver=str([driver, e])))
 
 
 def _load_stores(conf):

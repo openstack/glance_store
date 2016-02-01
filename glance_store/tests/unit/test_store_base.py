@@ -31,4 +31,4 @@ class TestStoreBase(base.StoreBaseTest):
         self.config(stores=['file'], group='glance_store')
         for (__, store_instance) in backend._load_stores(self.conf):
             store_instance.configure()
-            self.assertTrue(mock_log.warn.called)
+            self.assertTrue(mock_log.warning.called)

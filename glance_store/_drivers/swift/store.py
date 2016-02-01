@@ -147,8 +147,9 @@ def swift_retry_iter(resp_iter, length, store, location, context):
                 yield chunk
                 bytes_read += len(chunk)
         except swiftclient.ClientException as e:
-            LOG.warn(_("Swift exception raised %s")
-                     % encodeutils.exception_to_unicode(e))
+            LOG.warning(_("Swift exception raised %s")
+
+                        % encodeutils.exception_to_unicode(e))
 
         if bytes_read != length:
             if retries == store.conf.glance_store.swift_store_retry_get_count:
@@ -437,7 +438,7 @@ class BaseStore(driver.Store):
         except swiftclient.ClientException as e:
             if e.http_status == http_client.NOT_FOUND:
                 msg = _("Swift could not find object %s.") % location.obj
-                LOG.warn(msg)
+                LOG.warning(msg)
                 raise exceptions.NotFound(message=msg)
             else:
                 raise

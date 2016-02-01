@@ -559,7 +559,7 @@ class Store(glance_store.Store):
             self.session.wait_for_task(delete_task)
         except vexc.FileNotFoundException:
             msg = _('Image file %s not found') % file_path
-            LOG.warn(msg)
+            LOG.warning(msg)
             raise exceptions.NotFound(message=msg)
         except Exception:
             with excutils.save_and_reraise_exception():

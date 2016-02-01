@@ -69,7 +69,7 @@ class Store(capabilities.StoreCapability):
             msg = (_(u"Failed to configure store correctly: %s "
                      "Disabling add method.")
                    % encodeutils.exception_to_unicode(e))
-            LOG.warn(msg)
+            LOG.warning(msg)
             if re_raise_bsc:
                 raise
         finally:
