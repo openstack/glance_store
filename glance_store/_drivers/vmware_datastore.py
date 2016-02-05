@@ -67,21 +67,6 @@ _VMWARE_OPTS = [
                help=_('Password for authenticating with '
                       'VMware ESX/VC server.'),
                secret=True),
-    cfg.StrOpt('vmware_datacenter_path',
-               default='ha-datacenter',
-               help=_('DEPRECATED. Inventory path to a datacenter. '
-                      'If the vmware_server_host specified is an ESX/ESXi, '
-                      'the vmware_datacenter_path is optional. If specified, '
-                      'it should be "ha-datacenter". This option is '
-                      'deprecated in favor of vmware_datastores and will be '
-                      'removed in the Liberty release.'),
-               deprecated_for_removal=True),
-    cfg.StrOpt('vmware_datastore_name',
-               help=_('DEPRECATED. Datastore associated with the datacenter. '
-                      'This option is deprecated in favor of '
-                      'vmware_datastores and will be removed in the Liberty '
-                      'release.'),
-               deprecated_for_removal=True),
     cfg.IntOpt('vmware_api_retry_count',
                default=10,
                help=_('Number of times VMware ESX/VC server API must be '
@@ -102,11 +87,10 @@ _VMWARE_OPTS = [
         help=_(
             'A list of datastores where the image can be stored. This option '
             'may be specified multiple times for specifying multiple '
-            'datastores. Either one of vmware_datastore_name or '
-            'vmware_datastores is required. The datastore name should be '
-            'specified after its datacenter path, seperated by ":". An '
-            'optional weight may be given after the datastore name, seperated '
-            'again by ":". Thus, the required format becomes '
+            'datastores. The datastore name should be specified after its '
+            'datacenter path, seperated by ":". An optional weight may be '
+            'given after the datastore name, seperated again by ":". Thus, '
+            'the required format becomes '
             '<datacenter_path>:<datastore_name>:<optional_weight>. When '
             'adding an image, the datastore with highest weight will be '
             'selected, unless there is not enough free space available in '
@@ -299,22 +283,6 @@ class Store(glance_store.Store):
             raise exceptions.BadStoreConfiguration(
                 store_name='vmware_datastore', reason=msg)
 
-        if not (self.conf.glance_store.vmware_datastore_name
-                or self.conf.glance_store.vmware_datastores):
-            msg = (_("Specify at least 'vmware_datastore_name' or "
-                     "'vmware_datastores' option"))
-            LOG.error(msg)
-            raise exceptions.BadStoreConfiguration(
-                store_name='vmware_datastore', reason=msg)
-
-        if (self.conf.glance_store.vmware_datastore_name and
-                self.conf.glance_store.vmware_datastores):
-            msg = (_("Specify either 'vmware_datastore_name' or "
-                     "'vmware_datastores' option"))
-            LOG.error(msg)
-            raise exceptions.BadStoreConfiguration(
-                store_name='vmware_datastore', reason=msg)
-
     def configure(self, re_raise_bsc=False):
         self._sanity_check()
         self.scheme = STORE_SCHEME
@@ -417,15 +385,7 @@ class Store(glance_store.Store):
         return ds_map
 
     def configure_add(self):
-        if self.conf.glance_store.vmware_datastores:
-            datastores = self.conf.glance_store.vmware_datastores
-        else:
-            # Backwards compatibility for vmware_datastore_name and
-            # vmware_datacenter_path.
-            datacenter_path = self.conf.glance_store.vmware_datacenter_path
-            datastore_name = self._option_get('vmware_datastore_name')
-            datastores = ['%s:%s:%s' % (datacenter_path, datastore_name, 0)]
-
+        datastores = self._option_get('vmware_datastores')
         self.datastores = self._build_datastore_weighted_map(datastores)
         self.store_image_dir = self.conf.glance_store.vmware_store_image_dir
 
