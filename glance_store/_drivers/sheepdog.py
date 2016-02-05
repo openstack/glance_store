@@ -1,4 +1,5 @@
 # Copyright 2013 Taobao Inc.
+# Copyright (C) 2016 Nippon Telegraph and Telephone Corporation.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -25,6 +26,7 @@ from oslo_utils import units
 
 import glance_store
 from glance_store import capabilities
+from glance_store.common import utils
 import glance_store.driver
 from glance_store import exceptions
 from glance_store.i18n import _
@@ -76,7 +78,7 @@ class SheepdogImage(object):
 
     def get_size(self):
         """
-        Return the size of the this iamge
+        Return the size of the this image
 
         Sheepdog Usage: collie vdi list -r -a address -p port image
         """
@@ -108,6 +110,13 @@ class SheepdogImage(object):
         Sheepdog Usage: collie vdi create -a address -p port image size
         """
         self._run_command("create", None, str(size))
+
+    def resize(self, size):
+        """Resize this image in the Sheepdog cluster with size 'size'.
+
+        Sheepdog Usage: collie vdi create -a address -p port image size
+        """
+        self._run_command("resize", None, str(size))
 
     def delete(self):
         """
@@ -292,27 +301,33 @@ class Store(glance_store.driver.Store):
             'addr': self.addr,
             'port': self.port
         }, self.conf)
-        checksum = hashlib.md5()
 
         image.create(image_size)
 
         try:
-            total = left = image_size
-            while left > 0:
-                length = min(self.chunk_size, left)
-                data = image_file.read(length)
-                image.write(data, total - left, length)
-                left -= length
-                checksum.update(data)
+            offset = 0
+            checksum = hashlib.md5()
+            chunks = utils.chunkreadable(image_file, self.WRITE_CHUNKSIZE)
+            for chunk in chunks:
+                chunk_length = len(chunk)
+                # If the image size provided is zero we need to do
+                # a resize for the amount we are writing. This will
+                # be slower so setting a higher chunk size may
+                # speed things up a bit.
+                if image_size == 0:
+                    image.resize(offset + chunk_length)
+                image.write(chunk, offset, chunk_length)
+                offset += chunk_length
+                checksum.update(chunk)
                 if verifier:
-                    verifier.update(data)
+                    verifier.update(chunk)
         except Exception:
             # Note(zhiyan): clean up already received data when
             # error occurs such as ImageSizeLimitExceeded exceptions.
             with excutils.save_and_reraise_exception():
                 image.delete()
 
-        return (location.get_uri(), image_size, checksum.hexdigest(), {})
+        return (location.get_uri(), offset, checksum.hexdigest(), {})
 
     @capabilities.check
     def delete(self, location, context=None):
