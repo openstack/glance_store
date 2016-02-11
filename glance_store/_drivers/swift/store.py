@@ -19,6 +19,7 @@ import hashlib
 import logging
 import math
 
+from keystoneclient import service_catalog as keystone_sc
 from oslo_config import cfg
 from oslo_utils import encodeutils
 from oslo_utils import excutils
@@ -871,8 +872,8 @@ class MultiTenantStore(BaseStore):
                                                    reason=reason)
         self.storage_url = self.conf_endpoint
         if not self.storage_url:
-
-            self.storage_url = context.service_catalog.url_for(
+            sc = {'serviceCatalog': context.service_catalog}
+            self.storage_url = keystone_sc.ServiceCatalogV2(sc).url_for(
                 service_type=self.service_type, region_name=self.region,
                 endpoint_type=self.endpoint_type)
 

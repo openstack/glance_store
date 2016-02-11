@@ -670,8 +670,21 @@ class SwiftTests(object):
         self.config(swift_store_container='container')
         self.config(swift_store_create_container_on_put=True)
         self.config(swift_store_multiple_containers_seed=2)
-        service_catalog = mock.MagicMock()
-        service_catalog.url_for.return_value = 'https://some_endpoint'
+        service_catalog = [
+            {
+                'endpoint_links': [],
+                'endpoints': [
+                    {
+                        'adminURL': 'https://some_admin_endpoint',
+                        'region': 'RegionOne',
+                        'internalURL': 'https://some_internal_endpoint',
+                        'publicURL': 'https://some_endpoint',
+                    },
+                ],
+                'type': 'object-store',
+                'name': 'Object Storage Service',
+            }
+        ]
         ctxt = mock.MagicMock(
             user='user', tenant='tenant', auth_token='123',
             service_catalog=service_catalog)
@@ -1341,8 +1354,22 @@ class TestMultiTenantStoreContext(base.StoreBaseTest):
         self.config(**conf)
         self.store.configure()
         self.register_store_schemes(self.store, 'swift')
-        self.service_catalog = mock.MagicMock()
-        self.service_catalog.url_for.return_value = "http://127.0.0.1:0"
+        service_catalog = [
+            {
+                'endpoint_links': [],
+                'endpoints': [
+                    {
+                        'region': 'RegionOne',
+                        'publicURL': 'http://127.0.0.1:0',
+                    },
+                ],
+                'type': 'object-store',
+                'name': 'Object Storage Service',
+            }
+        ]
+        self.ctx = mock.MagicMock(
+            service_catalog=service_catalog, user='tenant:user1',
+            tenant='tenant', auth_token='0123')
         self.addCleanup(self.conf.reset)
 
     @requests_mock.mock()
@@ -1353,12 +1380,8 @@ class TestMultiTenantStoreContext(base.StoreBaseTest):
         store.configure()
         uri = "swift+http://127.0.0.1/glance_123/123"
         loc = location.get_location_from_uri(uri, conf=self.conf)
-        ctx = mock.MagicMock(
-            service_catalog=self.service_catalog, user='tenant:user1',
-            tenant='tenant', auth_token='0123')
-
         m.get("http://127.0.0.1/glance_123/123")
-        store.get(loc, context=ctx)
+        store.get(loc, context=self.ctx)
         self.assertEqual(b'0123', m.last_request.headers['X-Auth-Token'])
 
     @requests_mock.mock()
@@ -1374,28 +1397,12 @@ class TestMultiTenantStoreContext(base.StoreBaseTest):
         store.configure()
         content = b'Some data'
         pseudo_file = six.BytesIO(content)
-        ctx = mock.MagicMock(
-            service_catalog=self.service_catalog, user='tenant:user1',
-            tenant='tenant', auth_token='0123')
         store.add('123', pseudo_file, len(content),
-                  context=ctx)
-
+                  context=self.ctx)
         self.assertEqual(b'0123',
                          head_req.last_request.headers['X-Auth-Token'])
         self.assertEqual(b'0123',
                          put_req.last_request.headers['X-Auth-Token'])
-
-
-class FakeGetEndpoint(object):
-    def __init__(self, response):
-        self.response = response
-
-    def __call__(self, service_catalog, service_type=None,
-                 endpoint_region=None, endpoint_type=None):
-        self.service_type = service_type
-        self.endpoint_region = endpoint_region
-        self.endpoint_type = endpoint_type
-        return self.response
 
 
 class TestCreatingLocations(base.StoreBaseTest):
@@ -1410,6 +1417,25 @@ class TestCreatingLocations(base.StoreBaseTest):
         self.config(**conf)
         moves.reload_module(swift)
         self.addCleanup(self.conf.reset)
+
+        service_catalog = [
+            {
+                'endpoint_links': [],
+                'endpoints': [
+                    {
+                        'adminURL': 'https://some_admin_endpoint',
+                        'region': 'RegionOne',
+                        'internalURL': 'https://some_internal_endpoint',
+                        'publicURL': 'https://some_endpoint',
+                    },
+                ],
+                'type': 'object-store',
+                'name': 'Object Storage Service',
+            }
+        ]
+        self.ctxt = mock.MagicMock(user='user', tenant='tenant',
+                                   auth_token='123',
+                                   service_catalog=service_catalog)
 
     def test_single_tenant_location(self):
         conf = copy.deepcopy(SWIFT_CONF)
@@ -1447,85 +1473,48 @@ class TestCreatingLocations(base.StoreBaseTest):
 
     def test_multi_tenant_location(self):
         self.config(swift_store_container='container')
-        service_catalog = mock.MagicMock()
-        service_catalog.url_for.return_value = 'https://some_endpoint'
-        ctxt = mock.MagicMock(
-            user='user', tenant='tenant', auth_token='123',
-            service_catalog=service_catalog)
         store = swift.MultiTenantStore(self.conf)
         store.configure()
-        location = store.create_location('image-id', context=ctxt)
+        location = store.create_location('image-id', context=self.ctxt)
         self.assertEqual(location.scheme, 'swift+https')
         self.assertEqual(location.swift_url, 'https://some_endpoint')
         self.assertEqual(location.container, 'container_image-id')
         self.assertEqual(location.obj, 'image-id')
         self.assertIsNone(location.user)
         self.assertIsNone(location.key)
-        service_catalog.url_for.assert_called_once_with(
-            service_type=store.service_type,
-            region_name=store.region,
-            endpoint_type=store.endpoint_type)
 
     def test_multi_tenant_location_http(self):
-        service_catalog = mock.MagicMock()
-        service_catalog.url_for.return_value = 'http://some_endpoint'
-        ctxt = mock.MagicMock(
-            user='user', tenant='tenant', auth_token='123',
-            service_catalog=service_catalog)
         store = swift.MultiTenantStore(self.conf)
         store.configure()
-        location = store.create_location('image-id', context=ctxt)
-        self.assertEqual(location.scheme, 'swift+http')
-        self.assertEqual(location.swift_url, 'http://some_endpoint')
-        service_catalog.url_for.assert_called_once_with(
-            service_type=store.service_type,
-            region_name=store.region,
-            endpoint_type=store.endpoint_type)
+        self.ctxt.service_catalog[0]['endpoints'][0]['publicURL'] = \
+            'http://some_endpoint'
+        location = store.create_location('image-id', context=self.ctxt)
+        self.assertEqual('swift+http', location.scheme)
+        self.assertEqual('http://some_endpoint', location.swift_url)
 
     def test_multi_tenant_location_with_region(self):
         self.config(swift_store_region='WestCarolina')
-        service_catalog = mock.MagicMock()
-        service_catalog.url_for.return_value = 'https://some_endpoint'
-        ctxt = mock.MagicMock(
-            user='user', tenant='tenant', auth_token='123',
-            service_catalog=service_catalog)
         store = swift.MultiTenantStore(self.conf)
         store.configure()
-        store._get_endpoint(ctxt)
-        service_catalog.url_for.assert_called_once_with(
-            service_type=store.service_type,
-            region_name=store.region,
-            endpoint_type=store.endpoint_type)
+        self.ctxt.service_catalog[0]['endpoints'][0]['region'] = 'WestCarolina'
+        self.assertEqual('https://some_endpoint',
+                         store._get_endpoint(self.ctxt))
 
     def test_multi_tenant_location_custom_service_type(self):
         self.config(swift_store_service_type='toy-store')
-        service_catalog = mock.MagicMock()
-        service_catalog.url_for.return_value = 'https://some_endpoint'
-        ctxt = mock.MagicMock(
-            user='user', tenant='tenant', auth_token='123',
-            service_catalog=service_catalog)
+        self.ctxt.service_catalog[0]['type'] = 'toy-store'
         store = swift.MultiTenantStore(self.conf)
         store.configure()
-        store._get_endpoint(ctxt)
-        service_catalog.url_for.assert_called_once_with(
-            service_type=store.service_type,
-            region_name=store.region,
-            endpoint_type=store.endpoint_type)
+        store._get_endpoint(self.ctxt)
+        self.assertEqual('https://some_endpoint',
+                         store._get_endpoint(self.ctxt))
 
     def test_multi_tenant_location_custom_endpoint_type(self):
-        self.config(swift_store_endpoint_type='InternalURL')
-        service_catalog = mock.MagicMock()
-        service_catalog.url_for.return_value = 'https://some_endpoint'
-        ctxt = mock.MagicMock(
-            user='user', tenant='tenant', auth_token='123',
-            service_catalog=service_catalog)
+        self.config(swift_store_endpoint_type='internalURL')
         store = swift.MultiTenantStore(self.conf)
         store.configure()
-        store._get_endpoint(ctxt)
-        service_catalog.url_for.assert_called_once_with(
-            service_type=store.service_type,
-            region_name=store.region,
-            endpoint_type=store.endpoint_type)
+        self.assertEqual('https://some_internal_endpoint',
+                         store._get_endpoint(self.ctxt))
 
 
 class TestChunkReader(base.StoreBaseTest):
