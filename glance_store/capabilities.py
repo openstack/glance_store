@@ -215,8 +215,8 @@ def check(store_op_fun):
         try:
             req_cap = op_cap_map[op]
         except KeyError:
-            LOG.warn(_LW('The capability of operation "%s" '
-                         'could not be checked.'), op)
+            LOG.warning(_LW('The capability of operation "%s" '
+                            'could not be checked.'), op)
         else:
             if not store.is_capable(*req_cap):
                 kwargs.setdefault('offset', 0)

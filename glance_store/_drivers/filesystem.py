@@ -211,8 +211,9 @@ class Store(glance_store.driver.Store):
                     # chmod g+x
                     os.chmod(datadir, mode | stat.S_IXGRP)
         except (IOError, OSError):
-            LOG.warn(_LW("Unable to set execution permission of owner-group "
-                         "and/or other-users to datadir: %s") % datadir)
+            LOG.warning(_LW("Unable to set execution permission of "
+                            "owner-group and/or other-users to datadir: %s")
+                        % datadir)
 
     def _create_image_directories(self, directory_paths):
         """
@@ -631,8 +632,8 @@ class Store(glance_store.driver.Store):
             try:
                 os.chmod(filepath, perm)
             except (IOError, OSError):
-                LOG.warn(_LW("Unable to set permission to image: %s") %
-                         filepath)
+                LOG.warning(_LW("Unable to set permission to image: %s") %
+                            filepath)
 
         return ('file://%s' % filepath, bytes_written, checksum_hex, metadata)
 
