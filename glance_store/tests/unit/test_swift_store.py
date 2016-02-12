@@ -1104,10 +1104,10 @@ class TestStoreAuthV3(TestStoreAuthV1):
 
 
 class FakeConnection(object):
-    def __init__(self, authurl, user, key, retries=5, preauthurl=None,
-                 preauthtoken=None, starting_backoff=1, tenant_name=None,
-                 os_options=None, auth_version="1", insecure=False,
-                 ssl_compression=True, cacert=None):
+    def __init__(self, authurl=None, user=None, key=None, retries=5,
+                 preauthurl=None, preauthtoken=None, starting_backoff=1,
+                 tenant_name=None, os_options=None, auth_version="1",
+                 insecure=False, ssl_compression=True, cacert=None):
         if os_options is None:
             os_options = {}
 
@@ -1332,9 +1332,9 @@ class TestMultiTenantStoreConnections(base.StoreBaseTest):
         connection = self.store.get_connection(self.location,
                                                context=self.context)
         self.assertIsNone(connection.authurl)
-        self.assertEqual(connection.auth_version, '2')
-        self.assertEqual(connection.user, 'tenant:user1')
-        self.assertEqual(connection.tenant_name, 'tenant')
+        self.assertEqual(connection.auth_version, '1')
+        self.assertIsNone(connection.user)
+        self.assertIsNone(connection.tenant_name)
         self.assertIsNone(connection.key)
         self.assertEqual(connection.preauthurl, 'https://example.com')
         self.assertEqual(connection.preauthtoken, '0123')
