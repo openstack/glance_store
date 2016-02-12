@@ -133,7 +133,7 @@ class Store(glance_store.driver.Store):
         where to find the image file, and returns a tuple of generator
         (for reading the image file) and image_size
 
-        :param location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                         from glance_store.location.get_location_from_uri()
         """
         try:
@@ -163,7 +163,7 @@ class Store(glance_store.driver.Store):
         Takes a `glance_store.location.Location` object that indicates
         where to find the image file, and returns the size
 
-        :param location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                         from glance_store.location.get_location_from_uri()
         """
         try:

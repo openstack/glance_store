@@ -438,7 +438,7 @@ class Store(glance_store.Store):
         :param verifier: An object used to verify signatures for images
         :retval tuple of URL in backing store, bytes written, checksum
                 and a dictionary with storage system specific information
-        :raises `glance.common.exceptions.Duplicate` if the image already
+        :raises: `glance.common.exceptions.Duplicate` if the image already
                 existed
                 `glance.common.exceptions.UnexpectedStatus` if the upload
                 request returned an unexpected status. The expected responses
@@ -541,9 +541,9 @@ class Store(glance_store.Store):
         """Takes a `glance_store.location.Location` object that indicates
         where to find the image file to delete
 
-        :location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                   from glance_store.location.get_location_from_uri()
-        :raises NotFound if image does not exist
+        :raises: NotFound if image does not exist
         """
         file_path = '[%s] %s' % (
             location.store_location.datastore_name,

@@ -108,9 +108,9 @@ class Store(capabilities.StoreCapability):
         where to find the image file, and returns a tuple of generator
         (for reading the image file) and image_size
 
-        :param location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                         from glance_store.location.get_location_from_uri()
-        :raises `glance.exceptions.NotFound` if image does not exist
+        :raises: `glance.exceptions.NotFound` if image does not exist
         """
         raise NotImplementedError
 
@@ -119,9 +119,9 @@ class Store(capabilities.StoreCapability):
         Takes a `glance_store.location.Location` object that indicates
         where to find the image file, and returns the size
 
-        :param location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                         from glance_store.location.get_location_from_uri()
-        :raises `glance_store.exceptions.NotFound` if image does not exist
+        :raises: `glance_store.exceptions.NotFound` if image does not exist
         """
         raise NotImplementedError
 
@@ -137,9 +137,9 @@ class Store(capabilities.StoreCapability):
         :param image_file: The image data to write, as a file-like object
         :param image_size: The size of the image data to write, in bytes
 
-        :retval tuple of URL in backing store, bytes written, checksum
+        :retval: tuple of URL in backing store, bytes written, checksum
                and a dictionary with storage system specific information
-        :raises `glance_store.exceptions.Duplicate` if the image already
+        :raises: `glance_store.exceptions.Duplicate` if the image already
                 existed
         """
         raise NotImplementedError
@@ -150,9 +150,9 @@ class Store(capabilities.StoreCapability):
         Takes a `glance_store.location.Location` object that indicates
         where to find the image file to delete
 
-        :location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                   from glance_store.location.get_location_from_uri()
-        :raises `glance_store.exceptions.NotFound` if image does not exist
+        :raises: `glance_store.exceptions.NotFound` if image does not exist
         """
         raise NotImplementedError
 
@@ -162,12 +162,12 @@ class Store(capabilities.StoreCapability):
         Sets the read and write access control list for an image in the
         backend store.
 
-        :location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                   from glance_store.location.get_location_from_uri()
-        :public A boolean indicating whether the image should be public.
-        :read_tenants A list of tenant strings which should be granted
+        :param public: A boolean indicating whether the image should be public.
+        :param read_tenants: A list of tenant strings which should be granted
                       read access for an image.
-        :write_tenants A list of tenant strings which should be granted
+        :param write_tenants: A list of tenant strings which should be granted
                       write access for an image.
         """
         raise NotImplementedError
