@@ -153,7 +153,7 @@ class StoreLocation(glance_store.location.StoreLocation):
         self.port = self.specs.get('port')
 
     def get_uri(self):
-        return "sheepdog://%(addr)s:%(port)s:%(image)s" % {
+        return "sheepdog://%(addr)s:%(port)d:%(image)s" % {
             'addr': self.addr,
             'port': self.port,
             'image': self.image}
@@ -165,7 +165,9 @@ class StoreLocation(glance_store.location.StoreLocation):
             raise exceptions.BadStoreUri(message=reason)
         pieces = uri[len(valid_schema):].split(':')
         if len(pieces) == 3:
-            self.addr, self.port, self.image = pieces
+            self.image = pieces[2]
+            self.port = int(pieces[1])
+            self.addr = pieces[0]
         # This is used for backwards compatibility.
         else:
             self.image = pieces[0]

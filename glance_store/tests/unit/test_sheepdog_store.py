@@ -16,6 +16,7 @@
 import mock
 from oslo_concurrency import processutils
 from oslo_utils import units
+import oslotest
 import six
 
 from glance_store._drivers import sheepdog
@@ -23,6 +24,49 @@ from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
 from glance_store.tests.unit import test_store_capabilities
+
+
+class TestStoreLocation(oslotest.base.BaseTestCase):
+    def test_process_spec(self):
+        mock_conf = mock.Mock()
+        fake_spec = {
+            'image': '6bd59e6e-c410-11e5-ab67-0a73f1fda51b',
+            'addr': '127.0.0.1',
+            'port': 7000,
+        }
+        loc = sheepdog.StoreLocation(fake_spec, mock_conf)
+        self.assertEqual(fake_spec['image'], loc.image)
+        self.assertEqual(fake_spec['addr'], loc.addr)
+        self.assertEqual(fake_spec['port'], loc.port)
+
+    def test_parse_uri(self):
+        mock_conf = mock.Mock()
+        fake_uri = ('sheepdog://127.0.0.1:7000'
+                    ':6bd59e6e-c410-11e5-ab67-0a73f1fda51b')
+        loc = sheepdog.StoreLocation({}, mock_conf)
+        loc.parse_uri(fake_uri)
+        self.assertEqual('6bd59e6e-c410-11e5-ab67-0a73f1fda51b', loc.image)
+        self.assertEqual('127.0.0.1', loc.addr)
+        self.assertEqual(7000, loc.port)
+
+
+class TestSheepdogImage(oslotest.base.BaseTestCase):
+    @mock.patch.object(processutils, 'execute')
+    def test_run_command(self, mock_execute):
+        image = sheepdog.SheepdogImage(
+            '127.0.0.1', 7000, '6bd59e6e-c410-11e5-ab67-0a73f1fda51b',
+            sheepdog.DEFAULT_CHUNKSIZE,
+        )
+        image._run_command('create', None)
+        expected_cmd = ('collie vdi %(command)s'
+                        ' -a %(addr)s -p %(port)d %(name)s ') % {
+            'command': 'create',
+            'addr': '127.0.0.1',
+            'port': 7000,
+            'name': '6bd59e6e-c410-11e5-ab67-0a73f1fda51b',
+        }
+        actual_cmd = mock_execute.call_args[0][0]
+        self.assertEqual(expected_cmd, actual_cmd)
 
 
 class TestSheepdogStore(base.StoreBaseTest,
@@ -43,9 +87,9 @@ class TestSheepdogStore(base.StoreBaseTest,
         self.addCleanup(execute.stop)
         self.store = sheepdog.Store(self.conf)
         self.store.configure()
-        self.store_specs = {'image': 'fake_image',
-                            'addr': 'fake_addr',
-                            'port': 'fake_port'}
+        self.store_specs = {'image': '6bd59e6e-c410-11e5-ab67-0a73f1fda51b',
+                            'addr': '127.0.0.1',
+                            'port': 7000}
 
     @mock.patch.object(sheepdog.SheepdogImage, 'write')
     @mock.patch.object(sheepdog.SheepdogImage, 'create')
