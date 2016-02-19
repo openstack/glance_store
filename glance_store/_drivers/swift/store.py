@@ -512,9 +512,18 @@ class BaseStore(driver.Store):
             if image_size > 0 and image_size < self.large_object_size:
                 # Image size is known, and is less than large_object_size.
                 # Send to Swift with regular PUT.
-                obj_etag = connection.put_object(location.container,
-                                                 location.obj, image_file,
-                                                 content_length=image_size)
+                if verifier:
+                    checksum = hashlib.md5()
+                    reader = ChunkReader(image_file, checksum,
+                                         image_size, verifier)
+                    obj_etag = connection.put_object(location.container,
+                                                     location.obj,
+                                                     reader,
+                                                     content_length=image_size)
+                else:
+                    obj_etag = connection.put_object(location.container,
+                                                     location.obj, image_file,
+                                                     content_length=image_size)
             else:
                 # Write the image into Swift in chunks.
                 chunk_id = 1
