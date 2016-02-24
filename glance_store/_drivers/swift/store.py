@@ -19,6 +19,7 @@ import hashlib
 import logging
 import math
 
+from keystoneclient import exceptions as keystone_exc
 from keystoneclient import service_catalog as keystone_sc
 from oslo_config import cfg
 from oslo_utils import encodeutils
@@ -946,8 +947,15 @@ class MultiTenantStore(BaseStore):
         return StoreLocation(specs, self.conf)
 
     def get_connection(self, location, context=None):
+        try:
+            storage_url = self._get_endpoint(context)
+        except (exceptions.BadStoreConfiguration,
+                keystone_exc.EndpointNotFound) as e:
+            LOG.debug("Cannot obtain swift endpoint url from Service Catalog: "
+                      "%s. Use url stored in database.", e)
+            storage_url = location.swift_url
         return swiftclient.Connection(
-            preauthurl=location.swift_url,
+            preauthurl=storage_url,
             preauthtoken=context.auth_token,
             insecure=self.insecure,
             ssl_compression=self.ssl_compression,
