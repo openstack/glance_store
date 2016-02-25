@@ -71,9 +71,9 @@ class TestHttpStore(base.StoreBaseTest,
         self._mock_requests()
         redirect1 = {"location": "http://example.com/teapot.img"}
         redirect2 = {"location": "http://example.com/teapot_real.img"}
-        responses = [utils.fake_response(status_code=302, headers=redirect1),
+        responses = [utils.fake_response(),
                      utils.fake_response(status_code=301, headers=redirect2),
-                     utils.fake_response()]
+                     utils.fake_response(status_code=302, headers=redirect1)]
 
         def getresponse(*args, **kwargs):
             return responses.pop()
@@ -85,6 +85,7 @@ class TestHttpStore(base.StoreBaseTest,
 
         loc = location.get_location_from_uri(uri, conf=self.conf)
         (image_file, image_size) = self.store.get(loc)
+        self.assertEqual(0, len(responses))
         self.assertEqual(image_size, 31)
 
         chunks = [c for c in image_file]
