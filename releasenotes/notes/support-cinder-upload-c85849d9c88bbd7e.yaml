@@ -1,0 +1,8 @@
+---
+features:
+  - Implemented image uploading, downloading and deletion for cinder store.
+    It also supports new settings to put image volumes into a specific project
+    to hide them from users and to control them based on ACL of the images.
+    Note that cinder store is currently considered experimental, so
+    current deployers should be aware that the use of it in production right
+    now may be riscky.
