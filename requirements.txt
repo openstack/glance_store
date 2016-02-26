@@ -1,7 +1,7 @@
 # The order of packages is significant, because pip processes them in the order
 # of appearance. Changing the order has an impact on the overall integration
 # process, which may cause wedges in the gate later.
-oslo.config>=3.4.0 # Apache-2.0
+oslo.config>=3.7.0 # Apache-2.0
 oslo.i18n>=2.1.0 # Apache-2.0
 oslo.serialization>=1.10.0 # Apache-2.0
 oslo.utils>=3.5.0 # Apache-2.0
@@ -15,4 +15,4 @@ debtcollector>=1.2.0 # Apache-2.0
 
 jsonschema!=2.5.0,<3.0.0,>=2.0.0 # MIT
 python-keystoneclient!=1.8.0,!=2.1.0,>=1.6.0 # Apache-2.0
-requests>=2.8.1,!=2.9.0  # Apache-2.0
+requests!=2.9.0,>=2.8.1 # Apache-2.0
