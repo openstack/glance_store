@@ -67,9 +67,9 @@ class FakeHTTPResponse(object):
         self.data.close()
 
 
-def fake_response(status_code=200, headers=None, content=None):
+def fake_response(status_code=200, headers=None, content=None, **kwargs):
     r = requests.models.Response()
     r.status_code = status_code
     r.headers = headers or {}
-    r.raw = FakeHTTPResponse(status_code, headers, content)
+    r.raw = FakeHTTPResponse(status_code, headers, content, kwargs)
     return r

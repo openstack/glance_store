@@ -65,24 +65,6 @@ def format_location(host_ip, folder_name, image_id, datastores):
                image_id, datacenter_path, datastore_name))
 
 
-class FakeHTTPConnection(object):
-
-    def __init__(self, status=200, *args, **kwargs):
-        self.status = status
-        self.no_response_body = kwargs.get('no_response_body', False)
-        pass
-
-    def getresponse(self):
-        return utils.FakeHTTPResponse(status=self.status,
-                                      no_response_body=self.no_response_body)
-
-    def request(self, *_args, **_kwargs):
-        pass
-
-    def close(self):
-        pass
-
-
 def fake_datastore_obj(*args, **kwargs):
     dc_obj = oslo_datacenter.Datacenter(ref='fake-ref',
                                         name='fake-name')
@@ -130,8 +112,8 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s"
             "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with self._mock_http_connection() as HttpConn:
-            HttpConn.return_value = FakeHTTPConnection()
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.return_value = utils.fake_response()
             (image_file, image_size) = self.store.get(loc)
         self.assertEqual(image_size, expected_image_size)
         chunks = [c for c in image_file]
@@ -146,8 +128,8 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glan"
             "ce/%s?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with self._mock_http_connection() as HttpConn:
-            HttpConn.return_value = FakeHTTPConnection(status=404)
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.return_value = utils.fake_response(status_code=404)
             self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     @mock.patch.object(vm_store.Store, 'select_datastore')
@@ -170,8 +152,8 @@ class TestStore(base.StoreBaseTest,
                 expected_image_id,
                 VMWARE_DS['vmware_datastores'])
             image = six.BytesIO(expected_contents)
-            with self._mock_http_connection() as HttpConn:
-                HttpConn.return_value = FakeHTTPConnection()
+            with mock.patch('requests.Session.request') as HttpConn:
+                HttpConn.return_value = utils.fake_response()
                 location, size, checksum, _ = self.store.add(expected_image_id,
                                                              image,
                                                              expected_size)
@@ -204,8 +186,8 @@ class TestStore(base.StoreBaseTest,
                 expected_image_id,
                 VMWARE_DS['vmware_datastores'])
             image = six.BytesIO(expected_contents)
-            with self._mock_http_connection() as HttpConn:
-                HttpConn.return_value = FakeHTTPConnection()
+            with mock.patch('requests.Session.request') as HttpConn:
+                HttpConn.return_value = utils.fake_response()
                 location, size, checksum, _ = self.store.add(expected_image_id,
                                                              image, 0)
         self.assertEqual(utils.sort_url_by_qs_keys(expected_location),
@@ -222,14 +204,14 @@ class TestStore(base.StoreBaseTest,
         size = FIVE_KB
         contents = b"*" * size
         image = six.BytesIO(contents)
-        with self._mock_http_connection() as HttpConn:
-            HttpConn.return_value = FakeHTTPConnection()
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.return_value = utils.fake_response()
             self.store.add(image_id, image, size, verifier=verifier)
 
         fake_reader.assert_called_with(image, verifier)
 
     @mock.patch.object(vm_store.Store, 'select_datastore')
-    @mock.patch('glance_store._drivers.vmware_datastore._ChunkReader')
+    @mock.patch('glance_store._drivers.vmware_datastore._Reader')
     def test_add_with_verifier_size_zero(self, fake_reader, fake_select_ds):
         """Test that the verifier is passed to the _ChunkReader during add."""
         verifier = mock.MagicMock(name='mock_verifier')
@@ -237,8 +219,8 @@ class TestStore(base.StoreBaseTest,
         size = FIVE_KB
         contents = b"*" * size
         image = six.BytesIO(contents)
-        with self._mock_http_connection() as HttpConn:
-            HttpConn.return_value = FakeHTTPConnection()
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.return_value = utils.fake_response()
             self.store.add(image_id, image, 0, verifier=verifier)
 
         fake_reader.assert_called_with(image, verifier)
@@ -249,12 +231,12 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s?"
             "dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with self._mock_http_connection() as HttpConn:
-            HttpConn.return_value = FakeHTTPConnection()
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.return_value = utils.fake_response()
             vm_store.Store._service_content = mock.Mock()
             self.store.delete(loc)
-        with self._mock_http_connection() as HttpConn:
-            HttpConn.return_value = FakeHTTPConnection(status=404)
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.return_value = utils.fake_response(status_code=404)
             self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     @mock.patch('oslo_vmware.api.VMwareAPISession')
@@ -278,8 +260,8 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glance/%s"
             "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with self._mock_http_connection() as HttpConn:
-            HttpConn.return_value = FakeHTTPConnection()
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.return_value = utils.fake_response()
             image_size = self.store.get_size(loc)
         self.assertEqual(image_size, 31)
 
@@ -292,8 +274,8 @@ class TestStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(
             "vsphere://127.0.0.1/folder/openstack_glan"
             "ce/%s?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with self._mock_http_connection() as HttpConn:
-            HttpConn.return_value = FakeHTTPConnection(status=404)
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.return_value = utils.fake_response(status_code=404)
             self.assertRaises(exceptions.NotFound, self.store.get_size, loc)
 
     def test_reader_full(self):
@@ -322,76 +304,6 @@ class TestStore(base.StoreBaseTest,
         verifier = mock.MagicMock(name='mock_verifier')
         reader = vm_store._Reader(image, verifier)
         reader.read()
-        verifier.update.assert_called_with(content)
-
-    def test_chunkreader_image_fits_in_blocksize(self):
-        """
-        Test that the image file reader returns the expected chunk of data
-        when the block size is larger than the image.
-        """
-        content = b'XXX'
-        image = six.BytesIO(content)
-        expected_checksum = hashlib.md5(content).hexdigest()
-        reader = vm_store._ChunkReader(image)
-        ret = reader.read()
-        if six.PY3:
-            expected_chunk = ('%x\r\n%s\r\n'
-                              % (len(content), content.decode('ascii')))
-            expected_chunk = expected_chunk.encode('ascii')
-        else:
-            expected_chunk = b'%x\r\n%s\r\n' % (len(content), content)
-        last_chunk = b'0\r\n\r\n'
-        self.assertEqual(expected_chunk + last_chunk, ret)
-        self.assertEqual(len(content), reader.size)
-        self.assertEqual(expected_checksum, reader.checksum.hexdigest())
-        self.assertTrue(reader.closed)
-        ret = reader.read()
-        self.assertEqual(len(content), reader.size)
-        self.assertEqual(expected_checksum, reader.checksum.hexdigest())
-        self.assertTrue(reader.closed)
-        self.assertEqual(b'', ret)
-
-    def test_chunkreader_image_larger_blocksize(self):
-        """
-        Test that the image file reader returns the expected chunks when
-        the block size specified is smaller than the image.
-        """
-        content = b'XXX'
-        image = six.BytesIO(content)
-        expected_checksum = hashlib.md5(content).hexdigest()
-        last_chunk = b'0\r\n\r\n'
-        reader = vm_store._ChunkReader(image, blocksize=1)
-        ret = reader.read()
-        expected_chunk = b'1\r\nX\r\n'
-        expected = (expected_chunk + expected_chunk + expected_chunk
-                    + last_chunk)
-        self.assertEqual(expected,
-                         ret)
-        self.assertEqual(expected_checksum, reader.checksum.hexdigest())
-        self.assertEqual(len(content), reader.size)
-        self.assertTrue(reader.closed)
-
-    def test_chunkreader_size(self):
-        """Test that the image reader takes into account the specified size."""
-        content = b'XXX'
-        image = six.BytesIO(content)
-        expected_checksum = hashlib.md5(content).hexdigest()
-        reader = vm_store._ChunkReader(image, blocksize=1)
-        ret = reader.read(size=3)
-        self.assertEqual(b'1\r\n', ret)
-        ret = reader.read(size=1)
-        self.assertEqual(b'X', ret)
-        ret = reader.read()
-        self.assertEqual(expected_checksum, reader.checksum.hexdigest())
-        self.assertEqual(len(content), reader.size)
-        self.assertTrue(reader.closed)
-
-    def test_chunkreader_with_verifier(self):
-        content = b'XXX'
-        image = six.BytesIO(content)
-        verifier = mock.MagicMock(name='mock_verifier')
-        reader = vm_store._ChunkReader(image, verifier)
-        reader.read(size=3)
         verifier.update.assert_called_with(content)
 
     def test_sanity_check_api_retry_count(self):
@@ -475,8 +387,8 @@ class TestStore(base.StoreBaseTest,
         expected_contents = b"*" * expected_size
         image = six.BytesIO(expected_contents)
         self.session = mock.Mock()
-        with self._mock_http_connection() as HttpConn:
-            HttpConn.return_value = FakeHTTPConnection(status=401)
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.return_value = utils.fake_response(status_code=401)
             self.assertRaises(exceptions.BackendException,
                               self.store.add,
                               expected_image_id, image, expected_size)
@@ -491,8 +403,8 @@ class TestStore(base.StoreBaseTest,
         image = six.BytesIO(expected_contents)
         self.session = mock.Mock()
         with self._mock_http_connection() as HttpConn:
-            HttpConn.return_value = FakeHTTPConnection(status=500,
-                                                       no_response_body=True)
+            HttpConn.return_value = utils.fake_response(status_code=500,
+                                                        no_response_body=True)
             self.assertRaises(exceptions.BackendException,
                               self.store.add,
                               expected_image_id, image, expected_size)
@@ -532,7 +444,7 @@ class TestStore(base.StoreBaseTest,
         expected_contents = b"*" * expected_size
         image = six.BytesIO(expected_contents)
         self.session = mock.Mock()
-        with self._mock_http_connection() as HttpConn:
+        with mock.patch('requests.Session.request') as HttpConn:
             HttpConn.request.side_effect = IOError
             self.assertRaises(exceptions.BackendException,
                               self.store.add,
@@ -660,3 +572,58 @@ class TestStore(base.StoreBaseTest,
             'FindByInventoryPath',
             self.store.session.vim.service_content.searchIndex,
             inventoryPath=datacenter_path)
+
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def test_http_get_redirect(self, mock_api_session):
+        # Add two layers of redirects to the response stack, which will
+        # return the default 200 OK with the expected data after resolving
+        # both redirects.
+        redirect1 = {"location": "https://example.com?dsName=ds1&dcPath=dc1"}
+        redirect2 = {"location": "https://example.com?dsName=ds2&dcPath=dc2"}
+        responses = [utils.fake_response(),
+                     utils.fake_response(status_code=302, headers=redirect1),
+                     utils.fake_response(status_code=301, headers=redirect2)]
+
+        def getresponse(*args, **kwargs):
+            return responses.pop()
+
+        expected_image_size = 31
+        expected_returns = ['I am a teapot, short and stout\n']
+        loc = location.get_location_from_uri(
+            "vsphere://127.0.0.1/folder/openstack_glance/%s"
+            "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.side_effect = getresponse
+            (image_file, image_size) = self.store.get(loc)
+        self.assertEqual(image_size, expected_image_size)
+        chunks = [c for c in image_file]
+        self.assertEqual(expected_returns, chunks)
+
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def test_http_get_max_redirects(self, mock_api_session):
+        redirect = {"location": "https://example.com?dsName=ds1&dcPath=dc1"}
+        responses = ([utils.fake_response(status_code=302, headers=redirect)]
+                     * (vm_store.MAX_REDIRECTS + 1))
+
+        def getresponse(*args, **kwargs):
+            return responses.pop()
+
+        loc = location.get_location_from_uri(
+            "vsphere://127.0.0.1/folder/openstack_glance/%s"
+            "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.side_effect = getresponse
+            self.assertRaises(exceptions.MaxRedirectsExceeded, self.store.get,
+                              loc)
+
+    @mock.patch('oslo_vmware.api.VMwareAPISession')
+    def test_http_get_redirect_invalid(self, mock_api_session):
+        redirect = {"location": "https://example.com?dsName=ds1&dcPath=dc1"}
+
+        loc = location.get_location_from_uri(
+            "vsphere://127.0.0.1/folder/openstack_glance/%s"
+            "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
+        with mock.patch('requests.Session.request') as HttpConn:
+            HttpConn.return_value = utils.fake_response(status_code=307,
+                                                        headers=redirect)
+            self.assertRaises(exceptions.BadStoreUri, self.store.get, loc)

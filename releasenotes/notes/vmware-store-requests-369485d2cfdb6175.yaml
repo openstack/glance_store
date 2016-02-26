@@ -1,0 +1,6 @@
+---
+security:
+  - Previously the VMWare Datastore was using HTTPS Connections from httplib
+    which do not verify the connection. By switching to using requests library
+    the VMware storage backend now verifies HTTPS connection to vCenter server
+    and thus addresses the vulnerabilities described in OSSN-0033.
