@@ -5,4 +5,4 @@ features:
     to hide them from users and to control them based on ACL of the images.
     Note that cinder store is currently considered experimental, so
     current deployers should be aware that the use of it in production right
-    now may be riscky.
+    now may be risky.
