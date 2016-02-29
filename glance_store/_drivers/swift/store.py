@@ -34,6 +34,7 @@ except ImportError:
     swiftclient = None
 
 import glance_store
+from glance_store._drivers.swift import connection_manager
 from glance_store._drivers.swift import utils as sutils
 from glance_store import capabilities
 from glance_store import driver
@@ -120,7 +121,22 @@ _SWIFT_OPTS = [
                        'compressed format, eg qcow2.')),
     cfg.IntOpt('swift_store_retry_get_count', default=0,
                help=_('The number of times a Swift download will be retried '
-                      'before the request fails.'))
+                      'before the request fails.')),
+    cfg.IntOpt('swift_store_expire_soon_interval', default=60,
+               help=_('The period of time (in seconds) before token expiration'
+                      'when glance_store will try to reques new user token. '
+                      'Default value 60 sec means that if token is going to '
+                      'expire in 1 min then glance_store request new user '
+                      'token.')),
+    cfg.BoolOpt('swift_store_use_trusts', default=True,
+                help=_('If set to True create a trust for each add/get '
+                       'request to Multi-tenant store in order to prevent '
+                       'authentication token to be expired during '
+                       'uploading/downloading data. If set to False then user '
+                       'token is used for Swift connection (so no overhead on '
+                       'trust creation). Please note that this '
+                       'option is considered only and only if '
+                       'swift_store_multi_tenant=True'))
 ]
 
 
@@ -729,6 +745,29 @@ class BaseStore(driver.Store):
     def create_location(self, image_id, context=None):
         raise NotImplementedError()
 
+    def init_client(self, location, context=None):
+        """Initialize and return client to authorize against keystone
+
+        The method invariant is the following: it always returns Keystone
+        client that can be used to receive fresh token in any time. Otherwise
+        it raises appropriate exception.
+        :param location: swift location data
+        :param context: user context (it is not required if user grants are
+        specified for single tenant store)
+        :return correctly initialized keystone client
+        """
+        raise NotImplementedError()
+
+    def get_store_connection(self, auth_token, storage_url):
+        """Get initialized swift connection
+
+        :param auth_token: auth token
+        :param storage_url: swift storage url
+        :return: swiftclient connection that allows to request container and
+        others
+        """
+        raise NotImplementedError()
+
 
 class SingleTenantStore(BaseStore):
     EXAMPLE_URL = "swift://<USER>:<KEY>@<AUTH_ADDRESS>/<CONTAINER>/<FILE>"
@@ -991,3 +1030,34 @@ class ChunkReader(object):
         if self.verifier:
             self.verifier.update(result)
         return result
+
+
+def get_manager_for_store(store, store_location,
+                          context=None,
+                          allow_reauth=False):
+    """Return appropriate connection manager for store
+
+    The method detects store type (singletenant or multitenant) and returns
+    appropriate connection manager (singletenant or multitenant) that allows
+    to request swiftclient connections.
+    :param store: store that needs swift connections
+    :param store_location: StoreLocation object that define image location
+    :param context: user context
+    :param allow_reauth: defines if we allow re-authentication when user token
+    is expired and refresh swift connection
+    :return: connection manager for store
+    """
+    if store.__class__ == SingleTenantStore:
+        return connection_manager.SingleTenantConnectionManager(
+            store, store_location, context, allow_reauth)
+    elif store.__class__ == MultiTenantStore:
+        # if global toggle is turned off then do not allow re-authentication
+        # with trusts
+        if not store.conf.glance_store.swift_store_use_trusts:
+            allow_reauth = False
+        return connection_manager.MultiTenantConnectionManager(
+            store, store_location, context, allow_reauth)
+    else:
+        raise NotImplementedError(_("There is no Connection Manager "
+                                    "implemented for %s class.") %
+                                  store.__class__.__name__)
