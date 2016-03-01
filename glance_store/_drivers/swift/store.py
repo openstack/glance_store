@@ -33,6 +33,10 @@ try:
 except ImportError:
     swiftclient = None
 
+from keystoneclient.auth.identity import v3 as ks_v3
+from keystoneclient import session as ks_session
+from keystoneclient.v3 import client as ks_client
+
 import glance_store
 from glance_store._drivers.swift import connection_manager
 from glance_store._drivers.swift import utils as sutils
@@ -140,7 +144,7 @@ _SWIFT_OPTS = [
 ]
 
 
-def swift_retry_iter(resp_iter, length, store, location, context):
+def swift_retry_iter(resp_iter, length, store, location, manager):
     if not length and isinstance(resp_iter, six.BytesIO):
         if six.PY3:
             # On Python 3, io.BytesIO does not have a len attribute, instead
@@ -185,9 +189,9 @@ def swift_retry_iter(resp_iter, length, store, location, context):
                           'max_retries': retry_count,
                           'start': bytes_read,
                           'end': length})
-                (_resp_headers, resp_iter) = store._get_object(location, None,
-                                                               bytes_read,
-                                                               context=context)
+                (_resp_headers, resp_iter) = store._get_object(location,
+                                                               manager,
+                                                               bytes_read)
         else:
             break
 
@@ -440,16 +444,14 @@ class BaseStore(driver.Store):
                                                    reason=msg)
         super(BaseStore, self).configure(re_raise_bsc=re_raise_bsc)
 
-    def _get_object(self, location, connection=None, start=None, context=None):
-        if not connection:
-            connection = self.get_connection(location, context=context)
+    def _get_object(self, location, manager, start=None):
         headers = {}
         if start is not None:
             bytes_range = 'bytes=%d-' % start
             headers = {'Range': bytes_range}
 
         try:
-            resp_headers, resp_body = connection.get_object(
+            resp_headers, resp_body = manager.get_connection().get_object(
                 location.container, location.obj,
                 resp_chunk_size=self.CHUNKSIZE, headers=headers)
         except swiftclient.ClientException as e:
@@ -466,21 +468,26 @@ class BaseStore(driver.Store):
     def get(self, location, connection=None,
             offset=0, chunk_size=None, context=None):
         location = location.store_location
-        (resp_headers, resp_body) = self._get_object(location, connection,
-                                                     context=context)
+        # initialize manager to receive valid connections
+        allow_retry = \
+            self.conf.glance_store.swift_store_retry_get_count > 0
+        with get_manager_for_store(self, location, context,
+                                   allow_reauth=allow_retry) as manager:
+            (resp_headers, resp_body) = self._get_object(location,
+                                                         manager=manager)
 
-        class ResponseIndexable(glance_store.Indexable):
-            def another(self):
-                try:
-                    return next(self.wrapped)
-                except StopIteration:
-                    return ''
+            class ResponseIndexable(glance_store.Indexable):
+                def another(self):
+                    try:
+                        return next(self.wrapped)
+                    except StopIteration:
+                        return ''
 
-        length = int(resp_headers.get('content-length', 0))
-        if self.conf.glance_store.swift_store_retry_get_count > 0:
-            resp_body = swift_retry_iter(resp_body, length,
-                                         self, location, context)
-        return (ResponseIndexable(resp_body, length), length)
+            length = int(resp_headers.get('content-length', 0))
+            if allow_retry:
+                resp_body = swift_retry_iter(resp_body, length,
+                                             self, location, manager=manager)
+            return ResponseIndexable(resp_body, length), length
 
     def get_size(self, location, connection=None, context=None):
         location = location.store_location
@@ -516,138 +523,143 @@ class BaseStore(driver.Store):
 
     @capabilities.check
     def add(self, image_id, image_file, image_size,
-            connection=None, context=None, verifier=None):
+            context=None, verifier=None):
         location = self.create_location(image_id, context=context)
-        if not connection:
-            connection = self.get_connection(location, context=context)
+        # initialize a manager with re-auth if image need to be splitted
+        need_chunks = (image_size == 0) or (
+            image_size >= self.large_object_size)
+        with get_manager_for_store(self, location, context,
+                                   allow_reauth=need_chunks) as manager:
 
-        self._create_container_if_missing(location.container, connection)
+            self._create_container_if_missing(location.container,
+                                              manager.get_connection())
 
-        LOG.debug("Adding image object '%(obj_name)s' "
-                  "to Swift" % dict(obj_name=location.obj))
-        try:
-            if image_size > 0 and image_size < self.large_object_size:
-                # Image size is known, and is less than large_object_size.
-                # Send to Swift with regular PUT.
-                if verifier:
-                    checksum = hashlib.md5()
-                    reader = ChunkReader(image_file, checksum,
-                                         image_size, verifier)
-                    obj_etag = connection.put_object(location.container,
-                                                     location.obj,
-                                                     reader,
-                                                     content_length=image_size)
-                else:
-                    obj_etag = connection.put_object(location.container,
-                                                     location.obj, image_file,
-                                                     content_length=image_size)
-            else:
-                # Write the image into Swift in chunks.
-                chunk_id = 1
-                if image_size > 0:
-                    total_chunks = str(int(
-                        math.ceil(float(image_size) /
-                                  float(self.large_object_chunk_size))))
-                else:
-                    # image_size == 0 is when we don't know the size
-                    # of the image. This can occur with older clients
-                    # that don't inspect the payload size.
-                    LOG.debug("Cannot determine image size. Adding as a "
-                              "segmented object to Swift.")
-                    total_chunks = '?'
-
-                checksum = hashlib.md5()
-                written_chunks = []
-                combined_chunks_size = 0
-                while True:
-                    chunk_size = self.large_object_chunk_size
-                    if image_size == 0:
-                        content_length = None
+            LOG.debug("Adding image object '%(obj_name)s' "
+                      "to Swift" % dict(obj_name=location.obj))
+            try:
+                if not need_chunks:
+                    # Image size is known, and is less than large_object_size.
+                    # Send to Swift with regular PUT.
+                    if verifier:
+                        checksum = hashlib.md5()
+                        reader = ChunkReader(image_file, checksum,
+                                             image_size, verifier)
+                        obj_etag = manager.get_connection().put_object(
+                            location.container, location.obj,
+                            reader, content_length=image_size)
                     else:
-                        left = image_size - combined_chunks_size
-                        if left == 0:
+                        obj_etag = manager.get_connection().put_object(
+                            location.container, location.obj,
+                            image_file, content_length=image_size)
+                else:
+                    # Write the image into Swift in chunks.
+                    chunk_id = 1
+                    if image_size > 0:
+                        total_chunks = str(int(
+                            math.ceil(float(image_size) /
+                                      float(self.large_object_chunk_size))))
+                    else:
+                        # image_size == 0 is when we don't know the size
+                        # of the image. This can occur with older clients
+                        # that don't inspect the payload size.
+                        LOG.debug("Cannot determine image size. Adding as a "
+                                  "segmented object to Swift.")
+                        total_chunks = '?'
+
+                    checksum = hashlib.md5()
+                    written_chunks = []
+                    combined_chunks_size = 0
+                    while True:
+                        chunk_size = self.large_object_chunk_size
+                        if image_size == 0:
+                            content_length = None
+                        else:
+                            left = image_size - combined_chunks_size
+                            if left == 0:
+                                break
+                            if chunk_size > left:
+                                chunk_size = left
+                            content_length = chunk_size
+
+                        chunk_name = "%s-%05d" % (location.obj, chunk_id)
+                        reader = ChunkReader(image_file, checksum, chunk_size,
+                                             verifier)
+                        if reader.is_zero_size is True:
+                            LOG.debug('Not writing zero-length chunk.')
                             break
-                        if chunk_size > left:
-                            chunk_size = left
-                        content_length = chunk_size
+                        try:
+                            chunk_etag = manager.get_connection().put_object(
+                                location.container, chunk_name, reader,
+                                content_length=content_length)
+                            written_chunks.append(chunk_name)
+                        except Exception:
+                            # Delete orphaned segments from swift backend
+                            with excutils.save_and_reraise_exception():
+                                LOG.exception(_("Error during chunked upload "
+                                                "to backend, deleting stale "
+                                                "chunks"))
+                                self._delete_stale_chunks(
+                                    manager.get_connection(),
+                                    location.container,
+                                    written_chunks)
 
-                    chunk_name = "%s-%05d" % (location.obj, chunk_id)
-                    reader = ChunkReader(image_file, checksum, chunk_size,
-                                         verifier)
-                    if reader.is_zero_size is True:
-                        LOG.debug('Not writing zero-length chunk.')
-                        break
-                    try:
-                        chunk_etag = connection.put_object(
-                            location.container, chunk_name, reader,
-                            content_length=content_length)
-                        written_chunks.append(chunk_name)
-                    except Exception:
-                        # Delete orphaned segments from swift backend
-                        with excutils.save_and_reraise_exception():
-                            LOG.exception(_("Error during chunked upload to "
-                                            "backend, deleting stale chunks"))
-                            self._delete_stale_chunks(connection,
-                                                      location.container,
-                                                      written_chunks)
+                        bytes_read = reader.bytes_read
+                        msg = ("Wrote chunk %(chunk_name)s (%(chunk_id)d/"
+                               "%(total_chunks)s) of length %(bytes_read)d "
+                               "to Swift returning MD5 of content: "
+                               "%(chunk_etag)s" %
+                               {'chunk_name': chunk_name,
+                                'chunk_id': chunk_id,
+                                'total_chunks': total_chunks,
+                                'bytes_read': bytes_read,
+                                'chunk_etag': chunk_etag})
+                        LOG.debug(msg)
 
-                    bytes_read = reader.bytes_read
-                    msg = ("Wrote chunk %(chunk_name)s (%(chunk_id)d/"
-                           "%(total_chunks)s) of length %(bytes_read)d "
-                           "to Swift returning MD5 of content: "
-                           "%(chunk_etag)s" %
-                           {'chunk_name': chunk_name,
-                            'chunk_id': chunk_id,
-                            'total_chunks': total_chunks,
-                            'bytes_read': bytes_read,
-                            'chunk_etag': chunk_etag})
-                    LOG.debug(msg)
+                        chunk_id += 1
+                        combined_chunks_size += bytes_read
 
-                    chunk_id += 1
-                    combined_chunks_size += bytes_read
+                    # In the case we have been given an unknown image size,
+                    # set the size to the total size of the combined chunks.
+                    if image_size == 0:
+                        image_size = combined_chunks_size
 
-                # In the case we have been given an unknown image size,
-                # set the size to the total size of the combined chunks.
-                if image_size == 0:
-                    image_size = combined_chunks_size
+                    # Now we write the object manifest and return the
+                    # manifest's etag...
+                    manifest = "%s/%s-" % (location.container, location.obj)
+                    headers = {'ETag': hashlib.md5(b"").hexdigest(),
+                               'X-Object-Manifest': manifest}
 
-                # Now we write the object manifest and return the
-                # manifest's etag...
-                manifest = "%s/%s-" % (location.container, location.obj)
-                headers = {'ETag': hashlib.md5(b"").hexdigest(),
-                           'X-Object-Manifest': manifest}
+                    # The ETag returned for the manifest is actually the
+                    # MD5 hash of the concatenated checksums of the strings
+                    # of each chunk...so we ignore this result in favour of
+                    # the MD5 of the entire image file contents, so that
+                    # users can verify the image file contents accordingly
+                    manager.get_connection().put_object(location.container,
+                                                        location.obj,
+                                                        None, headers=headers)
+                    obj_etag = checksum.hexdigest()
 
-                # The ETag returned for the manifest is actually the
-                # MD5 hash of the concatenated checksums of the strings
-                # of each chunk...so we ignore this result in favour of
-                # the MD5 of the entire image file contents, so that
-                # users can verify the image file contents accordingly
-                connection.put_object(location.container, location.obj,
-                                      None, headers=headers)
-                obj_etag = checksum.hexdigest()
+                # NOTE: We return the user and key here! Have to because
+                # location is used by the API server to return the actual
+                # image data. We *really* should consider NOT returning
+                # the location attribute from GET /images/<ID> and
+                # GET /images/details
+                if sutils.is_multiple_swift_store_accounts_enabled(self.conf):
+                    include_creds = False
+                else:
+                    include_creds = True
+                return (location.get_uri(credentials_included=include_creds),
+                        image_size, obj_etag, {})
+            except swiftclient.ClientException as e:
+                if e.http_status == http_client.CONFLICT:
+                    msg = _("Swift already has an image at this location")
+                    raise exceptions.Duplicate(message=msg)
 
-            # NOTE: We return the user and key here! Have to because
-            # location is used by the API server to return the actual
-            # image data. We *really* should consider NOT returning
-            # the location attribute from GET /images/<ID> and
-            # GET /images/details
-            if sutils.is_multiple_swift_store_accounts_enabled(self.conf):
-                include_creds = False
-            else:
-                include_creds = True
-
-            return (location.get_uri(credentials_included=include_creds),
-                    image_size, obj_etag, {})
-        except swiftclient.ClientException as e:
-            if e.http_status == http_client.CONFLICT:
-                msg = _("Swift already has an image at this location")
-                raise exceptions.Duplicate(message=msg)
-
-            msg = (_(u"Failed to add object to Swift.\n"
-                     "Got error from Swift: %s.")
-                   % encodeutils.exception_to_unicode(e))
-            LOG.error(msg)
-            raise glance_store.BackendException(msg)
+                msg = (_(u"Failed to add object to Swift.\n"
+                         "Got error from Swift: %s.")
+                       % encodeutils.exception_to_unicode(e))
+                LOG.error(msg)
+                raise glance_store.BackendException(msg)
 
     @capabilities.check
     def delete(self, location, connection=None, context=None):
@@ -766,7 +778,13 @@ class BaseStore(driver.Store):
         :return: swiftclient connection that allows to request container and
         others
         """
-        raise NotImplementedError()
+        # initialize a connection
+        return swiftclient.Connection(
+            preauthurl=storage_url,
+            preauthtoken=auth_token,
+            insecure=self.insecure,
+            ssl_compression=self.ssl_compression,
+            cacert=self.cacert)
 
 
 class SingleTenantStore(BaseStore):
@@ -905,6 +923,39 @@ class SingleTenantStore(BaseStore):
             auth_version=self.auth_version, os_options=os_options,
             ssl_compression=self.ssl_compression, cacert=self.cacert)
 
+    def init_client(self, location, context=None):
+        """Initialize keystone client with swift service user credentials"""
+        # prepare swift admin credentials
+        if not location.user:
+            reason = _("Location is missing user:password information.")
+            LOG.info(reason)
+            raise exceptions.BadStoreUri(message=reason)
+
+        auth_url = location.swift_url
+        if not auth_url.endswith('/'):
+            auth_url += '/'
+
+        try:
+            tenant_name, user = location.user.split(':')
+        except ValueError:
+            reason = (_("Badly formed tenant:user '%(user)s' in "
+                        "Swift URI") % {'user': location.user})
+            LOG.info(reason)
+            raise exceptions.BadStoreUri(message=reason)
+
+        # initialize a keystone plugin for swift admin with creds
+        password = ks_v3.Password(auth_url=auth_url,
+                                  username=user,
+                                  password=location.key,
+                                  project_name=tenant_name,
+                                  user_domain_id=self.user_domain_id,
+                                  user_domain_name=self.user_domain_name,
+                                  project_domain_id=self.project_domain_id,
+                                  project_domain_name=self.project_domain_name)
+        sess = ks_session.Session(auth=password)
+
+        return ks_client.Client(session=sess)
+
 
 class MultiTenantStore(BaseStore):
     EXAMPLE_URL = "swift://<SWIFT_URL>/<CONTAINER>/<FILE>"
@@ -999,6 +1050,73 @@ class MultiTenantStore(BaseStore):
             insecure=self.insecure,
             ssl_compression=self.ssl_compression,
             cacert=self.cacert)
+
+    def init_client(self, location, context=None):
+        # read client parameters from config files
+        ref_params = sutils.SwiftParams(self.conf).params
+        default_ref = self.conf.glance_store.default_swift_reference
+        default_swift_reference = ref_params.get(default_ref)
+        if not default_swift_reference:
+            reason = _("default_swift_reference %s is required.") % default_ref
+            LOG.error(reason)
+            raise exceptions.BadStoreConfiguration(message=reason)
+
+        auth_address = default_swift_reference.get('auth_address')
+        user = default_swift_reference.get('user')
+        key = default_swift_reference.get('key')
+        user_domain_id = default_swift_reference.get('user_domain_id')
+        user_domain_name = default_swift_reference.get('user_domain_name')
+        project_domain_id = default_swift_reference.get('project_domain_id')
+        project_domain_name = default_swift_reference.get(
+            'project_domain_name')
+
+        # create client for multitenant user(trustor)
+        trustor_auth = ks_v3.Token(auth_url=auth_address,
+                                   token=context.auth_token,
+                                   project_id=context.tenant)
+        trustor_sess = ks_session.Session(auth=trustor_auth)
+        trustor_client = ks_client.Client(session=trustor_sess)
+        auth_ref = trustor_client.session.auth.get_auth_ref(trustor_sess)
+        roles = [t['name'] for t in auth_ref['roles']]
+
+        # create client for trustee - glance user specified in swift config
+        tenant_name, user = user.split(':')
+        password = ks_v3.Password(auth_url=auth_address,
+                                  username=user,
+                                  password=key,
+                                  project_name=tenant_name,
+                                  user_domain_id=user_domain_id,
+                                  user_domain_name=user_domain_name,
+                                  project_domain_id=project_domain_id,
+                                  project_domain_name=project_domain_name)
+        trustee_sess = ks_session.Session(auth=password)
+        trustee_client = ks_client.Client(session=trustee_sess)
+
+        # request glance user id - we will use it as trustee user
+        trustee_user_id = trustee_client.session.get_user_id()
+
+        # create trust for trustee user
+        trust_id = trustor_client.trusts.create(
+            trustee_user=trustee_user_id, trustor_user=context.user,
+            project=context.tenant, impersonation=True,
+            role_names=roles
+        ).id
+        # initialize a new client with trust and trustee credentials
+        # create client for glance trustee user
+        client_password = ks_v3.Password(
+            auth_url=auth_address,
+            username=user,
+            password=key,
+            trust_id=trust_id,
+            user_domain_id=user_domain_id,
+            user_domain_name=user_domain_name,
+            project_domain_id=project_domain_id,
+            project_domain_name=project_domain_name
+        )
+        # now we can authenticate against KS
+        # as trustee of user who provided token
+        client_sess = ks_session.Session(auth=client_password)
+        return ks_client.Client(session=client_sess)
 
 
 class ChunkReader(object):

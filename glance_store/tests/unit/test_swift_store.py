@@ -22,6 +22,7 @@ import mock
 import tempfile
 import uuid
 
+from keystoneclient import exceptions as ks_exceptions
 from oslo_config import cfg
 from oslo_utils import encodeutils
 from oslo_utils import units
@@ -35,6 +36,7 @@ from six.moves import range
 import swiftclient
 
 from glance_store._drivers.swift import store as swift
+from glance_store._drivers.swift import utils as sutils
 from glance_store import backend
 from glance_store import BackendException
 from glance_store import capabilities
@@ -233,6 +235,12 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
 
 class SwiftTests(object):
 
+    def mock_keystone_client(self):
+        # mock keystone client functions to avoid dependency errors
+        swift.ks_v3 = mock.MagicMock()
+        swift.ks_session = mock.MagicMock()
+        swift.ks_client = mock.MagicMock()
+
     @property
     def swift_store_user(self):
         return 'tenant:user1'
@@ -285,10 +293,13 @@ class SwiftTests(object):
         resp_full = b''.join([chunk for chunk in image_swift.wrapped])
         resp_half = resp_full[:len(resp_full) // 2]
         resp_half = six.BytesIO(resp_half)
+        manager = swift.get_manager_for_store(self.store, loc.store_location,
+                                              ctxt)
+
         image_swift.wrapped = swift.swift_retry_iter(resp_half, image_size,
                                                      self.store,
                                                      loc.store_location,
-                                                     ctxt)
+                                                     manager)
         self.assertEqual(image_size, 5120)
 
         expected_data = b"*" * FIVE_KB
@@ -337,6 +348,7 @@ class SwiftTests(object):
     def test_add(self):
         """Test that we can add an image via the swift backend."""
         moves.reload_module(swift)
+        self.mock_keystone_client()
         self.store = Store(self.conf)
         self.store.configure()
         expected_swift_size = FIVE_KB
@@ -374,6 +386,7 @@ class SwiftTests(object):
         conf['default_swift_reference'] = 'store_2'
         self.config(**conf)
         moves.reload_module(swift)
+        self.mock_keystone_client()
         self.store = Store(self.conf)
         self.store.configure()
 
@@ -424,6 +437,7 @@ class SwiftTests(object):
             conf['default_swift_reference'] = variation
             self.config(**conf)
             moves.reload_module(swift)
+            self.mock_keystone_client()
             self.store = Store(self.conf)
             self.store.configure()
             loc, size, checksum, _ = self.store.add(image_id, image_swift,
@@ -454,6 +468,7 @@ class SwiftTests(object):
         conf['swift_store_container'] = 'noexist'
         self.config(**conf)
         moves.reload_module(swift)
+        self.mock_keystone_client()
 
         self.store = Store(self.conf)
         self.store.configure()
@@ -500,6 +515,7 @@ class SwiftTests(object):
         conf['swift_store_container'] = 'noexist'
         self.config(**conf)
         moves.reload_module(swift)
+        self.mock_keystone_client()
         self.store = Store(self.conf)
         self.store.configure()
         loc, size, checksum, _ = self.store.add(expected_image_id,
@@ -545,6 +561,8 @@ class SwiftTests(object):
         conf['swift_store_multiple_containers_seed'] = 2
         self.config(**conf)
         moves.reload_module(swift)
+        self.mock_keystone_client()
+
         self.store = Store(self.conf)
         self.store.configure()
         loc, size, checksum, _ = self.store.add(expected_image_id,
@@ -579,6 +597,7 @@ class SwiftTests(object):
         conf['swift_store_multiple_containers_seed'] = 2
         self.config(**conf)
         moves.reload_module(swift)
+        self.mock_keystone_client()
 
         expected_image_id = str(uuid.uuid4())
         expected_container = 'randomname_' + expected_image_id[:2]
@@ -895,6 +914,7 @@ class SwiftTests(object):
         conf = copy.deepcopy(SWIFT_CONF)
         self.config(**conf)
         moves.reload_module(swift)
+        self.mock_keystone_client()
         self.store = Store(self.conf)
         self.store.configure()
 
@@ -934,6 +954,7 @@ class SwiftTests(object):
         conf = copy.deepcopy(SWIFT_CONF)
         self.config(**conf)
         moves.reload_module(swift)
+        self.mock_keystone_client()
         self.store = Store(self.conf)
         self.store.configure()
 
@@ -960,7 +981,7 @@ class SwiftTests(object):
         loc = location.get_location_from_uri(uri, conf=self.conf)
         self.store.delete(loc)
 
-        self.assertRaises(exceptions.NotFound, self.store.get, loc)
+        self.assertRaises(ks_exceptions.NotFound, self.store.get, loc)
 
     def test_delete_non_existing(self):
         """
@@ -1109,6 +1130,81 @@ class SwiftTests(object):
         self.assertRaises(NotImplementedError, swift.get_manager_for_store,
                           store, loc)
 
+    @mock.patch("glance_store._drivers.swift.store.ks_v3")
+    @mock.patch("glance_store._drivers.swift.store.ks_session")
+    @mock.patch("glance_store._drivers.swift.store.ks_client")
+    def test_init_client_multi_tenant(self,
+                                      mock_client, mock_session, mock_v3):
+        """Test that keystone client was initialized correctly"""
+        # initialize store and connection parameters
+        self.config(swift_store_multi_tenant=True)
+        store = Store(self.conf)
+        store.configure()
+        ref_params = sutils.SwiftParams(self.conf).params
+        default_ref = self.conf.glance_store.default_swift_reference
+        default_swift_reference = ref_params.get(default_ref)
+        # prepare client and session
+        trustee_session = mock.MagicMock()
+        trustor_session = mock.MagicMock()
+        main_session = mock.MagicMock()
+        trustee_client = mock.MagicMock()
+        trustee_client.session.get_user_id.return_value = 'fake_user'
+        trustor_client = mock.MagicMock()
+        trustor_client.session.auth.get_auth_ref.return_value = {
+            'roles': [{'name': 'fake_role'}]
+        }
+        trustor_client.trusts.create.return_value = mock.MagicMock(
+            id='fake_trust')
+        main_client = mock.MagicMock()
+        mock_session.Session.side_effect = [trustor_session, trustee_session,
+                                            main_session]
+        mock_client.Client.side_effect = [trustor_client, trustee_client,
+                                          main_client]
+        # initialize client
+        ctxt = mock.MagicMock()
+        client = store.init_client(location=mock.MagicMock(), context=ctxt)
+        # test trustor usage
+        mock_v3.Token.assert_called_once_with(
+            auth_url=default_swift_reference.get('auth_address'),
+            token=ctxt.auth_token,
+            project_id=ctxt.tenant
+        )
+        mock_session.Session.assert_any_call(auth=mock_v3.Token())
+        mock_client.Client.assert_any_call(session=trustor_session)
+        # test trustee usage and trust creation
+        tenant_name, user = default_swift_reference.get('user').split(':')
+        mock_v3.Password.assert_any_call(
+            auth_url=default_swift_reference.get('auth_address'),
+            username=user,
+            password=default_swift_reference.get('key'),
+            project_name=tenant_name,
+            user_domain_id=default_swift_reference.get('user_domain_id'),
+            user_domain_name=default_swift_reference.get('user_domain_name'),
+            project_domain_id=default_swift_reference.get('project_domain_id'),
+            project_domain_name=default_swift_reference.get(
+                'project_domain_name')
+        )
+        mock_session.Session.assert_any_call(auth=mock_v3.Password())
+        mock_client.Client.assert_any_call(session=trustee_session)
+        trustor_client.trusts.create.assert_called_once_with(
+            trustee_user='fake_user', trustor_user=ctxt.user,
+            project=ctxt.tenant, impersonation=True,
+            role_names=['fake_role']
+        )
+        mock_v3.Password.assert_any_call(
+            auth_url=default_swift_reference.get('auth_address'),
+            username=user,
+            password=default_swift_reference.get('key'),
+            trust_id='fake_trust',
+            user_domain_id=default_swift_reference.get('user_domain_id'),
+            user_domain_name=default_swift_reference.get('user_domain_name'),
+            project_domain_id=default_swift_reference.get('project_domain_id'),
+            project_domain_name=default_swift_reference.get(
+                'project_domain_name')
+        )
+        mock_client.Client.assert_any_call(session=main_session)
+        self.assertEqual(main_client, client)
+
 
 class TestStoreAuthV1(base.StoreBaseTest, SwiftTests,
                       test_store_capabilities.TestStoreCapabilitiesChecking):
@@ -1133,6 +1229,7 @@ class TestStoreAuthV1(base.StoreBaseTest, SwiftTests,
         moxfixture = self.useFixture(moxstubout.MoxStubout())
         self.stubs = moxfixture.stubs
         stub_out_swiftclient(self.stubs, conf['swift_store_auth_version'])
+        self.mock_keystone_client()
         self.store = Store(self.conf)
         self.config(**conf)
         self.store.configure()
@@ -1170,6 +1267,33 @@ class TestStoreAuthV3(TestStoreAuthV1):
         conf['swift_store_auth_version'] = '3'
         conf['swift_store_user'] = 'tenant:user1'
         return conf
+
+    @mock.patch("glance_store._drivers.swift.store.ks_v3")
+    @mock.patch("glance_store._drivers.swift.store.ks_session")
+    @mock.patch("glance_store._drivers.swift.store.ks_client")
+    def test_init_client_single_tenant(self,
+                                       mock_client, mock_session, mock_v3):
+        """Test that keystone client was initialized correctly"""
+        # initialize client
+        store = Store(self.conf)
+        store.configure()
+        uri = "swift://%s:key@auth_address/glance/%s" % (
+            self.swift_store_user, FAKE_UUID)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        ctxt = mock.MagicMock()
+        store.init_client(location=loc.store_location, context=ctxt)
+        # check that keystone was initialized correctly
+        tenant = None if store.auth_version == '1' else "tenant"
+        username = "tenant:user1" if store.auth_version == '1' else "user1"
+        mock_v3.Password.assert_called_once_with(
+            auth_url=loc.store_location.swift_url + '/',
+            username=username, password="key",
+            project_name=tenant,
+            project_domain_id=None, project_domain_name=None,
+            user_domain_id=None, user_domain_name=None,)
+        mock_session.Session.assert_called_once_with(auth=mock_v3.Password())
+        mock_client.Client.assert_called_once_with(
+            session=mock_session.Session())
 
 
 class FakeConnection(object):
