@@ -85,9 +85,16 @@ _VMWARE_OPTS = [
                default=DEFAULT_STORE_IMAGE_DIR,
                help=_('The name of the directory where the glance images '
                       'will be stored in the VMware datastore.')),
-    cfg.BoolOpt('vmware_api_insecure',
+    cfg.BoolOpt('vmware_insecure',
                 default=False,
-                help=_('Allow to perform insecure SSL requests to ESX/VC.')),
+                help=_('If true, the ESX/vCenter server certificate is not '
+                       'verified. If false, then the default CA truststore is '
+                       'used for verification. This option is ignored if '
+                       '"vmware_ca_file" is set.'),
+                deprecated_name='vmware_api_insecure'),
+    cfg.StrOpt('vmware_ca_file',
+               help=_('Specify a CA bundle file to use in verifying the '
+                      'ESX/vCenter server certificate.')),
     cfg.MultiStrOpt(
         'vmware_datastores',
         help=_(
@@ -237,7 +244,9 @@ class Store(glance_store.Store):
     def reset_session(self):
         self.session = api.VMwareAPISession(
             self.server_host, self.server_username, self.server_password,
-            self.api_retry_count, self.tpoll_interval)
+            self.api_retry_count, self.tpoll_interval,
+            cacert=self.ca_file,
+            insecure=self.api_insecure)
         return self.session
 
     def get_schemes(self):
@@ -264,7 +273,8 @@ class Store(glance_store.Store):
         self.server_password = self._option_get('vmware_server_password')
         self.api_retry_count = self.conf.glance_store.vmware_api_retry_count
         self.tpoll_interval = self.conf.glance_store.vmware_task_poll_interval
-        self.api_insecure = self.conf.glance_store.vmware_api_insecure
+        self.ca_file = self.conf.glance_store.vmware_ca_file
+        self.api_insecure = self.conf.glance_store.vmware_insecure
         if api is None:
             msg = _("Missing dependencies: oslo_vmware")
             raise exceptions.BadStoreConfiguration(
@@ -435,7 +445,7 @@ class Store(glance_store.Store):
         cookie = self._build_vim_cookie_header(True)
         headers = dict(headers)
         headers.update({'Cookie': cookie})
-        session = new_session(self.api_insecure)
+        session = new_session(self.api_insecure, self.ca_file)
 
         url = loc.https_url
         try:
@@ -550,7 +560,7 @@ class Store(glance_store.Store):
                                   'content.') % {'image': location.image_id})
 
     def _query(self, location, method):
-        session = new_session(self.api_insecure)
+        session = new_session(self.api_insecure, self.ca_file)
         loc = location.store_location
         redirects_followed = 0
         # TODO(sabari): The redirect logic was added to handle cases when the
@@ -631,7 +641,7 @@ class Store(glance_store.Store):
                                               store_specs=store_specs)
 
 
-def new_session(insecure=False, total_retries=None):
+def new_session(insecure=False, ca_file=None, total_retries=None):
     session = requests.Session()
     if total_retries is not None:
         http_adapter = adapters.HTTPAdapter(
@@ -640,6 +650,5 @@ def new_session(insecure=False, total_retries=None):
             max_retries=retry.Retry(total=total_retries))
         session.mount('http://', http_adapter)
         session.mount('https://', https_adapter)
-    if insecure:
-        session.verify = False
+    session.verify = ca_file if ca_file else not insecure
     return session

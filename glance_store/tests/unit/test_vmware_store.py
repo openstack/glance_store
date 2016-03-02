@@ -48,7 +48,7 @@ VMWARE_DS = {
     'vmware_server_username': 'username',
     'vmware_server_password': 'password',
     'vmware_store_image_dir': '/openstack_glance',
-    'vmware_api_insecure': 'True',
+    'vmware_insecure': 'True',
     'vmware_datastores': ['a:b:0'],
 }
 
@@ -90,7 +90,7 @@ class TestStore(base.StoreBaseTest,
                     vmware_server_username='admin',
                     vmware_server_password='admin',
                     vmware_server_host=VMWARE_DS['vmware_server_host'],
-                    vmware_api_insecure=VMWARE_DS['vmware_api_insecure'],
+                    vmware_insecure=VMWARE_DS['vmware_insecure'],
                     vmware_datastores=VMWARE_DS['vmware_datastores'])
 
         mock_get_datastore.side_effect = fake_datastore_obj
