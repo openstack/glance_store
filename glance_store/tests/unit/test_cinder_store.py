@@ -153,6 +153,11 @@ class TestCinderStore(base.StoreBaseTest,
                 if error:
                     raise error
 
+        def fake_factory(protocol, root_helper, **kwargs):
+            self.assertEqual(fake_volume.initialize_connection.return_value,
+                             kwargs['conn'])
+            return fake_connector
+
         with mock.patch.object(cinder.Store,
                                '_wait_volume_status',
                                return_value=fake_volume), \
@@ -161,7 +166,7 @@ class TestCinderStore(base.StoreBaseTest,
                 mock.patch.object(cinder, 'get_root_helper'), \
                 mock.patch.object(connector, 'get_connector_properties'), \
                 mock.patch.object(connector.InitiatorConnector, 'factory',
-                                  return_value=fake_connector):
+                                  side_effect=fake_factory):
 
             if error:
                 self.assertRaises(error, do_open)
