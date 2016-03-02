@@ -22,7 +22,6 @@ import mock
 import tempfile
 import uuid
 
-from keystoneclient import exceptions as ks_exceptions
 from oslo_config import cfg
 from oslo_utils import encodeutils
 from oslo_utils import units
@@ -974,6 +973,8 @@ class SwiftTests(object):
         conf = copy.deepcopy(SWIFT_CONF)
         self.config(**conf)
         moves.reload_module(swift)
+        # mock client because v3 uses it to receive auth_info
+        self.mock_keystone_client()
         self.store = Store(self.conf)
         self.store.configure()
 
@@ -981,7 +982,7 @@ class SwiftTests(object):
         loc = location.get_location_from_uri(uri, conf=self.conf)
         self.store.delete(loc)
 
-        self.assertRaises(ks_exceptions.NotFound, self.store.get, loc)
+        self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_delete_non_existing(self):
         """
