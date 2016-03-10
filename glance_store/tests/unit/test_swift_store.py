@@ -67,7 +67,7 @@ SWIFT_CONF = {'swift_store_auth_address': 'localhost:8080',
 # We stub out as little as possible to ensure that the code paths
 # between swift and swiftclient are tested
 # thoroughly
-def stub_out_swiftclient(stubs, swift_store_auth_version):
+def stub_out_swiftclient(stubs, swift_store_auth_version, conf=None):
     fixture_containers = ['glance']
     fixture_container_headers = {}
     fixture_headers = {
@@ -141,7 +141,7 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
             raise swiftclient.ClientException(msg,
                                               http_status=http_client.CONFLICT)
 
-    def fake_get_object(url, token, container, name, **kwargs):
+    def fake_get_object(url, token, container, name='noexist', **kwargs):
         # GET returns the tuple (list of headers, file object)
         fixture_key = "%s/%s" % (container, name)
         if fixture_key not in fixture_headers:
@@ -212,6 +212,19 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
             raise swiftclient.ClientException(msg)
         return None, None
 
+    def _fake_retry(reset_func, func, *args, **kwargs):
+        return func('localhost:80', '00000000000000', *args, **kwargs)
+
+    def fake_connections_get_object(self, container, obj,
+                                    resp_chunk_size=None, query_string=None,
+                                    response_dict=None, headers=None):
+        """Wrapper for :func:`get_object`"""
+        return _fake_retry(None, fake_get_object, container, obj,
+                           resp_chunk_size=resp_chunk_size,
+                           query_string=query_string,
+                           response_dict=response_dict,
+                           headers=headers)
+
     stubs.Set(swiftclient.client,
               'head_container', fake_head_container)
     stubs.Set(swiftclient.client,
@@ -230,6 +243,8 @@ def stub_out_swiftclient(stubs, swift_store_auth_version):
               'get_auth', fake_get_auth)
     stubs.Set(swiftclient.client,
               'http_connection', fake_http_connection)
+    stubs.Set(swiftclient.client.Connection,
+              'get_object', fake_connections_get_object)
 
 
 class SwiftTests(object):
@@ -1229,7 +1244,10 @@ class TestStoreAuthV1(base.StoreBaseTest, SwiftTests,
 
         moxfixture = self.useFixture(moxstubout.MoxStubout())
         self.stubs = moxfixture.stubs
-        stub_out_swiftclient(self.stubs, conf['swift_store_auth_version'])
+
+        stub_out_swiftclient(self.stubs, conf['swift_store_auth_version'],
+                             conf)
+
         self.mock_keystone_client()
         self.store = Store(self.conf)
         self.config(**conf)
@@ -1323,6 +1341,7 @@ class TestSingleTenantStoreConnections(base.StoreBaseTest):
     def setUp(self):
         super(TestSingleTenantStoreConnections, self).setUp()
         moxfixture = self.useFixture(moxstubout.MoxStubout())
+
         self.stubs = moxfixture.stubs
         self.stubs.Set(swiftclient, 'Connection', FakeConnection)
         self.store = swift.SingleTenantStore(self.conf)
@@ -1588,6 +1607,25 @@ class TestMultiTenantStoreConnections(base.StoreBaseTest):
         self.assertEqual(connection.os_options, {})
 
 
+def fake_getresponse(self):
+    """Stubbing out required private function for
+    TestMultiTenantStoreContext.test_download_context
+    """
+    self.resp.status = self.resp.status_code
+
+    def getheaders():
+        return self.resp.headers.items()
+
+    # Return 0 to set 'Content-Length' in swiftclient.client._RetryBody
+    def getheader(k, v=None):
+        return 0
+
+    self.resp.getheaders = getheaders
+    self.resp.getheader = getheader
+
+    return self.resp
+
+
 class TestMultiTenantStoreContext(base.StoreBaseTest):
 
     _CONF = cfg.CONF
@@ -1622,12 +1660,17 @@ class TestMultiTenantStoreContext(base.StoreBaseTest):
     @requests_mock.mock()
     def test_download_context(self, m):
         """Verify context (ie token) is passed to swift on download."""
+        moxfixture = self.useFixture(moxstubout.MoxStubout())
+        stubs = moxfixture.stubs
+        stubs.Set(swiftclient.client.HTTPConnection,
+                  'getresponse', fake_getresponse)
         self.config(swift_store_multi_tenant=True)
         store = Store(self.conf)
         store.configure()
         uri = "swift+http://127.0.0.1/glance_123/123"
         loc = location.get_location_from_uri(uri, conf=self.conf)
         m.get("http://127.0.0.1/glance_123/123")
+
         store.get(loc, context=self.ctx)
         self.assertEqual(b'0123', m.last_request.headers['X-Auth-Token'])
 
