@@ -332,6 +332,8 @@ def store_add_to_backend(image_id, data, size, store, context=None,
     :param data: The data to be stored
     :param size: The length of the data in bytes
     :param store: The store to which the data is being added
+    :param context: The request context
+    :param verifier: An object used to verify signatures for images
     :return: The url location of the file,
              the size amount of data,
              the checksum of the data
