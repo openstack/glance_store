@@ -299,8 +299,8 @@ class Store(glance_store.driver.Store):
         this method. If the store was not able to successfully configure
         itself, it should raise `exceptions.BadStoreConfiguration`
         """
-        if not (self.conf.glance_store.filesystem_store_datadir
-                or self.conf.glance_store.filesystem_store_datadirs):
+        if not (self.conf.glance_store.filesystem_store_datadir or
+                self.conf.glance_store.filesystem_store_datadirs):
             reason = (_("Specify at least 'filesystem_store_datadir' or "
                         "'filesystem_store_datadirs' option"))
             LOG.error(reason)
