@@ -49,6 +49,8 @@ html_static_path = ['static']
 # Output file base name for HTML help builder.
 htmlhelp_basename = '%sdoc' % project
 
+modindex_common_prefix = ['glance_store.']
+
 git_cmd = ["git", "log", "--pretty=format:'%ad, commit %h'", "--date=local",
            "-n1"]
 html_last_updated_fmt = subprocess.Popen(git_cmd,

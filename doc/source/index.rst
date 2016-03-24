@@ -4,11 +4,13 @@ glance_store
 The glance_store library supports the creation, deletion and gather of data
 assets from/to a set of several, different, storage technologies.
 
-Contents
-========
+glance_store Manual Pages
+=========================
 
 .. toctree::
    :maxdepth: 1
+
+* :ref:`modindex`
 
 Store Drivers
 =============
