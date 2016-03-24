@@ -10,7 +10,10 @@ glance_store Manual Pages
 .. toctree::
    :maxdepth: 1
 
+   Module Hierarchy <api/modules>
+
 * :ref:`modindex`
+
 
 Store Drivers
 =============
@@ -61,7 +64,7 @@ Release Notes
 
 * Dropped py26 support
 * Disable propagating BadStoreConfiguration
-* _1454695: Sync with global-requirements
+* 1454695_: Sync with global-requirements
 * Handle optional dependency in vmware store
 
 .. _1454695: https://bugs.launchpad.net/glance-store/+bug/1454695
@@ -69,10 +72,10 @@ Release Notes
 0.5.0
 -----
 
-* _1449639: Fix failure when creating an image which already exists in the RBD store
-* _1444663: Correctly instantiate Forbidden exception
-* _1428257: Do not raise an exception when a duplicate path on filesystem store is used. Instead emmit a warning
-* _1422699: Propagate BadStoreConfiguration to library user
+* 1449639_: Fix failure when creating an image which already exists in the RBD store
+* 1444663_: Correctly instantiate Forbidden exception
+* 1428257_: Do not raise an exception when a duplicate path on filesystem store is used. Instead emmit a warning
+* 1422699_: Propagate BadStoreConfiguration to library user
 * Initialize vmware session during store creation
 
 .. _1449639: https://bugs.launchpad.net/glance-store/+bug/1449639
@@ -84,9 +87,9 @@ Release Notes
 -----
 * Deprecate the gridfs store
 * Use oslo_config.cfg.ConfigOpts in glance_store
-* _1426767: Make dependency on boto entirely conditional
-* _1429785: Fix timeout during upload from slow resource
-* _1418396: Throw NotFound exception when template is gone
+* 1426767_: Make dependency on boto entirely conditional
+* 1429785_: Fix timeout during upload from slow resource
+* 1418396_: Throw NotFound exception when template is gone
 * Correct such logic in store.get() when chunk_size param provided
 
 .. _1426767: https://bugs.launchpad.net/glance-store/+bug/1426767
@@ -97,7 +100,7 @@ Release Notes
 -----
 *  Deprecate VMware store single datastore options
 *  VMware: Support Multiple Datastores. This adds a new config option
-``vmware_datastores`` to configure multiple datastores.
+   ``vmware_datastores`` to configure multiple datastores.
 
 0.2.0
 ------
@@ -119,16 +122,16 @@ Release Notes
 * Convert httpretty tests to requests-mock
 
 0.1.11
--------
+------
 
 * 1402354_: Check VMware session before uploading image
-*  Add capabilities to storage driver
-*  Replace snet config with endpoint config. Instead of constructing a URL with
-a prefix from what is returned by auth, specify the URL via configuration.
+* Add capabilities to storage driver
+* Replace snet config with endpoint config. Instead of constructing a URL with
+  a prefix from what is returned by auth, specify the URL via configuration.
 * 1413852_: Remove retry on failed uploads to VMware datastore
 * 1401778_: Validate metadata JSON file. Metadata JSON schema file should
-be valid objects. This JSON object should contain keys 'id', 'mountpoint' and
-value of both keys should be string. Example of valid metadata JSON::
+  be valid objects. This JSON object should contain keys 'id', 'mountpoint' and
+  value of both keys should be string. Example of valid metadata JSON::
 
     1. If there is only one mountpoint-
     {
@@ -150,14 +153,14 @@ value of both keys should be string. Example of valid metadata JSON::
 
 * Add needed extra space to error message
 * 1375857_: Define a new parameter to pass CA cert file. This change adds a new
-parameter for the swift store driver that allows to speficy the name of the CA
-cert file to use in the SSL connections for verifying certificates. This
-parameter is passed to the swiftclient in the creation of the connection.
-The parameter is called ``swift_store_cacert``.
+  parameter for the swift store driver that allows to speficy the name of the CA
+  cert file to use in the SSL connections for verifying certificates. This
+  parameter is passed to the swiftclient in the creation of the connection.
+  The parameter is called ``swift_store_cacert``.
 * 1379798_: Raise appropriate exception if socket error occurs
 * Swift Store to use Multiple Containers. Swift Store will now use multiple
-containers in single-tenant mode in order to avoid swift rate limiting on a
-single container.
+  containers in single-tenant mode in order to avoid swift rate limiting on a
+  single container.
 * Remove deprecated options
 * Correct GlanceStoreException to provide valid message - glance_store
 * 1350010_: VMware store: Re-use api session token
