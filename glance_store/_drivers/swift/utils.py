@@ -50,9 +50,9 @@ swift_opts = [
                            'configs.')),
 ]
 
-_config_defaults = {'user_domain_id': None,
+_config_defaults = {'user_domain_id': 'default',
                     'user_domain_name': None,
-                    'project_domain_id': None,
+                    'project_domain_id': 'default',
                     'project_domain_name': None}
 
 # NOTE(bourke): The default dict_type is collections.OrderedDict in py27, but
@@ -89,9 +89,9 @@ class SwiftParams(object):
             default['user'] = glance_store.swift_store_user
             default['key'] = glance_store.swift_store_key
             default['auth_address'] = glance_store.swift_store_auth_address
-            default['project_domain_id'] = None
+            default['project_domain_id'] = 'default'
             default['project_domain_name'] = None
-            default['user_domain_id'] = None
+            default['user_domain_id'] = 'default'
             default['user_domain_name'] = None
             default['auth_version'] = glance_store.swift_store_auth_version
             return {glance_store.default_swift_reference: default}
