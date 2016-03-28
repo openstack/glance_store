@@ -127,11 +127,11 @@ _SWIFT_OPTS = [
                help=_('The number of times a Swift download will be retried '
                       'before the request fails.')),
     cfg.IntOpt('swift_store_expire_soon_interval', default=60,
-               help=_('The period of time (in seconds) before token expiration'
-                      'when glance_store will try to reques new user token. '
-                      'Default value 60 sec means that if token is going to '
-                      'expire in 1 min then glance_store request new user '
-                      'token.')),
+               help=_('The period of time (in seconds) before token '
+                      'expiration when glance_store will try to request new '
+                      'user token. Default value 60 sec means that if token '
+                      'is going to expire in 1 min then glance_store requests '
+                      'new user token.')),
     cfg.BoolOpt('swift_store_use_trusts', default=True,
                 help=_('If set to True create a trust for each add/get '
                        'request to Multi-tenant store in order to prevent '

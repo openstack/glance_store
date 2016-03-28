@@ -60,7 +60,7 @@ _CINDER_OPTS = [
                help=_('Region name of this node. If specified, it will be '
                       'used to locate OpenStack services for stores.')),
     cfg.StrOpt('cinder_ca_certificates_file',
-               help=_('Location of ca certicates file to use for cinder '
+               help=_('Location of ca certificates file to use for cinder '
                       'client requests.')),
     cfg.IntOpt('cinder_http_retries',
                default=3,
