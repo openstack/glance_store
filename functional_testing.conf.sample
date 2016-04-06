@@ -1,0 +1,9 @@
+[tests]
+stores = file,swift
+
+[admin]
+user = admin:admin
+key = secretadmin
+auth_version = 2
+auth_address = http://localhost:35357/v2.0
+region = RegionOne

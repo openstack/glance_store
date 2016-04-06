@@ -27,3 +27,6 @@ covhtml/
 
 # Files created by releasenotes build
 releasenotes/build
+
+#Files created by functional tests
+functional_testing.conf
