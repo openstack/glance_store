@@ -72,7 +72,7 @@ class SheepdogImage(object):
 
         try:
             return processutils.execute(
-                cmd, process_input=data, shell=True)[0]
+                cmd, process_input=data)[0]
         except processutils.ProcessExecutionError as exc:
             LOG.error(exc)
             raise glance_store.BackendException(exc)
@@ -231,7 +231,7 @@ class Store(glance_store.driver.Store):
                                                    reason=reason)
 
         try:
-            processutils.execute("collie", shell=True)
+            processutils.execute("collie")
         except processutils.ProcessExecutionError as exc:
             reason = _("Error in store configuration: %s") % exc
             LOG.error(reason)
