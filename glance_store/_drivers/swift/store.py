@@ -82,38 +82,170 @@ _SWIFT_OPTS = [
                       'swift_store_auth_version is 2.')),
     cfg.StrOpt('swift_store_container',
                default=DEFAULT_CONTAINER,
-               help=_('Container within the account that the account should '
-                      'use for storing images in Swift when using single '
-                      'container mode. In multiple container mode, this will '
-                      'be the prefix for all containers.')),
+               help=_("""
+Name of single container to store images/name prefix for multiple containers
+
+When a single container is being used to store images, this configuration
+option indicates the container within the Glance account to be used for
+storing all images. When multiple containers are used to store images, this
+will be the name prefix for all containers. Usage of single/multiple
+containers can be controlled using the configuration option
+``swift_store_multiple_containers_seed``.
+
+When using multiple containers, the containers will be named after the value
+set for this configuration option with the first N chars of the image UUID
+as the suffix delimited by an underscore (where N is specified by
+``swift_store_multiple_containers_seed``).
+
+Example: if the seed is set to 3 and swift_store_container = ``glance``, then
+an image with UUID ``fdae39a1-bac5-4238-aba4-69bcc726e848`` would be placed in
+the container ``glance_fda``. All dashes in the UUID are included when
+creating the container name but do not count toward the character limit, so
+when N=10 the container name would be ``glance_fdae39a1-ba.``
+
+Services which consume this:
+    * None (directly consumed by the Swift driver)
+
+Possible values:
+    * If using single container, this configuration option can be any string
+      that is a valid swift container name in Glance's Swift account
+    * If using multiple containers, this configuration option can be any
+      string as long as it satisfies the container naming rules enforced by
+      Swift. The value of ``swift_store_multiple_containers_seed`` should be
+      taken into account as well.
+
+Related options:
+    * ``swift_store_multiple_containers_seed``
+    * ``swift_store_multi_tenant``
+    * ``swift_store_create_container_on_put``
+
+""")),
     cfg.IntOpt('swift_store_large_object_size',
-               default=DEFAULT_LARGE_OBJECT_SIZE,
-               help=_('The size, in MB, that Glance will start chunking image '
-                      'files and do a large object manifest in Swift.')),
+               default=DEFAULT_LARGE_OBJECT_SIZE, min=1,
+               help=_("""
+The size threshold, in MB, after which Glance will start segmenting image data.
+
+Swift has an upper limit on the size of a single uploaded object. By default,
+this is 5GB. To upload objects bigger than this limit, objects are segmented
+into multiple smaller objects that are tied together with a manifest file.
+For more detail, refer to
+http://docs.openstack.org/developer/swift/overview_large_objects.html
+
+This configuration option specifies the size threshold over which the Swift
+driver will start segmenting image data into multiple smaller files.
+Currently, the Swift driver only supports creating Dynamic Large Objects.
+
+NOTE: This should be set by taking into account the large object limit
+enforced by the Swift cluster in consideration.
+
+Services which consume this:
+    * None (directly consumed by the Swift driver)
+
+Possible values:
+    * A positive integer that is less than or equal to the large object limit
+      enforced by the Swift cluster in consideration.
+
+Related options:
+    * ``swift_store_large_object_chunk_size``
+
+""")),
     cfg.IntOpt('swift_store_large_object_chunk_size',
-               default=DEFAULT_LARGE_OBJECT_CHUNK_SIZE,
-               help=_('The amount of data written to a temporary '
-                      'disk buffer during the process of chunking '
-                      'the image file.')),
+               default=DEFAULT_LARGE_OBJECT_CHUNK_SIZE, min=1,
+               help=_("""
+The maximum size, in MB, of the segments when image data is segmented.
+
+When image data is segmented to upload images that are larger than the limit
+enforced by the Swift cluster, image data is broken into segments that are no
+bigger than the size specified by this configuration option.
+Refer to ``swift_store_large_object_size`` for more detail.
+
+For example: if ``swift_store_large_object_size`` is 5GB and
+``swift_store_large_object_chunk_size`` is 1GB, an image of size 6.2GB will be
+segmented into 7 segments where the first six segments will be 1GB in size and
+the seventh segment will be 0.2GB.
+
+Services which consume this:
+    * None (directly consumed by the Swift driver)
+
+Possible values:
+    * A positive integer that is less than or equal to the large object limit
+      enforced by Swift cluster in consideration.
+
+Related options:
+    * ``swift_store_large_object_size``
+
+""")),
     cfg.BoolOpt('swift_store_create_container_on_put', default=False,
-                help=_('A boolean value that determines if we create the '
-                       'container if it does not exist.')),
+                help=_("""
+Create container, if it doesn't already exist, when uploading image.
+
+At the time of uploading an image, if the corresponding container doesn't
+exist, it will be created provided this configuration option is set to True.
+By default, it won't be created. This behavior is applicable for both single
+and multiple containers mode.
+
+Services which consume this:
+    * None (directly consumed by the Swift driver)
+
+Possible values:
+    * True
+    * False
+
+Related options:
+    * None
+
+""")),
     cfg.BoolOpt('swift_store_multi_tenant', default=False,
-                help=_('If set to True, enables multi-tenant storage '
-                       'mode which causes Glance images to be stored in '
-                       'tenant specific Swift accounts.')),
+                help=_("""
+Store images in tenant's Swift account.
+
+This enables multi-tenant storage mode which causes Glance images to be stored
+in tenant specific Swift accounts. If this is disabled, Glance stores all
+images in its own account. More details multi-tenant store can be found at
+https://wiki.openstack.org/wiki/GlanceSwiftTenantSpecificStorage
+
+Services which consume this:
+    * None (directly consumed by the Swift driver)
+
+Possible values:
+    * True
+    * False
+
+Related options:
+    * None
+
+""")),
     cfg.IntOpt('swift_store_multiple_containers_seed',
-               default=0,
-               help=_('When set to 0, a single-tenant store will only use one '
-                      'container to store all images. When set to an integer '
-                      'value between 1 and 32, a single-tenant store will use '
-                      'multiple containers to store images, and this value '
-                      'will determine how many containers are created.'
-                      'Used only when swift_store_multi_tenant is disabled. '
-                      'The total number of containers that will be used is '
-                      'equal to 16^N, so if this config option is set to 2, '
-                      'then 16^2=256 containers will be used to store images.'
-                      )),
+               default=0, min=0, max=32,
+               help=_("""
+Seed indicating the number of containers to use for storing images.
+
+When using a single-tenant store, images can be stored in one or more than one
+containers. When set to 0, all images will be stored in one single container.
+When set to an integer value between 1 and 32, multiple containers will be
+used to store images. This configuration option will determine how many
+containers are created. The total number of containers that will be used is
+equal to 16^N, so if this config option is set to 2, then 16^2=256 containers
+will be used to store images.
+
+Please refer to ``swift_store_container`` for more detail on the naming
+convention. More detail about using multiple containers can be found at
+https://specs.openstack.org/openstack/glance-specs/specs/kilo/swift-store-multiple-containers.html
+
+NOTE: This is used only when swift_store_multi_tenant is disabled.
+
+Services which consume this:
+    * None (directly consumed only by the Swift driver)
+
+Possible values:
+    * A non-negative integer less than or equal to 32
+
+Related options:
+    * ``swift_store_container``
+    * ``swift_store_multi_tenant``
+    * ``swift_store_create_container_on_put``
+
+""")),
     cfg.ListOpt('swift_store_admin_tenants', default=[],
                 help=_('A list of tenants that will be granted read/write '
                        'access on all Swift containers created by Glance in '
