@@ -40,7 +40,6 @@ FAKE_UUID = str(uuid.uuid4())
 FIVE_KB = 5 * units.Ki
 
 VMWARE_DS = {
-    'verbose': True,
     'debug': True,
     'known_stores': ['vmware_datastore'],
     'default_store': 'vsphere',
