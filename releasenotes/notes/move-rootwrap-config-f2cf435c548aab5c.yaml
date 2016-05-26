@@ -1,0 +1,5 @@
+---
+upgrade:
+  - Packagers should be aware that the rootwrap configuration
+    files have been moved from etc/ to etc/glance/ in order to
+    be consistent with where other projects place these files.
