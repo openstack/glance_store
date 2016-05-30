@@ -49,7 +49,7 @@ _HTTP_OPTS = [
                        'be used to connect to the remote server. The proxy '
                        'information should be a key value pair of the '
                        'scheme and proxy. e.g. http:10.0.0.1:3128. You can '
-                       'specify proxies for multiple schemes by seperating '
+                       'specify proxies for multiple schemes by separating '
                        'the key value pairs with a comma.'
                        'e.g. http:10.0.0.1:3128, https:10.0.0.1:1080.'))]
 
