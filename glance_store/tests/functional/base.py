@@ -13,6 +13,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+try:
+    import configparser as ConfigParser
+except ImportError:
+    from six.moves import configparser as ConfigParser
 from io import BytesIO
 
 import glance_store
@@ -20,8 +24,6 @@ from oslo_config import cfg
 import testtools
 
 CONF = cfg.CONF
-
-STORES = ['file', ]
 
 UUID1 = '961973d8-3360-4364-919e-2c197825dbb4'
 UUID2 = 'e03cf3b1-3070-4497-a37d-9703edfb615b'
@@ -35,16 +37,23 @@ class Base(testtools.TestCase):
     def __init__(self, driver_name, *args, **kwargs):
         super(Base, self).__init__(*args, **kwargs)
         self.driver_name = driver_name
+        self.config = ConfigParser.RawConfigParser()
+        self.config.read('functional_testing.conf')
 
         glance_store.register_opts(CONF)
 
     def setUp(self):
         super(Base, self).setUp()
 
-        if self.driver_name not in STORES:
+        stores = self.config.get('tests', 'stores').split(',')
+        if self.driver_name not in stores:
             self.skipTest('Not running %s store tests' % self.driver_name)
 
         CONF.set_override('stores', [self.driver_name], group='glance_store')
+        CONF.set_override('default_store',
+                          [self.driver_name],
+                          group='glance_store'
+                          )
         glance_store.create_stores()
         self.store = glance_store.backend._load_store(CONF, self.driver_name)
         self.store.configure()

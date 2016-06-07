@@ -14,19 +14,47 @@
 
 # This script is executed inside post_test_hook function in devstack gate.
 
-function generate_testr_results {
-    if [ -f .testrepository/0 ]; then
-        sudo .tox/functional/bin/testr last --subunit > $WORKSPACE/testrepository.subunit
-        sudo mv $WORKSPACE/testrepository.subunit $BASE/logs/testrepository.subunit
-        sudo .tox/functional/bin/python /usr/local/jenkins/slave_scripts/subunit2html.py $BASE/logs/testrepository.subunit $BASE/logs/testr_results.html
-        sudo gzip -9 $BASE/logs/testrepository.subunit
-        sudo gzip -9 $BASE/logs/testr_results.html
-        sudo chown jenkins:jenkins $BASE/logs/testrepository.subunit.gz $BASE/logs/testr_results.html.gz
-        sudo chmod a+r $BASE/logs/testrepository.subunit.gz $BASE/logs/testr_results.html.gz
+set -xe
+
+export GLANCE_STORE_DIR="$BASE/new/glance_store"
+SCRIPTS_DIR="/usr/os-testr-env/bin/"
+venv=${1:-"dsvm-functional"}
+
+function generate_test_logs {
+    local path="$1"
+    # Compress all $path/*.txt files and move the directories holding those
+    # files to /opt/stack/logs. Files with .log suffix have their
+    # suffix changed to .txt (so browsers will know to open the compressed
+    # files and not download them).
+    if [ -d "$path" ]
+    then
+        sudo find $path -iname "*.log" -type f -exec mv {} {}.txt \; -exec gzip -9 {}.txt \;
+        sudo mv $path/* /opt/stack/logs/
     fi
 }
 
-export GLANCE_STORE_DIR="$BASE/new/glance_store"
+function generate_testr_results {
+    if [ -f .testrepository/0 ]; then
+        # Give job user rights to access tox logs
+        sudo -H -u "$owner" chmod o+rw .
+        sudo -H -u "$owner" chmod o+rw -R .testrepository
+
+        if [[ -f ".testrepository/0" ]] ; then
+            "subunit-1to2" < .testrepository/0 > ./testrepository.subunit
+            $SCRIPTS_DIR/subunit2html ./testrepository.subunit testr_results.html
+            gzip -9 ./testrepository.subunit
+            gzip -9 ./testr_results.html
+            sudo mv ./*.gz /opt/stack/logs/
+        fi
+
+        if [[ "$venv" == dsvm-functional* ]] ; then
+            generate_test_logs "/tmp/${venv}-logs"
+        fi
+
+    fi
+}
+
+owner=jenkins
 
 # Get admin credentials
 cd $BASE/new/devstack
@@ -35,13 +63,18 @@ source openrc admin admin
 # Go to the glance_store dir
 cd $GLANCE_STORE_DIR
 
-sudo chown -R jenkins:stack $GLANCE_STORE_DIR
+sudo chown -R $owner:stack $GLANCE_STORE_DIR
+
+sudo cp $GLANCE_STORE_DIR/functional_testing.conf.sample $GLANCE_STORE_DIR/functional_testing.conf
+
+# Set admin creds
+iniset $GLANCE_STORE_DIR/functional_testing.conf admin key $ADMIN_PASSWORD
 
 # Run tests
 echo "Running glance_store functional test suite"
 set +e
 # Preserve env for OS_ credentials
-sudo -E -H -u jenkins tox -efunctional
+sudo -E -H -u jenkins tox -e functional
 EXIT_CODE=$?
 set -e
 
