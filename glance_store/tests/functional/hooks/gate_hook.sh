@@ -14,10 +14,9 @@
 
 # This script is executed inside gate_hook function in devstack gate.
 
-# NOTE(NiallBunting) In future these tests should be split up. This means
-# based on the store passed to this script in $1, particular services can
-# be enabled.
-GLANCE_STORE_DRIVER=swift
+# NOTE(NiallBunting) The store to test is passed in here from the
+# project config.
+GLANCE_STORE_DRIVER=${1:-swift}
 
 ENABLED_SERVICES+=",key,glance"
 
@@ -27,10 +26,6 @@ case $GLANCE_STORE_DRIVER in
         ;;
 esac
 
-export DEVSTACK_LOCAL_CONFIG
-export DEVSTACK_GATE_INSTALL_TESTONLY=1
-export DEVSTACK_GATE_NO_SERVICES=1
-export KEEP_LOCALRC=1
 export GLANCE_STORE_DRIVER
 
 export ENABLED_SERVICES

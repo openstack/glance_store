@@ -18,7 +18,7 @@ set -xe
 
 export GLANCE_STORE_DIR="$BASE/new/glance_store"
 SCRIPTS_DIR="/usr/os-testr-env/bin/"
-venv=${1:-"dsvm-functional"}
+GLANCE_STORE_DRIVER=${1:-swift}
 
 function generate_test_logs {
     local path="$1"
@@ -47,10 +47,6 @@ function generate_testr_results {
             sudo mv ./*.gz /opt/stack/logs/
         fi
 
-        if [[ "$venv" == dsvm-functional* ]] ; then
-            generate_test_logs "/tmp/${venv}-logs"
-        fi
-
     fi
 }
 
@@ -74,7 +70,7 @@ iniset $GLANCE_STORE_DIR/functional_testing.conf admin key $ADMIN_PASSWORD
 echo "Running glance_store functional test suite"
 set +e
 # Preserve env for OS_ credentials
-sudo -E -H -u jenkins tox -e functional
+sudo -E -H -u jenkins tox -e functional-$GLANCE_STORE_DRIVER
 EXIT_CODE=$?
 set -e
 
