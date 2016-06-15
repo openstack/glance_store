@@ -114,7 +114,7 @@ class TestStore(base.StoreBaseTest,
         with mock.patch('requests.Session.request') as HttpConn:
             HttpConn.return_value = utils.fake_response()
             (image_file, image_size) = self.store.get(loc)
-        self.assertEqual(image_size, expected_image_size)
+        self.assertEqual(expected_image_size, image_size)
         chunks = [c for c in image_file]
         self.assertEqual(expected_returns, chunks)
 
@@ -594,7 +594,7 @@ class TestStore(base.StoreBaseTest,
         with mock.patch('requests.Session.request') as HttpConn:
             HttpConn.side_effect = getresponse
             (image_file, image_size) = self.store.get(loc)
-        self.assertEqual(image_size, expected_image_size)
+        self.assertEqual(expected_image_size, image_size)
         chunks = [c for c in image_file]
         self.assertEqual(expected_returns, chunks)
 
