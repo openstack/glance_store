@@ -144,7 +144,7 @@ class TestSheepdogStore(base.StoreBaseTest,
                                     sheepdog.StoreLocation,
                                     self.conf, store_specs=self.store_specs)
             ret = self.store.get(loc)
-            self.assertEqual(ret[1], 1000)
+            self.assertEqual(1000, ret[1])
 
     def test_partial_get(self):
         loc = location.Location('test_sheepdog_store', sheepdog.StoreLocation,
@@ -163,7 +163,7 @@ class TestSheepdogStore(base.StoreBaseTest,
                                     sheepdog.StoreLocation,
                                     self.conf, store_specs=self.store_specs)
             ret = self.store.get_size(loc)
-            self.assertEqual(ret, 1000)
+            self.assertEqual(1000, ret)
 
     def test_delete(self):
         called_commands = []
@@ -179,7 +179,7 @@ class TestSheepdogStore(base.StoreBaseTest,
                                     sheepdog.StoreLocation,
                                     self.conf, store_specs=self.store_specs)
             self.store.delete(loc)
-            self.assertEqual(called_commands, ['list -r', 'delete'])
+            self.assertEqual(['list -r', 'delete'], called_commands)
 
     def test_add_with_verifier(self):
         """Test that 'verifier.update' is called when verifier is provided."""

@@ -213,7 +213,7 @@ class TestCinderStore(base.StoreBaseTest,
 
         @contextlib.contextmanager
         def fake_open(client, volume, mode):
-            self.assertEqual(mode, 'rb')
+            self.assertEqual('rb', mode)
             yield volume_file
 
         with mock.patch.object(cinder, 'get_cinderclient') as mock_cc, \
@@ -249,7 +249,7 @@ class TestCinderStore(base.StoreBaseTest,
             uri = 'cinder://%s' % fake_volume_uuid
             loc = location.get_location_from_uri(uri, conf=self.conf)
             image_size = self.store.get_size(loc, context=self.context)
-            self.assertEqual(image_size, fake_volume.size * units.Gi)
+            self.assertEqual(fake_volume.size * units.Gi, image_size)
 
     def _test_cinder_add(self, fake_volume, volume_file, size_kb=5,
                          verifier=None):
@@ -265,7 +265,7 @@ class TestCinderStore(base.StoreBaseTest,
 
         @contextlib.contextmanager
         def fake_open(client, volume, mode):
-            self.assertEqual(mode, 'wb')
+            self.assertEqual('wb', mode)
             yield volume_file
 
         with mock.patch.object(cinder, 'get_cinderclient') as mock_cc, \

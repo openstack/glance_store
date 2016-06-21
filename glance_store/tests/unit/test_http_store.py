@@ -54,7 +54,7 @@ class TestHttpStore(base.StoreBaseTest,
                             'ho', 'rt', ' a', 'nd', ' s', 'to', 'ut', '\n']
         loc = location.get_location_from_uri(uri, conf=self.conf)
         (image_file, image_size) = self.store.get(loc)
-        self.assertEqual(image_size, 31)
+        self.assertEqual(31, image_size)
         chunks = [c for c in image_file]
         self.assertEqual(expected_returns, chunks)
 
@@ -86,10 +86,10 @@ class TestHttpStore(base.StoreBaseTest,
         loc = location.get_location_from_uri(uri, conf=self.conf)
         (image_file, image_size) = self.store.get(loc)
         self.assertEqual(0, len(responses))
-        self.assertEqual(image_size, 31)
+        self.assertEqual(31, image_size)
 
         chunks = [c for c in image_file]
-        self.assertEqual(chunks, expected_returns)
+        self.assertEqual(expected_returns, chunks)
 
     def test_http_get_max_redirects(self):
         self._mock_requests()

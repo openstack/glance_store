@@ -371,6 +371,6 @@ class TestStore(base.StoreBaseTest,
                                             old_format=False, features=3)
 
     def tearDown(self):
-        self.assertEqual(self.called_commands_actual,
-                         self.called_commands_expected)
+        self.assertEqual(self.called_commands_expected,
+                         self.called_commands_actual)
         super(TestStore, self).tearDown()

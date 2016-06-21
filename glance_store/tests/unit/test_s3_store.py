@@ -297,7 +297,7 @@ class TestStore(base.StoreBaseTest,
             conf=self.conf)
         (image_s3, image_size) = self.store.get(loc)
 
-        self.assertEqual(image_size, FIVE_KB)
+        self.assertEqual(FIVE_KB, image_size)
 
         expected_data = b"*" * FIVE_KB
         data = b""

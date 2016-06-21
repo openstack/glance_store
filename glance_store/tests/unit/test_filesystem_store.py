@@ -127,7 +127,7 @@ class TestStore(base.StoreBaseTest,
             for chunk in image_file:
                 data += chunk
 
-        self.assertEqual(data, file_contents)
+        self.assertEqual(file_contents, data)
 
         data = b""
         chunk_size = 5
@@ -137,8 +137,8 @@ class TestStore(base.StoreBaseTest,
         for chunk in image_file:
             data += chunk
 
-        self.assertEqual(data, b'00000')
-        self.assertEqual(image_size, chunk_size)
+        self.assertEqual(b'00000', data)
+        self.assertEqual(chunk_size, image_size)
 
     def test_get_non_existing(self):
         """
@@ -402,8 +402,8 @@ class TestStore(base.StoreBaseTest,
 
         expected_priority_map = {100: [store_map[0]], 200: [store_map[1]]}
         expected_priority_list = [200, 100]
-        self.assertEqual(self.store.priority_data_map, expected_priority_map)
-        self.assertEqual(self.store.priority_list, expected_priority_list)
+        self.assertEqual(expected_priority_map, self.store.priority_data_map)
+        self.assertEqual(expected_priority_list, self.store.priority_list)
 
     def test_configure_add_with_metadata_file_success(self):
         metadata = {'id': 'asdf1234',
