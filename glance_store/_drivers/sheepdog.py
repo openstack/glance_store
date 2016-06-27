@@ -18,6 +18,7 @@
 
 import hashlib
 import logging
+import six
 
 from oslo_concurrency import processutils
 from oslo_config import cfg
@@ -109,6 +110,8 @@ class SheepdogImage(object):
 
         Sheepdog Usage: collie vdi create -a address -p port image size
         """
+        if not isinstance(size, (six.integer_types, float)):
+            raise exceptions.Forbidden("Size is not a number")
         self._run_command("create", None, str(size))
 
     def resize(self, size):
