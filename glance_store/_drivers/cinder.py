@@ -16,6 +16,7 @@ import contextlib
 import errno
 import hashlib
 import logging
+import math
 import os
 import socket
 import time
@@ -433,7 +434,7 @@ class Store(glance_store.driver.Store):
 
         checksum = hashlib.md5()
         bytes_written = 0
-        size_gb = int((image_size + units.Gi - 1) / units.Gi)
+        size_gb = int(math.ceil(float(image_size) / units.Gi))
         if size_gb == 0:
             size_gb = 1
         name = "image-%s" % image_id
