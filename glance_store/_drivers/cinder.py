@@ -400,8 +400,8 @@ class Store(glance_store.driver.Store):
             self._check_context(context)
             volume = get_cinderclient(self.conf,
                                       context).volumes.get(loc.volume_id)
-            # GB unit convert to byte
-            return volume.size * units.Gi
+            return int(volume.metadata.get('image_size',
+                                           volume.size * units.Gi))
         except cinder_exception.NotFound:
             raise exceptions.NotFound(image=loc.volume_id)
         except Exception:
