@@ -42,6 +42,7 @@
 """Display a subunit stream through a colorized unittest test runner."""
 
 import heapq
+import six
 import subunit
 import sys
 import unittest
@@ -276,7 +277,7 @@ class SubunitTestResult(testtools.TestResult):
         self.stopTestRun()
 
     def stopTestRun(self):
-        for cls in list(self.results.iterkeys()):
+        for cls in list(six.iterkeys(self.results)):
             self.writeTestCase(cls)
         self.stream.writeln()
         self.writeSlowTests()
