@@ -1,0 +1,246 @@
+# OpenStack Infra <zanata@openstack.org>, 2015. #zanata
+# Andi Chandler <andi@gowling.com>, 2016. #zanata
+# Andreas Jaeger <jaegerandi@gmail.com>, 2016. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: glance_store 0.13.1.dev57\n"
+"Report-Msgid-Bugs-To: https://bugs.launchpad.net/openstack-i18n/\n"
+"POT-Creation-Date: 2016-07-01 12:05+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2016-07-05 01:51+0000\n"
+"Last-Translator: Andi Chandler <andi@gowling.com>\n"
+"Language-Team: English (United Kingdom)\n"
+"Language: en-GB\n"
+"X-Generator: Zanata 3.7.3\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+#, python-format
+msgid ""
+"A bad metadata structure was returned from the %(driver)s storage driver: "
+"%(metadata)s.  %(e)s."
+msgstr ""
+"A bad metadata structure was returned from the %(driver)s storage driver: "
+"%(metadata)s.  %(e)s."
+
+msgid "An object with the same identifier is currently being operated on."
+msgstr "An object with the same identifier is currently being operated on."
+
+msgid "An unknown exception occurred"
+msgstr "An unknown exception occurred"
+
+#, python-format
+msgid "Auth service at URL %(url)s not found."
+msgstr "Auth service at URL %(url)s not found."
+
+msgid "Authorization failed."
+msgstr "Authorisation failed."
+
+msgid ""
+"Configuration for store failed. Adding images to this store is disabled."
+msgstr ""
+"Configuration for store failed. Adding images to this store is disabled."
+
+#, python-format
+msgid "Connect error/bad request to Auth service at URL %(url)s."
+msgstr "Connect error/bad request to Auth service at URL %(url)s."
+
+msgid "Data supplied was not valid."
+msgstr "Data supplied was not valid."
+
+msgid ""
+"Default scheme to use to store image data. The scheme must be registered by "
+"one of the stores defined by the 'stores' config option."
+msgstr ""
+"Default scheme to use to store image data. The scheme must be registered by "
+"one of the stores defined by the 'stores' config option."
+
+msgid "Deleting images from this store is not supported."
+msgstr "Deleting images from this store is not supported."
+
+#, python-format
+msgid ""
+"Driver %(driver_name)s could not be configured correctly. Reason: %(reason)s"
+msgstr ""
+"Driver %(driver_name)s could not be configured correctly. Reason: %(reason)s"
+
+#, python-format
+msgid "Driver %(driver_name)s could not be loaded."
+msgstr "Driver %(driver_name)s could not be loaded."
+
+#, python-format
+msgid "Error: cooperative_iter exception %s"
+msgstr "Error: cooperative_iter exception %s"
+
+#, python-format
+msgid "Failed to configure store correctly: %s Disabling add method."
+msgstr "Failed to configure store correctly: %s Disabling add method."
+
+msgid "Getting images from this store is not supported."
+msgstr "Getting images from this store is not supported."
+
+#, python-format
+msgid ""
+"Getting images randomly from this store is not supported. Offset: "
+"%(offset)s, length: %(chunk_size)s"
+msgstr ""
+"Getting images randomly from this store is not supported. Offset: "
+"%(offset)s, length: %(chunk_size)s"
+
+#, python-format
+msgid "Image %(image)s already exists"
+msgstr "Image %(image)s already exists"
+
+#, python-format
+msgid "Image %(image)s not found"
+msgstr "Image %(image)s not found"
+
+#, python-format
+msgid "Image %(image_id)s is protected and cannot be deleted."
+msgstr "Image %(image_id)s is protected and cannot be deleted."
+
+#, python-format
+msgid ""
+"Image status transition from %(cur_status)s to %(new_status)s is not allowed"
+msgstr ""
+"Image status transition from %(cur_status)s to %(new_status)s is not allowed"
+
+#, python-format
+msgid ""
+"Incorrect auth strategy, expected \"%(expected)s\" but received "
+"\"%(received)s\""
+msgstr ""
+"Incorrect auth strategy, expected \"%(expected)s\" but received "
+"\"%(received)s\""
+
+#, python-format
+msgid "Invalid value '%(value)s' for parameter '%(param)s': %(extra_msg)s"
+msgstr "Invalid value '%(value)s' for parameter '%(param)s': %(extra_msg)s"
+
+msgid ""
+"List of stores enabled. Valid stores are: cinder, file, http, rbd, sheepdog, "
+"swift, s3, vsphere"
+msgstr ""
+"List of stores enabled. Valid stores are: cinder, file, http, rbd, sheepdog, "
+"swift, s3, vsphere"
+
+#, python-format
+msgid "Maximum redirects (%(redirects)s) was exceeded."
+msgstr "Maximum redirects (%(redirects)s) was exceeded."
+
+msgid ""
+"Minimum interval seconds to execute updating dynamic storage capabilities "
+"based on backend status then. It's not a periodic routine, the update logic "
+"will be executed only when interval seconds elapsed and an operation of "
+"store has triggered. The feature will be enabled only when the option value "
+"greater then zero."
+msgstr ""
+"Minimum interval seconds to execute updating dynamic storage capabilities "
+"based on backend status then. It's not a periodic routine, the update logic "
+"will be executed only when interval seconds elapsed and an operation of "
+"store has triggered. The feature will be enabled only when the option value "
+"greater then zero."
+
+#, python-format
+msgid "Missing required credential: %(required)s"
+msgstr "Missing required credential: %(required)s"
+
+#, python-format
+msgid ""
+"Multiple 'image' service matches for region %(region)s. This generally means "
+"that a region is required and you have not supplied one."
+msgstr ""
+"Multiple 'image' service matches for region %(region)s. This generally means "
+"that a region is required and you have not supplied one."
+
+msgid "No image data could be found"
+msgstr "No image data could be found"
+
+msgid "Permission to write image storage media denied."
+msgstr "Permission to write image storage media denied."
+
+#, python-format
+msgid "Provided header feature is unsupported: %(feature)s"
+msgstr "Provided header feature is unsupported: %(feature)s"
+
+#, python-format
+msgid "Provided object does not match schema '%(schema)s': %(reason)s"
+msgstr "Provided object does not match schema '%(schema)s': %(reason)s"
+
+msgid "Received invalid HTTP redirect."
+msgstr "Received invalid HTTP redirect."
+
+#, python-format
+msgid "Redirecting to %(uri)s for authorization."
+msgstr "Redirecting to %(uri)s for authorisation."
+
+msgid "Remote server where the image is present is unavailable."
+msgstr "Remote server where the image is present is unavailable."
+
+msgid "Response from Keystone does not contain a Glance endpoint."
+msgstr "Response from Keystone does not contain a Glance endpoint."
+
+#, python-format
+msgid "Server worker creation failed: %(reason)s."
+msgstr "Server worker creation failed: %(reason)s."
+
+msgid "Skipping store.set_acls... not implemented."
+msgstr "Skipping store.set_acls... not implemented."
+
+#, python-format
+msgid ""
+"Store %(store_name)s could not be configured correctly. Reason: %(reason)s"
+msgstr ""
+"Store %(store_name)s could not be configured correctly. Reason: %(reason)s"
+
+#, python-format
+msgid "Store for scheme %s not found"
+msgstr "Store for scheme %s not found"
+
+#, python-format
+msgid "The Store URI was malformed: %(uri)s"
+msgstr "The Store URI was malformed: %(uri)s"
+
+msgid "The image cannot be deleted because it has snapshot(s)."
+msgstr "The image cannot be deleted because it has snapshot(s)."
+
+msgid ""
+"The image cannot be deleted because it is in use through the backend store "
+"outside of Glance."
+msgstr ""
+"The image cannot be deleted because it is in use through the backend store "
+"outside of Glance."
+
+#, python-format
+msgid ""
+"The image metadata key %(key)s has an invalid type of %(type)s. Only dict, "
+"list, and unicode are supported."
+msgstr ""
+"The image metadata key %(key)s has an invalid type of %(type)s. Only dict, "
+"list, and unicode are supported."
+
+#, python-format
+msgid ""
+"The storage driver %(driver)s returned invalid  metadata %(metadata)s. This "
+"must be a dictionary type"
+msgstr ""
+"The storage driver %(driver)s returned invalid  metadata %(metadata)s. This "
+"must be a dictionary type"
+
+msgid "There is not enough disk space on the image storage media."
+msgstr "There is not enough disk space on the image storage media."
+
+#, python-format
+msgid "Unable to load schema: %(reason)s"
+msgstr "Unable to load schema: %(reason)s"
+
+#, python-format
+msgid "Unknown scheme '%(scheme)s' found in URI"
+msgstr "Unknown scheme '%(scheme)s' found in URI"
+
+msgid "You are not authenticated."
+msgstr "You are not authenticated."
+
+msgid "You are not authorized to complete this action."
+msgstr "You are not authorised to complete this action."
