@@ -104,6 +104,18 @@ class TestSheepdogStore(base.StoreBaseTest,
         mock_create.assert_called_once_with(2)
         mock_write.assert_called_once_with(b'xx', 0, 2)
 
+    @mock.patch.object(sheepdog.SheepdogImage, 'write')
+    @mock.patch.object(sheepdog.SheepdogImage, 'exist')
+    def test_add_bad_size_with_image(self, mock_exist, mock_write):
+        data = six.BytesIO(b'xx')
+        mock_exist.return_value = False
+
+        self.assertRaises(exceptions.Forbidden, self.store.add,
+                          'fake_image_id', data, 'test')
+
+        mock_exist.assert_called_once_with()
+        self.assertEqual(mock_write.call_count, 0)
+
     @mock.patch.object(sheepdog.SheepdogImage, 'delete')
     @mock.patch.object(sheepdog.SheepdogImage, 'write')
     @mock.patch.object(sheepdog.SheepdogImage, 'create')
