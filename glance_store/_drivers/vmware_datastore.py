@@ -59,9 +59,6 @@ DEFAULT_STORE_IMAGE_DIR = '/openstack_glance'
 DS_URL_PREFIX = '/folder'
 STORE_SCHEME = 'vsphere'
 
-# check that datacenter/datastore combination is valid
-_datastore_info_valid = False
-
 _VMWARE_OPTS = [
     cfg.StrOpt('vmware_server_host',
                help=_('ESX/ESXi or vCenter Server target system. '
