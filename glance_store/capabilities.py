@@ -24,9 +24,8 @@ from eventlet import tpool
 from oslo_utils import reflection
 
 from glance_store import exceptions
-from glance_store import i18n
+from glance_store.i18n import _LW
 
-_LW = i18n._LW
 _STORE_CAPABILITES_UPDATE_SCHEDULING_BOOK = {}
 _STORE_CAPABILITES_UPDATE_SCHEDULING_LOCK = threading.Lock()
 LOG = logging.getLogger(__name__)

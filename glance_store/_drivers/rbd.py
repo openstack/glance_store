@@ -32,8 +32,7 @@ from glance_store import capabilities
 from glance_store.common import utils
 from glance_store import driver
 from glance_store import exceptions
-from glance_store import i18n
-from glance_store.i18n import _
+from glance_store.i18n import _, _LE, _LI
 from glance_store import location
 
 try:
@@ -50,8 +49,6 @@ DEFAULT_CHUNKSIZE = 8  # in MiB
 DEFAULT_SNAPNAME = 'snap'
 
 LOG = logging.getLogger(__name__)
-_LI = i18n._LI
-_LE = i18n._LE
 
 _RBD_OPTS = [
     cfg.IntOpt('rbd_store_chunk_size', default=DEFAULT_CHUNKSIZE,

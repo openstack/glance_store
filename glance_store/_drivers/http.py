@@ -25,7 +25,7 @@ import requests
 from glance_store import capabilities
 import glance_store.driver
 from glance_store import exceptions
-from glance_store.i18n import _
+from glance_store.i18n import _, _LI
 import glance_store.location
 
 LOG = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ class StoreLocation(glance_store.location.StoreLocation):
         else:
             self.user = None
         if netloc == '':
-            LOG.info(_("No address specified in HTTP URL"))
+            LOG.info(_LI("No address specified in HTTP URL"))
             raise exceptions.BadStoreUri(uri=uri)
         else:
             # IPv6 address has the following format [1223:0:0:..]:<some_port>
@@ -268,7 +268,7 @@ class Store(glance_store.driver.Store):
 
         if conn.is_redirect and conn.status_code not in (301, 302):
             reason = (_("The HTTP URL %(url)s attempted to redirect "
-                        "with an invalid %(status)s status code.") %
+                        "with an invalid %(status)s status code."),
                       {'url': loc.path, 'status': conn.status_code})
             LOG.info(reason)
             raise exceptions.BadStoreUri(message=reason)

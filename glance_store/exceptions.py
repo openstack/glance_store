@@ -20,9 +20,8 @@ import six
 import six.moves.urllib.parse as urlparse
 import warnings
 
-from glance_store import i18n
+from glance_store.i18n import _
 warnings.simplefilter('always')
-_ = i18n._
 
 
 class BackendException(Exception):

@@ -43,13 +43,11 @@ from glance_store._drivers.swift import utils as sutils
 from glance_store import capabilities
 from glance_store import driver
 from glance_store import exceptions
-from glance_store import i18n
+from glance_store.i18n import _, _LE, _LI
 from glance_store import location
 
 
-_ = i18n._
 LOG = logging.getLogger(__name__)
-_LI = i18n._LI
 
 DEFAULT_CONTAINER = 'glance'
 DEFAULT_LARGE_OBJECT_SIZE = 5 * units.Ki  # 5GB
@@ -307,16 +305,16 @@ def swift_retry_iter(resp_iter, length, store, location, manager):
         if bytes_read != length:
             if retries == store.conf.glance_store.swift_store_retry_get_count:
                 # terminate silently and let higher level decide
-                LOG.error(_("Stopping Swift retries after %d "
-                            "attempts") % retries)
+                LOG.error(_LE("Stopping Swift retries after %d "
+                              "attempts") % retries)
                 break
             else:
                 retries += 1
                 glance_conf = store.conf.glance_store
                 retry_count = glance_conf.swift_store_retry_get_count
-                LOG.info(_("Retrying Swift connection "
-                           "(%(retries)d/%(max_retries)d) with "
-                           "range=%(start)d-%(end)d") %
+                LOG.info(_LI("Retrying Swift connection "
+                             "(%(retries)d/%(max_retries)d) with "
+                             "range=%(start)d-%(end)d"),
                          {'retries': retries,
                           'max_retries': retry_count,
                           'start': bytes_read,
@@ -727,9 +725,9 @@ class BaseStore(driver.Store):
                         except Exception:
                             # Delete orphaned segments from swift backend
                             with excutils.save_and_reraise_exception():
-                                LOG.exception(_("Error during chunked upload "
-                                                "to backend, deleting stale "
-                                                "chunks"))
+                                reason = _LE("Error during chunked upload to "
+                                             "backend, deleting stale chunks")
+                                LOG.exception(reason)
                                 self._delete_stale_chunks(
                                     manager.get_connection(),
                                     location.container,
@@ -1189,7 +1187,8 @@ class MultiTenantStore(BaseStore):
         default_ref = self.conf.glance_store.default_swift_reference
         default_swift_reference = ref_params.get(default_ref)
         if not default_swift_reference:
-            reason = _("default_swift_reference %s is required.") % default_ref
+            reason = _("default_swift_reference %s is "
+                       "required."), default_ref
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(message=reason)
 
