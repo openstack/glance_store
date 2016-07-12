@@ -153,8 +153,8 @@ function run_tests {
     echo "Generating HTML coverage report in covhtml/"
     # Don't compute coverage for common code, which is tested elsewhere
     ${wrapper} coverage combine
-    ${wrapper} coverage html --include='glance_store/*' --omit='glance_store/openstack/common/*' -d covhtml -i
-    ${wrapper} coverage report --include='glance_store/*' --omit='glance_store/openstack/common/*' -i
+    ${wrapper} coverage html --include='glance_store/*' -d covhtml -i
+    ${wrapper} coverage report --include='glance_store/*' -i
   fi
 
   return $RESULT
