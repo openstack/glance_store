@@ -35,23 +35,64 @@ MAX_REDIRECTS = 5
 
 _HTTP_OPTS = [
     cfg.StrOpt('https_ca_certificates_file',
-               help=_('Specify the path to the CA bundle file to use in '
-                      'verifying the remote server certificate.')),
+               help=_("""
+Path to the CA bundle file.
+
+This configuration option enables the operator to use a custom
+Certificate Authority file to verify the remote server certificate. If
+this option is set, the ``https_insecure`` option will be ignored and
+the CA file specified will be used to authenticate the server
+certificate and establish a secure connection to the server.
+
+Possible values:
+    * A valid path to a CA file
+
+Related options:
+    * https_insecure
+
+""")),
     cfg.BoolOpt('https_insecure',
                 default=True,
-                help=_('If true, the remote server certificate is not '
-                       'verified. If false, then the default CA truststore is '
-                       'used for verification. This option is ignored if '
-                       '"https_ca_certificates_file" is set.')),
+                help=_("""
+Set verification of the remote server certificate.
+
+This configuration option takes in a boolean value to determine
+whether or not to verify the remote server certificate. If set to
+True, the remote server certificate is not verified. If the option is
+set to False, then the default CA truststore is used for verification.
+
+This option is ignored if ``https_ca_certificates_file`` is set.
+The remote server certificate will then be verified using the file
+specified using the ``https_ca_certificates_file`` option.
+
+Possible values:
+    * True
+    * False
+
+Related options:
+    * https_ca_certificates_file
+
+""")),
     cfg.DictOpt('http_proxy_information',
                 default={},
-                help=_('Specify the http/https proxy information that should '
-                       'be used to connect to the remote server. The proxy '
-                       'information should be a key value pair of the '
-                       'scheme and proxy. e.g. http:10.0.0.1:3128. You can '
-                       'specify proxies for multiple schemes by separating '
-                       'the key value pairs with a comma.'
-                       'e.g. http:10.0.0.1:3128, https:10.0.0.1:1080.'))]
+                help=_("""
+The http/https proxy information to be used to connect to the remote
+server.
+
+This configuration option specifies the http/https proxy information
+that should be used to connect to the remote server. The proxy
+information should be a key value pair of the scheme and proxy, for
+example, http:10.0.0.1:3128. You can also specify proxies for multiple
+schemes by separating the key value pairs with a comma, for example,
+http:10.0.0.1:3128, https:10.0.0.1:1080.
+
+Possible values:
+    * A comma separated list of scheme:proxy pairs as described above
+
+Related options:
+    * None
+
+"""))]
 
 
 class StoreLocation(glance_store.location.StoreLocation):
