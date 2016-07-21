@@ -23,14 +23,12 @@ from stevedore import extension
 
 from glance_store import capabilities
 from glance_store import exceptions
-from glance_store import i18n
+from glance_store.i18n import _
 from glance_store import location
 
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
-
-_ = i18n._
 
 _STORE_OPTS = [
     cfg.ListOpt('stores', default=['file', 'http'],

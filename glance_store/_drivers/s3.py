@@ -36,12 +36,10 @@ from glance_store import capabilities
 from glance_store.common import utils
 import glance_store.driver
 from glance_store import exceptions
-from glance_store.i18n import _
+from glance_store.i18n import _, _LE, _LI
 import glance_store.location
 
 LOG = logging.getLogger(__name__)
-_LE = glance_store.i18n._LE
-_LI = glance_store.i18n._LI
 
 DEFAULT_LARGE_OBJECT_SIZE = 100          # 100M
 DEFAULT_LARGE_OBJECT_CHUNK_SIZE = 10     # 10M

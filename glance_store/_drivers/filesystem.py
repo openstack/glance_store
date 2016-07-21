@@ -37,14 +37,11 @@ from glance_store import capabilities
 from glance_store.common import utils
 import glance_store.driver
 from glance_store import exceptions
-from glance_store import i18n
+from glance_store.i18n import _, _LE, _LW
 import glance_store.location
 
 
 LOG = logging.getLogger(__name__)
-_ = i18n._
-_LE = i18n._LE
-_LW = i18n._LW
 
 _FILESYSTEM_CONFIGS = [
     cfg.StrOpt('filesystem_store_datadir',
