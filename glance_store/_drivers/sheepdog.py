@@ -36,7 +36,7 @@ import glance_store.location
 
 LOG = logging.getLogger(__name__)
 
-DEFAULT_ADDR = 'localhost'
+DEFAULT_ADDR = '127.0.0.1'
 DEFAULT_PORT = 7000
 DEFAULT_CHUNKSIZE = 64  # in MiB
 
