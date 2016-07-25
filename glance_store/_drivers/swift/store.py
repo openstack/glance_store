@@ -1331,7 +1331,7 @@ class SingleTenantStore(BaseStore):
             project_domain_id=self.project_domain_id,
             project_domain_name=self.project_domain_name)
 
-        sess = ks_session.Session(auth=password)
+        sess = ks_session.Session(auth=password, verify=not self.insecure)
         return ks_client.Client(session=sess)
 
     def get_manager(self, store_location, context=None, allow_reauth=False):
@@ -1452,7 +1452,8 @@ class MultiTenantStore(BaseStore):
         trustor_auth = ks_identity.V3Token(auth_url=auth_address,
                                            token=context.auth_token,
                                            project_id=context.tenant)
-        trustor_sess = ks_session.Session(auth=trustor_auth)
+        trustor_sess = ks_session.Session(auth=trustor_auth,
+                                          verify=not self.insecure)
         trustor_client = ks_client.Client(session=trustor_sess)
         auth_ref = trustor_client.session.auth.get_auth_ref(trustor_sess)
         roles = [t['name'] for t in auth_ref['roles']]
@@ -1468,7 +1469,8 @@ class MultiTenantStore(BaseStore):
             user_domain_name=user_domain_name,
             project_domain_id=project_domain_id,
             project_domain_name=project_domain_name)
-        trustee_sess = ks_session.Session(auth=password)
+        trustee_sess = ks_session.Session(auth=password,
+                                          verify=not self.insecure)
         trustee_client = ks_client.Client(session=trustee_sess)
 
         # request glance user id - we will use it as trustee user
@@ -1494,7 +1496,8 @@ class MultiTenantStore(BaseStore):
         )
         # now we can authenticate against KS
         # as trustee of user who provided token
-        client_sess = ks_session.Session(auth=client_password)
+        client_sess = ks_session.Session(auth=client_password,
+                                         verify=not self.insecure)
         return ks_client.Client(session=client_sess)
 
     def get_manager(self, store_location, context=None, allow_reauth=False):
