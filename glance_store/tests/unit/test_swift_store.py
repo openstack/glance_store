@@ -1186,17 +1186,27 @@ class SwiftTests(object):
         loc = mock.MagicMock()
         self.assertRaises(NotImplementedError, store.get_manager, loc)
 
+    def test_init_client_multi_tenant(self):
+        """Test that keystone client was initialized correctly"""
+        self._init_client(verify=True, swift_store_multi_tenant=True,
+                          swift_store_config_file=None)
+
+    def test_init_client_multi_tenant_insecure(self):
+        """
+        Test that keystone client was initialized correctly with no
+        certificate verification.
+        """
+        self._init_client(verify=False, swift_store_multi_tenant=True,
+                          swift_store_auth_insecure=True,
+                          swift_store_config_file=None)
+
     @mock.patch("glance_store._drivers.swift.store.ks_identity")
     @mock.patch("glance_store._drivers.swift.store.ks_session")
     @mock.patch("glance_store._drivers.swift.store.ks_client")
-    def test_init_client_multi_tenant(self,
-                                      mock_client,
-                                      mock_session,
-                                      mock_identity):
-        """Test that keystone client was initialized correctly"""
+    def _init_client(self, mock_client, mock_session, mock_identity, verify,
+                     **kwargs):
         # initialize store and connection parameters
-        self.config(swift_store_config_file=None)
-        self.config(swift_store_multi_tenant=True)
+        self.config(**kwargs)
         store = Store(self.conf)
         store.configure()
         ref_params = sutils.SwiftParams(self.conf).params
@@ -1228,7 +1238,8 @@ class SwiftTests(object):
             token=ctxt.auth_token,
             project_id=ctxt.tenant
         )
-        mock_session.Session.assert_any_call(auth=mock_identity.V3Token())
+        mock_session.Session.assert_any_call(auth=mock_identity.V3Token(),
+                                             verify=verify)
         mock_client.Client.assert_any_call(session=trustor_session)
         # test trustee usage and trust creation
         tenant_name, user = default_swift_reference.get('user').split(':')
@@ -1243,7 +1254,8 @@ class SwiftTests(object):
             project_domain_name=default_swift_reference.get(
                 'project_domain_name')
         )
-        mock_session.Session.assert_any_call(auth=mock_identity.V3Password())
+        mock_session.Session.assert_any_call(auth=mock_identity.V3Password(),
+                                             verify=verify)
         mock_client.Client.assert_any_call(session=trustee_session)
         trustor_client.trusts.create.assert_called_once_with(
             trustee_user='fake_user', trustor_user=ctxt.user,
@@ -1353,7 +1365,7 @@ class TestStoreAuthV3(TestStoreAuthV1):
             project_domain_id='default', project_domain_name=None,
             user_domain_id='default', user_domain_name=None,)
         mock_session.Session.assert_called_once_with(
-            auth=mock_identity.V3Password())
+            auth=mock_identity.V3Password(), verify=True)
         mock_client.Client.assert_called_once_with(
             session=mock_session.Session())
 
