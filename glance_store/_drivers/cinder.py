@@ -55,8 +55,7 @@ _CINDER_OPTS = [
                       '<service_type>:<service_name>:<endpoint_type>')),
     cfg.StrOpt('cinder_endpoint_template',
                help=_('Override service catalog lookup with template for '
-                      'cinder endpoint e.g. '
-                      'http://localhost:8776/v2/%(tenant)s')),
+                      'cinder endpoint.')),
     cfg.StrOpt('cinder_os_region_name', deprecated_name='os_region_name',
                help=_('Region name of this node. If specified, it will be '
                       'used to locate OpenStack services for stores.')),
