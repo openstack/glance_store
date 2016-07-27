@@ -65,8 +65,6 @@ def get_location_from_uri(uri, conf=CONF):
         swift://example.com/container/obj-id
         swift://user:account:pass@authurl.com/container/obj-id
         swift+http://user:account:pass@authurl.com/container/obj-id
-        s3://accesskey:secretkey@s3.amazonaws.com/bucket/key-id
-        s3+https://accesskey:secretkey@s3.amazonaws.com/bucket/key-id
         file:///var/lib/glance/images/1
         cinder://volume-id
     """

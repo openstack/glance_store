@@ -1,0 +1,15 @@
+---
+prelude: >
+    glance_store._drivers.s3 removed from tree.
+upgrade:
+  - The S3 driver has been removed completely from the
+    glance_store source tree. All environments running
+    and (or) using this s3-driver piece of code and have
+    not been migrated will stop working after the upgrade.
+    We recommend you use a different storage backend that
+    is still being supported by Glance. The standard
+    deprecation path has been used to remove this. The
+    proces requiring store driver maintainers was initiated
+    at http://lists.openstack.org/pipermail/openstack-dev/2015-December/081966.html .
+    Since, S3 driver did not get any maintainer, it was
+    decided to remove it.
