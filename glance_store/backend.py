@@ -31,22 +31,98 @@ CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 
 _STORE_OPTS = [
-    cfg.ListOpt('stores', default=['file', 'http'],
-                help=_("List of stores enabled. Valid stores are: "
-                       "cinder, file, http, rbd, sheepdog, swift, "
-                       "vsphere")),
-    cfg.StrOpt('default_store', default='file',
-               help=_("Default scheme to use to store image data. The "
-                      "scheme must be registered by one of the stores "
-                      "defined by the 'stores' config option.")),
-    cfg.IntOpt('store_capabilities_update_min_interval', default=0,
-               help=_("Minimum interval seconds to execute updating "
-                      "dynamic storage capabilities based on backend "
-                      "status then. It's not a periodic routine, the "
-                      "update logic will be executed only when interval "
-                      "seconds elapsed and an operation of store has "
-                      "triggered. The feature will be enabled only when "
-                      "the option value greater then zero."))
+    cfg.ListOpt('stores',
+                default=['file', 'http'],
+                help=_("""
+List of enabled Glance stores.
+
+Register the storage backends to use for storing disk images
+as a comma separated list. The default stores enabled for
+storing disk images with Glance are ``file`` and ``http``.
+
+Possible values:
+    * A comma separated list that could include:
+        * file
+        * http
+        * swift
+        * rbd
+        * sheepdog
+        * cinder
+        * vmware
+
+Related Options:
+    * default_store
+
+""")),
+    cfg.StrOpt('default_store',
+               default='file',
+               choices=('file', 'filesystem', 'http', 'https', 'swift',
+                        'swift+http', 'swift+https', 'swift+config', 'rbd',
+                        'sheepdog', 'cinder', 'vsphere'),
+               help=_("""
+The default scheme to use for storing images.
+
+Provide a string value representing the default scheme to use for
+storing images. If not set, Glance uses ``file`` as the default
+scheme to store images with the ``file`` store.
+
+NOTE: The value given for this configuration option must be a valid
+scheme for a store registered with the ``stores`` configuration
+option.
+
+Possible values:
+    * file
+    * filesystem
+    * http
+    * https
+    * swift
+    * swift+http
+    * swift+https
+    * swift+config
+    * rbd
+    * sheepdog
+    * cinder
+    * vsphere
+
+Related Options:
+    * stores
+
+""")),
+    cfg.IntOpt('store_capabilities_update_min_interval',
+               default=0,
+               min=0,
+               help=_("""
+Minimum interval in seconds to execute updating dynamic storage
+capabilities based on current backend status.
+
+Provide an integer value representing time in seconds to set the
+minimum interval before an update of dynamic storage capabilities
+for a storage backend can be attempted. Setting
+``store_capabilities_update_min_interval`` does not mean updates
+occur periodically based on the set interval. Rather, the update
+is performed at the elapse of this interval set, if an operation
+of the store is triggered.
+
+By default, this option is set to zero and is disabled. Provide an
+integer value greater than zero to enable this option.
+
+NOTE: For more information on store capabilities and their updates,
+please visit: https://specs.openstack.org/openstack/glance-specs/\
+specs/kilo/store-capabilities.html
+
+For more information on setting up a particular store in your
+deplyment and help with the usage of this feature, please contact
+the storage driver maintainers listed here:
+http://docs.openstack.org/developer/glance_store/drivers/index.html
+
+Possible values:
+    * Zero
+    * Positive integer
+
+Related Options:
+    * None
+
+""")),
 ]
 
 _STORE_CFG_GROUP = 'glance_store'
