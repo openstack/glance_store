@@ -89,13 +89,59 @@ Related options:
 
 """)),
     cfg.StrOpt('swift_store_region',
-               help=_('The region of the swift endpoint to be used for '
-                      'single tenant. This setting is only necessary if the '
-                      'tenant has multiple swift endpoints.')),
+               sample_default='RegionTwo',
+               help=_("""
+The region of Swift endpoint to use by Glance.
+
+Provide a string value representing a Swift region where Glance
+can connect to for image storage. By default, there is no region
+set.
+
+When Glance uses Swift as the storage backend to store images
+for a specific tenant that has multiple endpoints, setting of a
+Swift region with ``swift_store_region`` allows Glance to connect
+to Swift in the specified region as opposed to a single region
+connectivity.
+
+This option can be configured for both single-tenant and
+multi-tenant storage.
+
+NOTE: Setting the region with ``swift_store_region`` is
+tenant-specific and is necessary ``only if`` the tenant has
+multiple endpoints across different regions.
+
+Possible values:
+    * A string value representing a valid Swift region.
+
+Related Options:
+    * None
+
+""")),
     cfg.StrOpt('swift_store_endpoint',
-               help=_('If set, the configured endpoint will be used. If '
-                      'None, the storage url from the auth response will be '
-                      'used.')),
+               sample_default="""\
+https://swift.openstack.example.org/v1/path_not_including_container\
+_name\
+""",
+               help=_("""
+The URL endpoint to use for Swift backend storage.
+
+Provide a string value representing the URL endpoint to use for
+storing Glance images in Swift store. By default, an endpoint
+is not set and the storage URL returned by ``auth`` is used.
+Setting an endpoint with ``swift_store_endpoint`` overrides the
+storage URL and is used for Glance image storage.
+
+NOTE: The URL should include the path up to, but excluding the
+container. The location of an object is obtained by appending
+the container and object to the configured URL.
+
+Possible values:
+    * String value representing a valid URL path up to a Swift container
+
+Related Options:
+    * None
+
+""")),
     cfg.StrOpt('swift_store_endpoint_type', default='publicURL',
                choices=('publicURL', 'adminURL', 'internalURL'),
                help=_("""
@@ -116,10 +162,27 @@ Related options:
     * swift_store_endpoint
 
 """)),
-    cfg.StrOpt('swift_store_service_type', default='object-store',
-               help=_('A string giving the service type of the swift service '
-                      'to use. This setting is only used if '
-                      'swift_store_auth_version is 2.')),
+    cfg.StrOpt('swift_store_service_type',
+               default='object-store',
+               help=_("""
+Type of Swift service to use.
+
+Provide a string value representing the service type to use for
+storing images while using Swift backend storage. The default
+service type is set to ``object-store``.
+
+NOTE: If ``swift_store_auth_version`` is set to 2, the value for
+this configuration option needs to be ``object-store``. If using
+a higher version of Keystone or a different auth scheme, this
+option may be modified.
+
+Possible values:
+    * A string representing a valid service type for Swift storage.
+
+Related Options:
+    * None
+
+""")),
     cfg.StrOpt('swift_store_container',
                default=DEFAULT_CONTAINER,
                help=_("""
