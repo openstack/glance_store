@@ -15,7 +15,6 @@
 
 """Glance Store exception subclasses"""
 
-from debtcollector import removals
 import six
 import six.moves.urllib.parse as urlparse
 import warnings
@@ -94,13 +93,6 @@ class Duplicate(GlanceStoreException):
     message = _("Image %(image)s already exists")
 
 
-@removals.remove(version="0.10.0")
-class Conflict(GlanceStoreException):
-    """DEPRECATED!"""
-    message = _("An object with the same identifier is currently being "
-                "operated on.")
-
-
 class StorageFull(GlanceStoreException):
     message = _("There is not enough disk space on the image storage media.")
 
@@ -129,18 +121,6 @@ class Forbidden(GlanceStoreException):
     message = _("You are not authorized to complete this action.")
 
 
-@removals.remove(version="0.10.0")
-class ForbiddenPublicImage(Forbidden):
-    """DEPRECATED!"""
-    message = _("You are not authorized to complete this action.")
-
-
-@removals.remove(version="0.10.0")
-class ProtectedImageDelete(Forbidden):
-    """DEPRECATED!"""
-    message = _("Image %(image_id)s is protected and cannot be deleted.")
-
-
 class Invalid(GlanceStoreException):
     # NOTE(NiallBunting) This could be deprecated however the debtcollector
     # seems to have problems deprecating this as well as the subclasses.
@@ -154,13 +134,6 @@ class BadStoreConfiguration(GlanceStoreException):
 
 class DriverLoadFailure(GlanceStoreException):
     message = _("Driver %(driver_name)s could not be loaded.")
-
-
-@removals.remove(version="0.10.0")
-class BadDriverConfiguration(GlanceStoreException):
-    """DEPRECATED!"""
-    message = _("Driver %(driver_name)s could not be configured correctly. "
-                "Reason: %(reason)s")
 
 
 class StoreDeleteNotSupported(GlanceStoreException):
@@ -185,12 +158,6 @@ class MaxRedirectsExceeded(GlanceStoreException):
     message = _("Maximum redirects (%(redirects)s) was exceeded.")
 
 
-@removals.remove(version="0.10.0")
-class InvalidRedirect(GlanceStoreException):
-    """DEPRECATED!"""
-    message = _("Received invalid HTTP redirect.")
-
-
 class NoServiceEndpoint(GlanceStoreException):
     message = _("Response from Keystone does not contain a Glance endpoint.")
 
@@ -205,31 +172,6 @@ class RemoteServiceUnavailable(GlanceStoreException):
     message = _("Remote server where the image is present is unavailable.")
 
 
-@removals.remove(version="0.10.0")
-class WorkerCreationFailure(GlanceStoreException):
-    """DEPRECATED!"""
-    message = _("Server worker creation failed: %(reason)s.")
-
-
-@removals.remove(version="0.10.0")
-class SchemaLoadError(GlanceStoreException):
-    """DEPRECATED!"""
-    message = _("Unable to load schema: %(reason)s")
-
-
-@removals.remove(version="0.10.0")
-class InvalidObject(GlanceStoreException):
-    """DEPRECATED!"""
-    message = _("Provided object does not match schema "
-                "'%(schema)s': %(reason)s")
-
-
-@removals.remove(version="0.10.0")
-class UnsupportedHeaderFeature(GlanceStoreException):
-    """DEPRECATED!"""
-    message = _("Provided header feature is unsupported: %(feature)s")
-
-
 class HasSnapshot(GlanceStoreException):
     message = _("The image cannot be deleted because it has snapshot(s).")
 
@@ -237,23 +179,3 @@ class HasSnapshot(GlanceStoreException):
 class InUseByStore(GlanceStoreException):
     message = _("The image cannot be deleted because it is in use through "
                 "the backend store outside of Glance.")
-
-
-@removals.remove(version="0.10.0")
-class ImageDataNotFound(NotFound):
-    """DEPRECATED!"""
-    message = _("No image data could be found")
-
-
-@removals.remove(version="0.10.0")
-class InvalidParameterValue(Invalid):
-    """DEPRECATED!"""
-    message = _("Invalid value '%(value)s' for parameter '%(param)s': "
-                "%(extra_msg)s")
-
-
-@removals.remove(version="0.10.0")
-class InvalidImageStatusTransition(Invalid):
-    """DEPRECATED!"""
-    message = _("Image status transition from %(cur_status)s to"
-                " %(new_status)s is not allowed")
