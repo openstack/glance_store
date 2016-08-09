@@ -284,29 +284,104 @@ Related options:
     * None
 
 """)),
-    cfg.BoolOpt('swift_store_ssl_compression', default=True,
-                help=_('If set to False, disables SSL layer compression of '
-                       'https swift requests. Setting to False may improve '
-                       'performance for images which are already in a '
-                       'compressed format, eg qcow2.')),
-    cfg.IntOpt('swift_store_retry_get_count', default=0,
-               help=_('The number of times a Swift download will be retried '
-                      'before the request fails.')),
-    cfg.IntOpt('swift_store_expire_soon_interval', default=60,
-               help=_('The period of time (in seconds) before token '
-                      'expiration when glance_store will try to request new '
-                      'user token. Default value 60 sec means that if token '
-                      'is going to expire in 1 min then glance_store requests '
-                      'new user token.')),
-    cfg.BoolOpt('swift_store_use_trusts', default=True,
-                help=_('If set to True create a trust for each add/get '
-                       'request to Multi-tenant store in order to prevent '
-                       'authentication token to be expired during '
-                       'uploading/downloading data. If set to False then user '
-                       'token is used for Swift connection (so no overhead on '
-                       'trust creation). Please note that this '
-                       'option is considered only and only if '
-                       'swift_store_multi_tenant=True'))
+    cfg.BoolOpt('swift_store_ssl_compression',
+                default=True,
+                help=_("""
+SSL layer compression for HTTPS Swift requests.
+
+Provide a boolean value to determine whether or not to compress
+HTTPS Swift requests for images at the SSL layer. By default,
+compression is enabled.
+
+When using Swift as the backend store for Glance image storage,
+SSL layer compression of HTTPS Swift requests can be set using
+this option. If set to False, SSL layer compression of HTTPS
+Swift requests is disabled. Disabling this option may improve
+performance for images which are already in a compressed format,
+for example, qcow2.
+
+Possible values:
+    * True
+    * False
+
+Related Options:
+    * None
+
+""")),
+    cfg.IntOpt('swift_store_retry_get_count',
+               default=0,
+               min=0,
+               help=_("""
+The number of times a Swift download will be retried before the
+request fails.
+
+Provide an integer value representing the number of times an image
+download must be retried before erroring out. The default value is
+zero (no retry on a failed image download). When set to a positive
+integer value, ``swift_store_retry_get_count`` ensures that the
+download is attempted this many more times upon a download failure
+before sending an error message.
+
+Possible values:
+    * Zero
+    * Positive integer value
+
+Related Options:
+    * None
+
+""")),
+    cfg.IntOpt('swift_store_expire_soon_interval',
+               min=0,
+               default=60,
+               help=_("""
+Time in seconds defining the size of the window in which a new
+token may be requested before the current token is due to expire.
+
+Typically, the Swift storage driver fetches a new token upon the
+expiration of the current token to ensure continued access to
+Swift. However, some Swift transactions (like uploading image
+segments) may not recover well if the token expires on the fly.
+
+Hence, by fetching a new token before the current token expiration,
+we make sure that the token does not expire or is close to expiry
+before a transaction is attempted. By default, the Swift storage
+driver requests for a new token 60 seconds or less before the
+current token expiration.
+
+Possible values:
+    * Zero
+    * Positive integer value
+
+Related Options:
+    * None
+
+""")),
+    cfg.BoolOpt('swift_store_use_trusts',
+                default=True,
+                help=_("""
+Use trusts for multi-tenant Swift store.
+
+This option instructs the Swift store to create a trust for each
+add/get request when the multi-tenant store is in use. Using trusts
+allows the Swift store to avoid problems that can be caused by an
+authentication token expiring during the upload or download of data.
+
+By default, ``swift_store_use_trusts`` is set to ``True``(use of
+trusts is enabled). If set to ``False``, a user token is used for
+the Swift connection instead, eliminating the overhead of trust
+creation.
+
+NOTE: This option is considered only when
+``swift_store_multi_tenant`` is set to ``True``
+
+Possible values:
+    * True
+    * False
+
+Related options:
+    * swift_store_multi_tenant
+
+"""))
 ]
 
 
