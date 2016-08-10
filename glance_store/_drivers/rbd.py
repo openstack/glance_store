@@ -52,25 +52,100 @@ LOG = logging.getLogger(__name__)
 
 _RBD_OPTS = [
     cfg.IntOpt('rbd_store_chunk_size', default=DEFAULT_CHUNKSIZE,
-               help=_('RADOS images will be chunked into objects of this size '
-                      '(in megabytes). For best performance, this should be '
-                      'a power of two.')),
+               min=1,
+               help=_("""
+Size, in megabytes, to chunk RADOS images into.
+
+Provide an integer value representing the size in megabytes to chunk
+Glance images into. The default chunk size is 8 megabytes. For optimal
+performance, the value should be a power of two.
+
+When Ceph's RBD object storage system is used as the storage backend
+for storing Glance images, the images are chunked into objects of the
+size set using this option. These chunked objects are then stored
+across the distributed block data store to use for Glance.
+
+Possible Values:
+    * Any positive integer value
+
+Related options:
+    * None
+
+""")),
     cfg.StrOpt('rbd_store_pool', default=DEFAULT_POOL,
-               help=_('RADOS pool in which images are stored.')),
+               help=_("""
+RADOS pool in which images are stored.
+
+When RBD is used as the storage backend for storing Glance images, the
+images are stored by means of logical grouping of the objects (chunks
+of images) into a ``pool``. Each pool is defined with the number of
+placement groups it can contain. The default pool that is used is
+'images'.
+
+More information on the RBD storage backend can be found here:
+http://ceph.com/planet/how-data-is-stored-in-ceph-cluster/
+
+Possible Values:
+    * A valid pool name
+
+Related options:
+    * None
+
+""")),
     cfg.StrOpt('rbd_store_user', default=DEFAULT_USER,
-               help=_('RADOS user to authenticate as (only applicable if '
-                      'using Cephx. If <None>, a default will be chosen based '
-                      'on the client. section in rbd_store_ceph_conf)')),
+               help=_("""
+RADOS user to authenticate as.
+
+This configuration option takes in the RADOS user to authenticate as.
+This is only needed when RADOS authentication is enabled and is
+applicable only if the user is using Cephx authentication. If the
+value for this option is not set by the user or is set to None, a
+default value will be chosen, which will be based on the client.
+section in rbd_store_ceph_conf.
+
+Possible Values:
+    * A valid RADOS user
+
+Related options:
+    * rbd_store_ceph_conf
+
+""")),
     cfg.StrOpt('rbd_store_ceph_conf', default=DEFAULT_CONFFILE,
-               help=_('Ceph configuration file path. '
-                      'If <None>, librados will locate the default config. '
-                      'If using cephx authentication, this file should '
-                      'include a reference to the right keyring '
-                      'in a client.<USER> section')),
+               help=_("""
+Ceph configuration file path.
+
+This configuration option takes in the path to the Ceph configuration
+file to be used. If the value for this option is not set by the user
+or is set to None, librados will locate the default configuration file
+which is located at /etc/ceph/ceph.conf. If using Cephx
+authentication, this file should include a reference to the right
+keyring in a client.<USER> section
+
+Possible Values:
+    * A valid path to a configuration file
+
+Related options:
+    * rbd_store_user
+
+""")),
     cfg.IntOpt('rados_connect_timeout', default=0,
-               help=_('Timeout value (in seconds) used when connecting to '
-                      'ceph cluster. If value <= 0, no timeout is set and '
-                      'default librados value is used.'))
+               help=_("""
+Timeout value for connecting to Ceph cluster.
+
+This configuration option takes in the timeout value in seconds used
+when connecting to the Ceph cluster i.e. it sets the time to wait for
+glance-api before closing the connection. This prevents glance-api
+hangups during the connection to RBD. If the value for this option
+is set to less than or equal to 0, no timeout is set and the default
+librados value is used.
+
+Possible Values:
+    * Any integer value
+
+Related options:
+    * None
+
+"""))
 ]
 
 
