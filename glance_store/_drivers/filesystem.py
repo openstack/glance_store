@@ -46,27 +46,109 @@ LOG = logging.getLogger(__name__)
 _FILESYSTEM_CONFIGS = [
     cfg.StrOpt('filesystem_store_datadir',
                default='/var/lib/glance/images',
-               help=_('Directory to which the Filesystem backend '
-                      'store writes images.')),
+               help=_("""
+Directory to which the filesystem backend store writes images.
+
+Upon start up, Glance creates the directory if it doesn't already
+exist and verifies write access to the user under which
+``glance-api`` runs. If the write access isn't available, a
+``BadStoreConfiguration`` exception is raised and the filesystem
+store may not be available for adding new images.
+
+NOTE: This directory is used only when filesystem store is used as a
+storage backend. Either ``filesystem_store_datadir`` or
+``filesystem_store_datadirs`` option must be specified in
+``glance-api.conf``. If both options are specified, a
+``BadStoreConfiguration`` will be raised and the filesystem store
+may not be available for adding new images.
+
+Possible values:
+    * A valid path to a directory
+
+Related options:
+    * ``filesystem_store_datadirs``
+    * ``filesystem_store_file_perm``
+
+""")),
     cfg.MultiStrOpt('filesystem_store_datadirs',
-                    help=_("List of directories and its priorities to which "
-                           "the Filesystem backend store writes images.")),
+                    help=_("""
+List of directories and their priorities to which the filesystem
+backend store writes images.
+
+The filesystem store can be configured to store images in multiple
+directories as opposed to using a single directory specified by the
+``filesystem_store_datadir`` configuration option. When using
+multiple directories, each directory can be given an optional
+priority to specify the preference order in which they should
+be used. Priority is an integer that is concatenated to the
+directory path with a colon where a higher value indicates higher
+priority. When two directories have the same priority, the directory
+with most free space is used. When no priority is specified, it
+defaults to zero.
+
+More information on configuring filesystem store with multiple store
+directories can be found at
+http://docs.openstack.org/developer/glance/configuring.html
+
+NOTE: This directory is used only when filesystem store is used as a
+storage backend. Either ``filesystem_store_datadir`` or
+``filesystem_store_datadirs`` option must be specified in
+``glance-api.conf``. If both options are specified, a
+``BadStoreConfiguration`` will be raised and the filesystem store
+may not be available for adding new images.
+
+Possible values:
+    * List of strings of the following form:
+        * ``<a valid directory path>:<optional integer priority>``
+
+Related options:
+    * ``filesystem_store_datadir``
+    * ``filesystem_store_file_perm``
+
+""")),
     cfg.StrOpt('filesystem_store_metadata_file',
-               help=_("The path to a file which contains the "
-                      "metadata to be returned with any location "
-                      "associated with this store.  The file must "
-                      "contain a valid JSON object. The object should contain "
-                      "the keys 'id' and 'mountpoint'. The value for both "
-                      "keys should be 'string'.")),
+               help=_("""
+Filesystem store metadata file.
+
+The path to a file which contains the metadata to be returned with
+any location associated with the filesystem store. The file must
+contain a valid JSON object. The object should contain the keys
+``id`` and ``mountpoint``. The value for both keys should be a
+string.
+
+Possible values:
+    * A valid path to the store metadata file
+
+Related options:
+    * None
+
+""")),
     cfg.IntOpt('filesystem_store_file_perm',
                default=0,
-               help=_("The required permission for created image file. "
-                      "In this way the user other service used, e.g. Nova, "
-                      "who consumes the image could be the exclusive member "
-                      "of the group that owns the files created. Assigning "
-                      "it less then or equal to zero means don't change the "
-                      "default permission of the file. This value will be "
-                      "decoded as an octal digit."))]
+               help=_("""
+File access permissions for the image files.
+
+Set the intended file access permissions for image data. This provides
+a way to enable other services, e.g. Nova, to consume images directly
+from the filesystem store. The users running the services that are
+intended to be given access to could be made a member of the group
+that owns the files created. Assigning a value less then or equal to
+zero for this configuration option signifies that no changes be made
+to the  default permissions. This value will be decoded as an octal
+digit.
+
+For more information, please refer the documentation at
+http://docs.openstack.org/developer/glance/configuring.html
+
+Possible values:
+    * A valid file access permission
+    * Zero
+    * Any negative integer
+
+Related options:
+    * None
+
+"""))]
 
 MULTI_FILESYSTEM_METADATA_SCHEMA = {
     "type": "array",
