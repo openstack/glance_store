@@ -41,14 +41,76 @@ DEFAULT_PORT = 7000
 DEFAULT_CHUNKSIZE = 64  # in MiB
 
 _SHEEPDOG_OPTS = [
-    cfg.IntOpt('sheepdog_store_chunk_size', default=DEFAULT_CHUNKSIZE,
-               help=_('Images will be chunked into objects of this size '
-                      '(in megabytes). For best performance, this should be '
-                      'a power of two.')),
-    cfg.IntOpt('sheepdog_store_port', default=DEFAULT_PORT,
-               help=_('Port of sheep daemon.')),
-    cfg.StrOpt('sheepdog_store_address', default=DEFAULT_ADDR,
-               help=_('IP address of sheep daemon.'))
+    cfg.IntOpt('sheepdog_store_chunk_size',
+               min=1,
+               default=DEFAULT_CHUNKSIZE,
+               help=_("""
+Chunk size for images to be stored in Sheepdog data store.
+
+Provide an integer value representing the size in mebibyte
+(1048576 bytes) to chunk Glance images into. The default
+chunk size is 64 mebibytes.
+
+When using Sheepdog distributed storage system, the images are
+chunked into objects of this size and then stored across the
+distributed data store to use for Glance.
+
+Chunk sizes, if a power of two, help avoid fragmentation and
+enable improved performance.
+
+Possible values:
+    * Positive integer value representing size in mebibytes.
+
+Related Options:
+    * None
+
+""")),
+    cfg.PortOpt('sheepdog_store_port',
+                default=DEFAULT_PORT,
+                help=_("""
+Port number on which the sheep daemon will listen.
+
+Provide an integer value representing a valid port number on
+which you want the Sheepdog daemon to listen on. The default
+port is 7000.
+
+The Sheepdog daemon, also called 'sheep', manages the storage
+in the distributed cluster by writing objects across the storage
+network. It identifies and acts on the messages it receives on
+the port number set using ``sheepdog_store_port`` option to store
+chunks of Glance images.
+
+Possible values:
+    * A valid port number (0 to 65535)
+
+Related Options:
+    * sheepdog_store_address
+
+""")),
+    cfg.StrOpt('sheepdog_store_address',
+               default=DEFAULT_ADDR,
+               help=_("""
+Address to bind the Sheepdog daemon to.
+
+Provide a string value representing the address to bind the
+Sheepdog daemon to. The default address set for the 'sheep'
+is 127.0.0.1.
+
+The Sheepdog daemon, also called 'sheep', manages the storage
+in the distributed cluster by writing objects across the storage
+network. It identifies and acts on the messages directed to the
+address set using ``sheepdog_store_address`` option to store
+chunks of Glance images.
+
+Possible values:
+    * A valid IPv4 address
+    * A valid IPv6 address
+    * A valid hostname
+
+Related Options:
+    * sheepdog_store_port
+
+"""))
 ]
 
 
