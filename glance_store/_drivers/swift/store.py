@@ -101,9 +101,6 @@ the container ``glance_fda``. All dashes in the UUID are included when
 creating the container name but do not count toward the character limit, so
 when N=10 the container name would be ``glance_fdae39a1-ba.``
 
-Services which consume this:
-    * None (directly consumed by the Swift driver)
-
 Possible values:
     * If using single container, this configuration option can be any string
       that is a valid swift container name in Glance's Swift account
@@ -136,9 +133,6 @@ Currently, the Swift driver only supports creating Dynamic Large Objects.
 NOTE: This should be set by taking into account the large object limit
 enforced by the Swift cluster in consideration.
 
-Services which consume this:
-    * None (directly consumed by the Swift driver)
-
 Possible values:
     * A positive integer that is less than or equal to the large object limit
       enforced by the Swift cluster in consideration.
@@ -162,9 +156,6 @@ For example: if ``swift_store_large_object_size`` is 5GB and
 segmented into 7 segments where the first six segments will be 1GB in size and
 the seventh segment will be 0.2GB.
 
-Services which consume this:
-    * None (directly consumed by the Swift driver)
-
 Possible values:
     * A positive integer that is less than or equal to the large object limit
       enforced by Swift cluster in consideration.
@@ -182,9 +173,6 @@ exist, it will be created provided this configuration option is set to True.
 By default, it won't be created. This behavior is applicable for both single
 and multiple containers mode.
 
-Services which consume this:
-    * None (directly consumed by the Swift driver)
-
 Possible values:
     * True
     * False
@@ -201,9 +189,6 @@ This enables multi-tenant storage mode which causes Glance images to be stored
 in tenant specific Swift accounts. If this is disabled, Glance stores all
 images in its own account. More details multi-tenant store can be found at
 https://wiki.openstack.org/wiki/GlanceSwiftTenantSpecificStorage
-
-Services which consume this:
-    * None (directly consumed by the Swift driver)
 
 Possible values:
     * True
@@ -231,9 +216,6 @@ convention. More detail about using multiple containers can be found at
 https://specs.openstack.org/openstack/glance-specs/specs/kilo/swift-store-multiple-containers.html
 
 NOTE: This is used only when swift_store_multi_tenant is disabled.
-
-Services which consume this:
-    * None (directly consumed only by the Swift driver)
 
 Possible values:
     * A non-negative integer less than or equal to 32
