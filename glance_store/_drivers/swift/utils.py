@@ -75,7 +75,7 @@ The option 'key' in the Swift back-end configuration file is used
 to set the authentication key instead.
 """)),
     cfg.StrOpt('swift_store_config_file',
-               secret=True,
+               default=None,
                help=_("""
 Absolute path to the file containing the swift account(s)
 configurations.
@@ -88,7 +88,6 @@ option is highly recommended while using Swift storage backend for
 image storage as it avoids storage of credentials in the database.
 
 Possible values:
-    * None
     * String value representing an absolute path on the glance-api
       node
 
