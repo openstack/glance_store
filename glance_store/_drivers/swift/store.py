@@ -56,11 +56,38 @@ ONE_MB = units.k * units.Ki  # Here we used the mixed meaning of MB
 
 _SWIFT_OPTS = [
     cfg.BoolOpt('swift_store_auth_insecure', default=False,
-                help=_('If True, swiftclient won\'t check for a valid SSL '
-                       'certificate when authenticating.')),
+                help=_("""
+Set verification of the server certificate.
+
+This boolean determines whether or not to verify the server
+certificate. If this option is set to True, swiftclient won't check
+for a valid SSL certificate when authenticating. If the option is set
+to False, then the default CA truststore is used for verification.
+
+Possible values:
+    * True
+    * False
+
+Related options:
+    * swift_store_cacert
+
+""")),
     cfg.StrOpt('swift_store_cacert',
-               help=_('A string giving the CA certificate file to use in '
-                      'SSL connections for verifying certs.')),
+               sample_default='/etc/ssl/certs/ca-certificates.crt',
+               help=_("""
+Path to the CA bundle file.
+
+This configuration option enables the operator to specify the path to
+a custom Certificate Authority file for SSL verification when
+connecting to Swift.
+
+Possible values:
+    * A valid path to a CA file
+
+Related options:
+    * swift_store_auth_insecure
+
+""")),
     cfg.StrOpt('swift_store_region',
                help=_('The region of the swift endpoint to be used for '
                       'single tenant. This setting is only necessary if the '
@@ -70,10 +97,25 @@ _SWIFT_OPTS = [
                       'None, the storage url from the auth response will be '
                       'used.')),
     cfg.StrOpt('swift_store_endpoint_type', default='publicURL',
-               help=_('A string giving the endpoint type of the swift '
-                      'service to use (publicURL, adminURL or internalURL). '
-                      'This setting is only used if swift_store_auth_version '
-                      'is 2.')),
+               choices=('publicURL', 'adminURL', 'internalURL'),
+               help=_("""
+Endpoint Type of Swift service.
+
+This string value indicates the endpoint type to use to fetch the
+Swift endpoint. The endpoint type determines the actions the user will
+be allowed to perform, for instance, reading and writing to the Store.
+This setting is only used if swift_store_auth_version is greater than
+1.
+
+Possible values:
+    * publicURL
+    * adminURL
+    * internalURL
+
+Related options:
+    * swift_store_endpoint
+
+""")),
     cfg.StrOpt('swift_store_service_type', default='object-store',
                help=_('A string giving the service type of the swift service '
                       'to use. This setting is only used if '
@@ -227,9 +269,21 @@ Related options:
 
 """)),
     cfg.ListOpt('swift_store_admin_tenants', default=[],
-                help=_('A list of tenants that will be granted read/write '
-                       'access on all Swift containers created by Glance in '
-                       'multi-tenant mode.')),
+                help=_("""
+List of tenants that will be granted admin access.
+
+This is a list of tenants that will be granted read/write access on
+all Swift containers created by Glance in multi-tenant mode. The
+default value is an empty list.
+
+Possible values:
+    * A comma separated list of strings representing UUIDs of Keystone
+      projects/tenants
+
+Related options:
+    * None
+
+""")),
     cfg.BoolOpt('swift_store_ssl_compression', default=True,
                 help=_('If set to False, disables SSL layer compression of '
                        'https swift requests. Setting to False may improve '
