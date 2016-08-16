@@ -50,49 +50,239 @@ LOG = logging.getLogger(__name__)
 _CINDER_OPTS = [
     cfg.StrOpt('cinder_catalog_info',
                default='volumev2::publicURL',
-               help=_('Info to match when looking for cinder in the service '
-                      'catalog. Format is : separated values of the form: '
-                      '<service_type>:<service_name>:<endpoint_type>')),
+               help=_("""
+Information to match when looking for cinder in the service catalog.
+
+When the ``cinder_endpoint_template`` is not set and any of
+``cinder_store_auth_address``, ``cinder_store_user_name``,
+``cinder_store_project_name``, ``cinder_store_password`` is not set,
+cinder store uses this information to lookup cinder endpoint from the service
+catalog in the current context. ``cinder_os_region_name``, if set, is taken
+into consideration to fetch the appropriate endpoint.
+
+The service catalog can be listed by the ``openstack catalog list`` command.
+
+Possible values:
+    * A string of of the following form:
+      ``<service_type>:<service_name>:<endpoint_type>``
+      At least ``service_type`` and ``endpoint_type`` should be specified.
+      ``service_name`` can be omitted.
+
+Related options:
+    * cinder_os_region_name
+    * cinder_endpoint_template
+    * cinder_store_auth_address
+    * cinder_store_user_name
+    * cinder_store_project_name
+    * cinder_store_password
+
+""")),
     cfg.StrOpt('cinder_endpoint_template',
-               help=_('Override service catalog lookup with template for '
-                      'cinder endpoint.')),
+               default=None,
+               help=_("""
+Override service catalog lookup with template for cinder endpoint.
+
+When this option is set, this value is used to generate cinder endpoint,
+instead of looking up from the service catalog.
+This value is ignored if ``cinder_store_auth_address``,
+``cinder_store_user_name``, ``cinder_store_project_name``, and
+``cinder_store_password`` are specified.
+
+If this configuration option is set, ``cinder_catalog_info`` will be ignored.
+
+Possible values:
+    * URL template string for cinder endpoint, where ``%%(tenant)s`` is
+      replaced with the current tenant (project) name.
+      For example: ``http://cinder.openstack.example.org/v2/%%(tenant)s``
+
+Related options:
+    * cinder_store_auth_address
+    * cinder_store_user_name
+    * cinder_store_project_name
+    * cinder_store_password
+    * cinder_catalog_info
+
+""")),
     cfg.StrOpt('cinder_os_region_name', deprecated_name='os_region_name',
-               help=_('Region name of this node. If specified, it will be '
-                      'used to locate OpenStack services for stores.')),
+               default=None,
+               help=_("""
+Region name to lookup cinder service from the service catalog.
+
+This is used only when ``cinder_catalog_info`` is used for determining the
+endpoint. If set, the lookup for cinder endpoint by this node is filtered to
+the specified region. It is useful when multiple regions are listed in the
+catalog. If this is not set, the endpoint is looked up from every region.
+
+Possible values:
+    * A string that is a valid region name.
+
+Related options:
+    * cinder_catalog_info
+
+""")),
     cfg.StrOpt('cinder_ca_certificates_file',
-               help=_('Location of ca certificates file to use for cinder '
-                      'client requests.')),
+               help=_("""
+Location of a CA certificates file used for cinder client requests.
+
+The specified CA certificates file, if set, is used to verify cinder
+connections via HTTPS endpoint. If the endpoint is HTTP, this value is ignored.
+``cinder_api_insecure`` must be set to ``True`` to enable the verification.
+
+Possible values:
+    * Path to a ca certificates file
+
+Related options:
+    * cinder_api_insecure
+
+""")),
     cfg.IntOpt('cinder_http_retries',
+               min=0,
                default=3,
-               help=_('Number of cinderclient retries on failed http calls')),
+               help=_("""
+Number of cinderclient retries on failed http calls.
+
+When a call failed by any errors, cinderclient will retry the call up to the
+specified times after sleeping a few seconds.
+
+Possible values:
+    * A positive integer
+
+Related options:
+    * None
+
+""")),
     cfg.IntOpt('cinder_state_transition_timeout',
+               min=0,
                default=300,
-               help=_('Time period of time in seconds to wait for a cinder '
-                      'volume transition to complete.')),
+               help=_("""
+Time period, in seconds, to wait for a cinder volume transition to
+complete.
+
+When the cinder volume is created, deleted, or attached to the glance node to
+read/write the volume data, the volume's state is changed. For example, the
+newly created volume status changes from ``creating`` to ``available`` after
+the creation process is completed. This specifies the maximum time to wait for
+the status change. If a timeout occurs while waiting, or the status is changed
+to an unexpected value (e.g. `error``), the image creation fails.
+
+Possible values:
+    * A positive integer
+
+Related options:
+    * None
+
+""")),
     cfg.BoolOpt('cinder_api_insecure',
                 default=False,
-                help=_('Allow to perform insecure SSL requests to cinder')),
+                help=_("""
+Allow to perform insecure SSL requests to cinder.
+
+If this option is set to True, HTTPS endpoint connection is verified using the
+CA certificates file specified by ``cinder_ca_certificates_file`` option.
+
+Possible values:
+    * True
+    * False
+
+Related options:
+    * cinder_ca_certificates_file
+
+""")),
     cfg.StrOpt('cinder_store_auth_address',
                default=None,
-               help=_('The address where the Cinder authentication service '
-                      'is listening. If <None>, the cinder endpoint in the '
-                      'service catalog is used.')),
+               help=_("""
+The address where the cinder authentication service is listening.
+
+When all of ``cinder_store_auth_address``, ``cinder_store_user_name``,
+``cinder_store_project_name``, and ``cinder_store_password`` options are
+specified, the specified values are always used for the authentication.
+This is useful to hide the image volumes from users by storing them in a
+project/tenant specific to the image service. It also enables users to share
+the image volume among other projects under the control of glance's ACL.
+
+If either of these options are not set, the cinder endpoint is looked up
+from the service catalog, and current context's user and project are used.
+
+Possible values:
+    * A valid authentication service address, for example:
+      ``http://openstack.example.org/identity/v2.0``
+
+Related options:
+    * cinder_store_user_name
+    * cinder_store_password
+    * cinder_store_project_name
+
+""")),
     cfg.StrOpt('cinder_store_user_name',
                default=None,
-               help=_('User name to authenticate against Cinder. If <None>, '
-                      'the user of current context is used.')),
+               help=_("""
+User name to authenticate against cinder.
+
+This must be used with all the following related options. If any of these are
+not specified, the user of the current context is used.
+
+Possible values:
+    * A valid user name
+
+Related options:
+    * cinder_store_auth_address
+    * cinder_store_password
+    * cinder_store_project_name
+
+""")),
     cfg.StrOpt('cinder_store_password', secret=True,
-               default=None,
-               help=_('Password for the user authenticating against Cinder. '
-                      'If <None>, the current context auth token is used.')),
+               help=_("""
+Password for the user authenticating against cinder.
+
+This must be used with all the following related options. If any of these are
+not specified, the user of the current context is used.
+
+Possible values:
+    * A valid password for the user specified by ``cinder_store_user_name``
+
+Related options:
+    * cinder_store_auth_address
+    * cinder_store_user_name
+    * cinder_store_project_name
+
+""")),
     cfg.StrOpt('cinder_store_project_name',
                default=None,
-               help=_('Project name where the image is stored in Cinder. '
-                      'If <None>, the project in current context is used.')),
+               help=_("""
+Project name where the image volume is stored in cinder.
+
+If this configuration option is not set, the project in current context is
+used.
+
+This must be used with all the following related options. If any of these are
+not specified, the project of the current context is used.
+
+Possible values:
+    * A valid project name
+
+Related options:
+    * ``cinder_store_auth_address``
+    * ``cinder_store_user_name``
+    * ``cinder_store_password``
+
+""")),
     cfg.StrOpt('rootwrap_config',
                default='/etc/glance/rootwrap.conf',
-               help=_('Path to the rootwrap configuration file to use for '
-                      'running commands as root.')),
+               help=_("""
+Path to the rootwrap configuration file to use for running commands as root.
+
+The cinder store requires root privileges to operate the image volumes (for
+connecting to iSCSI/FC volumes and reading/writing the volume data, etc.).
+The configuration file should allow the required commands by cinder store and
+os-brick library.
+
+Possible values:
+    * Path to the rootwrap config file
+
+Related options:
+    * None
+
+""")),
 ]
 
 
