@@ -1,0 +1,14 @@
+---
+prelude: >
+    Some deprecated exceptions have been removed. See
+    upgrade section for more details.
+upgrade:
+  - The following list of exceptions have been deprecated
+    since 0.10.0 release -- ``Conflict``, ``ForbiddenPublicImage``
+    ``ProtectedImageDelete``, ``BadDriverConfiguration``,
+    ``InvalidRedirect``, ``WorkerCreationFailure``,
+    ``SchemaLoadError``, ``InvalidObject``,
+    ``UnsupportedHeaderFeature``, ``ImageDataNotFound``,
+    ``InvalidParameterValue``, ``InvalidImageStatusTransition``.
+    This release removes these exceptions so any remnant
+    consumption of the same must be avoided/removed.
