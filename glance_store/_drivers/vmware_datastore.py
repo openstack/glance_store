@@ -558,7 +558,7 @@ class Store(glance_store.Store):
         image_file = _Reader(image_file, verifier)
         headers = {}
         if image_size > 0:
-            headers.update({'Content-Length': image_size})
+            headers.update({'Content-Length': six.text_type(image_size)})
             data = image_file
         else:
             data = utils.chunkiter(image_file, CHUNKSIZE)
