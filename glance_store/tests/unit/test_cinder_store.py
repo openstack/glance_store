@@ -279,6 +279,7 @@ class TestCinderStore(base.StoreBaseTest,
         fake_client = FakeObject(auth_token=None, management_url=None)
         fake_volume.manager.get.return_value = fake_volume
         fake_volumes = FakeObject(create=mock.Mock(return_value=fake_volume))
+        self.config(cinder_volume_type='some_type')
 
         @contextlib.contextmanager
         def fake_open(client, volume, mode):
@@ -303,7 +304,8 @@ class TestCinderStore(base.StoreBaseTest,
                 name='image-%s' % expected_image_id,
                 metadata={'image_owner': self.context.tenant,
                           'glance_image_id': expected_image_id,
-                          'image_size': str(expected_size)})
+                          'image_size': str(expected_size)},
+                volume_type='some_type')
 
     def test_cinder_add(self):
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available')

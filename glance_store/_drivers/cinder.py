@@ -283,6 +283,25 @@ Related options:
     * None
 
 """)),
+    cfg.StrOpt('cinder_volume_type',
+               default=None,
+               help=_("""
+Volume type that will be used for volume creation in cinder.
+
+Some cinder backends can have several volume types to optimize storage usage.
+Adding this option allows an operator to choose a specific volume type
+in cinder that can be optimized for images.
+
+If this is not set, then the default volume type specified in the cinder
+configuration will be used for volume creation.
+
+Possible values:
+    * A valid volume type from cinder
+
+Related options:
+    * None
+
+""")),
 ]
 
 
@@ -631,13 +650,15 @@ class Store(glance_store.driver.Store):
         metadata = {'glance_image_id': image_id,
                     'image_size': str(image_size),
                     'image_owner': owner}
-        LOG.debug('Creating a new volume: image_size=%d size_gb=%d',
-                  image_size, size_gb)
+        volume_type = self.conf.glance_store.cinder_volume_type
+        LOG.debug('Creating a new volume: image_size=%d size_gb=%d type=%s',
+                  image_size, size_gb, volume_type or 'None')
         if image_size == 0:
             LOG.info(_LI("Since image size is zero, we will be doing "
                          "resize-before-write for each GB which "
                          "will be considerably slower than normal."))
-        volume = client.volumes.create(size_gb, name=name, metadata=metadata)
+        volume = client.volumes.create(size_gb, name=name, metadata=metadata,
+                                       volume_type=volume_type)
         volume = self._wait_volume_status(volume, 'creating', 'available')
 
         failed = True
