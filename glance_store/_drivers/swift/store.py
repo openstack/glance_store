@@ -19,8 +19,11 @@ import hashlib
 import logging
 import math
 
-from keystoneclient import exceptions as keystone_exc
-from keystoneclient import service_catalog as keystone_sc
+from keystoneauth1.access import service_catalog as keystone_sc
+from keystoneauth1 import exceptions as keystone_exc
+from keystoneauth1 import identity as ks_identity
+from keystoneauth1 import session as ks_session
+from keystoneclient.v3 import client as ks_client
 from oslo_config import cfg
 from oslo_utils import encodeutils
 from oslo_utils import excutils
@@ -33,9 +36,6 @@ try:
 except ImportError:
     swiftclient = None
 
-from keystoneclient.auth.identity import v3 as ks_v3
-from keystoneclient import session as ks_session
-from keystoneclient.v3 import client as ks_client
 
 import glance_store
 from glance_store._drivers.swift import connection_manager
@@ -1268,16 +1268,17 @@ class SingleTenantStore(BaseStore):
             raise exceptions.BadStoreUri(message=reason)
 
         # initialize a keystone plugin for swift admin with creds
-        password = ks_v3.Password(auth_url=auth_url,
-                                  username=user,
-                                  password=location.key,
-                                  project_name=tenant_name,
-                                  user_domain_id=self.user_domain_id,
-                                  user_domain_name=self.user_domain_name,
-                                  project_domain_id=self.project_domain_id,
-                                  project_domain_name=self.project_domain_name)
-        sess = ks_session.Session(auth=password)
+        password = ks_identity.V3Password(
+            auth_url=auth_url,
+            username=user,
+            password=location.key,
+            project_name=tenant_name,
+            user_domain_id=self.user_domain_id,
+            user_domain_name=self.user_domain_name,
+            project_domain_id=self.project_domain_id,
+            project_domain_name=self.project_domain_name)
 
+        sess = ks_session.Session(auth=password)
         return ks_client.Client(session=sess)
 
     def get_manager(self, store_location, context=None, allow_reauth=False):
@@ -1303,10 +1304,10 @@ class MultiTenantStore(BaseStore):
                                                    reason=reason)
         self.storage_url = self.conf_endpoint
         if not self.storage_url:
-            sc = {'serviceCatalog': context.service_catalog}
-            self.storage_url = keystone_sc.ServiceCatalogV2(sc).url_for(
-                service_type=self.service_type, region_name=self.region,
-                endpoint_type=self.endpoint_type)
+            catalog = keystone_sc.ServiceCatalogV2(context.service_catalog)
+            self.storage_url = catalog.url_for(service_type=self.service_type,
+                                               region_name=self.region,
+                                               interface=self.endpoint_type)
 
         if self.storage_url.startswith('http://'):
             self.scheme = 'swift+http'
@@ -1402,9 +1403,9 @@ class MultiTenantStore(BaseStore):
             'project_domain_name')
 
         # create client for multitenant user(trustor)
-        trustor_auth = ks_v3.Token(auth_url=auth_address,
-                                   token=context.auth_token,
-                                   project_id=context.tenant)
+        trustor_auth = ks_identity.V3Token(auth_url=auth_address,
+                                           token=context.auth_token,
+                                           project_id=context.tenant)
         trustor_sess = ks_session.Session(auth=trustor_auth)
         trustor_client = ks_client.Client(session=trustor_sess)
         auth_ref = trustor_client.session.auth.get_auth_ref(trustor_sess)
@@ -1412,14 +1413,15 @@ class MultiTenantStore(BaseStore):
 
         # create client for trustee - glance user specified in swift config
         tenant_name, user = user.split(':')
-        password = ks_v3.Password(auth_url=auth_address,
-                                  username=user,
-                                  password=key,
-                                  project_name=tenant_name,
-                                  user_domain_id=user_domain_id,
-                                  user_domain_name=user_domain_name,
-                                  project_domain_id=project_domain_id,
-                                  project_domain_name=project_domain_name)
+        password = ks_identity.V3Password(
+            auth_url=auth_address,
+            username=user,
+            password=key,
+            project_name=tenant_name,
+            user_domain_id=user_domain_id,
+            user_domain_name=user_domain_name,
+            project_domain_id=project_domain_id,
+            project_domain_name=project_domain_name)
         trustee_sess = ks_session.Session(auth=password)
         trustee_client = ks_client.Client(session=trustee_sess)
 
@@ -1434,7 +1436,7 @@ class MultiTenantStore(BaseStore):
         ).id
         # initialize a new client with trust and trustee credentials
         # create client for glance trustee user
-        client_password = ks_v3.Password(
+        client_password = ks_identity.V3Password(
             auth_url=auth_address,
             username=user,
             password=key,

@@ -21,6 +21,8 @@ import os
 import socket
 import time
 
+from keystoneauth1.access import service_catalog as keystone_sc
+from keystoneauth1 import exceptions as keystone_exc
 from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_utils import units
@@ -31,8 +33,6 @@ import glance_store.driver
 from glance_store import exceptions
 from glance_store.i18n import _, _LE, _LW, _LI
 import glance_store.location
-from keystoneclient import exceptions as keystone_exc
-from keystoneclient import service_catalog as keystone_sc
 
 try:
     from cinderclient import exceptions as cinder_exception
@@ -64,8 +64,8 @@ The service catalog can be listed by the ``openstack catalog list`` command.
 
 Possible values:
     * A string of of the following form:
-      ``<service_type>:<service_name>:<endpoint_type>``
-      At least ``service_type`` and ``endpoint_type`` should be specified.
+      ``<service_type>:<service_name>:<interface>``
+      At least ``service_type`` and ``interface`` should be specified.
       ``service_name`` can be omitted.
 
 Related options:
@@ -332,14 +332,14 @@ def get_cinderclient(conf, context=None):
             url = glance_store.cinder_endpoint_template % context.to_dict()
         else:
             info = glance_store.cinder_catalog_info
-            service_type, service_name, endpoint_type = info.split(':')
-            sc = {'serviceCatalog': context.service_catalog}
+            service_type, service_name, interface = info.split(':')
             try:
-                url = keystone_sc.ServiceCatalogV2(sc).url_for(
+                catalog = keystone_sc.ServiceCatalogV2(context.service_catalog)
+                url = catalog.url_for(
                     region_name=glance_store.cinder_os_region_name,
                     service_type=service_type,
                     service_name=service_name,
-                    endpoint_type=endpoint_type)
+                    interface=interface)
             except keystone_exc.EndpointNotFound:
                 reason = _("Failed to find Cinder from a service catalog.")
                 raise exceptions.BadStoreConfiguration(store_name="cinder",

@@ -18,7 +18,7 @@ connection with valid credentials and updated token"""
 
 import logging
 
-from keystoneclient import exceptions as ks_exceptions
+from keystoneauth1 import exceptions as ks_exceptions
 from oslo_utils import encodeutils
 
 from glance_store import exceptions
