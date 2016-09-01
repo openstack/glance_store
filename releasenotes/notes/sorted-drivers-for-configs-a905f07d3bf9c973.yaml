@@ -1,0 +1,16 @@
+---
+prelude: >
+    Return list of store drivers in sorted order for
+    generating configs. More info in ``Upgrade Notes``
+    and ``Bug Fixes`` section.
+upgrade:
+  - This version of glance_store will result in Glance
+    generating the configs in a sorted (deterministic)
+    order. So, preferably store releases on or after this
+    should be used for generating any new configs if the
+    mismatched ordering of the configs results in an issue
+    in your environment.
+fixes:
+  - Bug 1619487 is fixed which was causing random order of
+    the generation of configs in Glance. See ``upgrade``
+    section for more details.
