@@ -132,7 +132,7 @@ def _list_opts():
     driver_opts = []
     mgr = extension.ExtensionManager('glance_store.drivers')
     # NOTE(zhiyan): Handle available drivers entry_points provided
-    drivers = [ext.name for ext in mgr]
+    drivers = sorted([ext.name for ext in mgr])
     handled_drivers = []  # Used to handle backwards-compatible entries
     for store_entry in drivers:
         driver_cls = _load_store(None, store_entry, False)
