@@ -124,17 +124,14 @@ class SheepdogImage(object):
         self.chunk_size = chunk_size
 
     def _run_command(self, command, data, *params):
-        cmd = ("collie vdi %(command)s -a %(addr)s -p %(port)d %(name)s "
-               "%(params)s" %
-               {"command": command,
-                "addr": self.addr,
-                "port": self.port,
-                "name": self.name,
-                "params": " ".join(map(str, params))})
+        cmd = ['collie', 'vdi']
+        cmd.extend(command.split(' '))
+        cmd.extend(['-a', self.addr, '-p', self.port, self.name])
+        cmd.extend(params)
 
         try:
             return processutils.execute(
-                cmd, process_input=data)[0]
+                *cmd, process_input=data)[0]
         except processutils.ProcessExecutionError as exc:
             LOG.error(exc)
             raise glance_store.BackendException(exc)

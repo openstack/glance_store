@@ -58,14 +58,11 @@ class TestSheepdogImage(oslotest.base.BaseTestCase):
             sheepdog.DEFAULT_CHUNKSIZE,
         )
         image._run_command('create', None)
-        expected_cmd = ('collie vdi %(command)s'
-                        ' -a %(addr)s -p %(port)d %(name)s ') % {
-            'command': 'create',
-            'addr': '127.0.0.1',
-            'port': 7000,
-            'name': '6bd59e6e-c410-11e5-ab67-0a73f1fda51b',
-        }
-        actual_cmd = mock_execute.call_args[0][0]
+        expected_cmd = (
+            'collie', 'vdi', 'create', '-a', '127.0.0.1', '-p', 7000,
+            '6bd59e6e-c410-11e5-ab67-0a73f1fda51b',
+        )
+        actual_cmd = mock_execute.call_args[0]
         self.assertEqual(expected_cmd, actual_cmd)
 
 
