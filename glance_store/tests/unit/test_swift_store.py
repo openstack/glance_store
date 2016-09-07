@@ -37,7 +37,6 @@ import swiftclient
 from glance_store._drivers.swift import store as swift
 from glance_store._drivers.swift import utils as sutils
 from glance_store import backend
-from glance_store import BackendException
 from glance_store import capabilities
 from glance_store import exceptions
 from glance_store import location
@@ -483,7 +482,7 @@ class SwiftTests(object):
         exception_caught = False
         try:
             self.store.add(str(uuid.uuid4()), image_swift, 0)
-        except BackendException as e:
+        except exceptions.BackendException as e:
             exception_caught = True
             self.assertIn("container noexist does not exist in Swift",
                           encodeutils.exception_to_unicode(e))
@@ -615,7 +614,7 @@ class SwiftTests(object):
         exception_caught = False
         try:
             self.store.add(expected_image_id, image_swift, 0)
-        except BackendException as e:
+        except exceptions.BackendException as e:
             exception_caught = True
             expected_msg = "container %s does not exist in Swift"
             expected_msg = expected_msg % expected_container
