@@ -46,8 +46,7 @@ import glance_store
 from glance_store import capabilities
 from glance_store.common import utils
 from glance_store import exceptions
-from glance_store.i18n import _
-from glance_store.i18n import _LE
+from glance_store.i18n import _, _LE
 from glance_store import location
 
 

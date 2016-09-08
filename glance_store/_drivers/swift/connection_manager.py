@@ -22,8 +22,7 @@ from keystoneclient import exceptions as ks_exceptions
 from oslo_utils import encodeutils
 
 from glance_store import exceptions
-from glance_store.i18n import _
-from glance_store.i18n import _LI
+from glance_store.i18n import _, _LI
 
 LOG = logging.getLogger(__name__)
 
