@@ -240,8 +240,7 @@ class ImageIterator(object):
                 with conn.open_ioctx(self.pool) as ioctx:
                     with rbd.Image(ioctx, self.name,
                                    snapshot=self.snapshot) as image:
-                        img_info = image.stat()
-                        size = img_info['size']
+                        size = image.size()
                         bytes_left = size
                         while bytes_left > 0:
                             length = min(self.chunk_size, bytes_left)
