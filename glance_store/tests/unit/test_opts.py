@@ -20,6 +20,18 @@ from glance_store import backend
 from glance_store.tests import base
 
 
+def load_entry_point(entry_point, verify_requirements=False):
+    """Load an entry-point without requiring dependencies."""
+    resolve = getattr(entry_point, 'resolve', None)
+    require = getattr(entry_point, 'require', None)
+    if resolve is not None and require is not None:
+        if verify_requirements:
+            entry_point.require()
+        return entry_point.resolve()
+    else:
+        return entry_point.load(require=verify_requirements)
+
+
 class OptsTestCase(base.StoreBaseTest):
 
     def _check_opt_groups(self, opt_list, expected_opt_groups):
@@ -43,7 +55,7 @@ class OptsTestCase(base.StoreBaseTest):
         opt_list = None
         for ep in pkg_resources.iter_entry_points('oslo.config.opts'):
             if ep.name == namespace:
-                list_fn = ep.load()
+                list_fn = load_entry_point(ep)
                 opt_list = list_fn()
                 break
 
