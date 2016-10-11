@@ -775,8 +775,8 @@ class BaseStore(driver.Store):
         # initialize manager to receive valid connections
         allow_retry = \
             self.conf.glance_store.swift_store_retry_get_count > 0
-        with get_manager_for_store(self, location, context,
-                                   allow_reauth=allow_retry) as manager:
+        with self.get_manager(location, context,
+                              allow_reauth=allow_retry) as manager:
             (resp_headers, resp_body) = self._get_object(location,
                                                          manager=manager)
 
@@ -832,8 +832,8 @@ class BaseStore(driver.Store):
         # initialize a manager with re-auth if image need to be splitted
         need_chunks = (image_size == 0) or (
             image_size >= self.large_object_size)
-        with get_manager_for_store(self, location, context,
-                                   allow_reauth=need_chunks) as manager:
+        with self.get_manager(location, context,
+                              allow_reauth=need_chunks) as manager:
 
             self._create_container_if_missing(location.container,
                                               manager.get_connection())
@@ -1090,6 +1090,23 @@ class BaseStore(driver.Store):
             ssl_compression=self.ssl_compression,
             cacert=self.cacert)
 
+    def get_manager(self, store_location, context=None, allow_reauth=False):
+        """Return appropriate connection manager for store
+
+        The method detects store type (singletenant or multitenant) and returns
+        appropriate connection manager (singletenant or multitenant) that
+        allows to request swiftclient connections.
+
+        :param store_location: StoreLocation object that define image location
+        :param context: user context
+        :param allow_reauth: defines if we allow re-authentication when user
+            token is expired and refresh swift connection
+
+        :return: connection manager for store
+        """
+        msg = _("There is no Connection Manager implemented for %s class.")
+        raise NotImplementedError(msg % self.__class__.__name__)
+
 
 class SingleTenantStore(BaseStore):
     EXAMPLE_URL = "swift://<USER>:<KEY>@<AUTH_ADDRESS>/<CONTAINER>/<FILE>"
@@ -1260,6 +1277,12 @@ class SingleTenantStore(BaseStore):
 
         return ks_client.Client(session=sess)
 
+    def get_manager(self, store_location, context=None, allow_reauth=False):
+        return connection_manager.SingleTenantConnectionManager(self,
+                                                                store_location,
+                                                                context,
+                                                                allow_reauth)
+
 
 class MultiTenantStore(BaseStore):
     EXAMPLE_URL = "swift://<SWIFT_URL>/<CONTAINER>/<FILE>"
@@ -1423,6 +1446,17 @@ class MultiTenantStore(BaseStore):
         client_sess = ks_session.Session(auth=client_password)
         return ks_client.Client(session=client_sess)
 
+    def get_manager(self, store_location, context=None, allow_reauth=False):
+        # if global toggle is turned off then do not allow re-authentication
+        # with trusts
+        if not self.conf.glance_store.swift_store_use_trusts:
+            allow_reauth = False
+
+        return connection_manager.MultiTenantConnectionManager(self,
+                                                               store_location,
+                                                               context,
+                                                               allow_reauth)
+
 
 class ChunkReader(object):
     def __init__(self, fd, checksum, total, verifier=None):
@@ -1453,34 +1487,3 @@ class ChunkReader(object):
         if self.verifier:
             self.verifier.update(result)
         return result
-
-
-def get_manager_for_store(store, store_location,
-                          context=None,
-                          allow_reauth=False):
-    """Return appropriate connection manager for store
-
-    The method detects store type (singletenant or multitenant) and returns
-    appropriate connection manager (singletenant or multitenant) that allows
-    to request swiftclient connections.
-    :param store: store that needs swift connections
-    :param store_location: StoreLocation object that define image location
-    :param context: user context
-    :param allow_reauth: defines if we allow re-authentication when user token
-    is expired and refresh swift connection
-    :return: connection manager for store
-    """
-    if store.__class__ == SingleTenantStore:
-        return connection_manager.SingleTenantConnectionManager(
-            store, store_location, context, allow_reauth)
-    elif store.__class__ == MultiTenantStore:
-        # if global toggle is turned off then do not allow re-authentication
-        # with trusts
-        if not store.conf.glance_store.swift_store_use_trusts:
-            allow_reauth = False
-        return connection_manager.MultiTenantConnectionManager(
-            store, store_location, context, allow_reauth)
-    else:
-        raise NotImplementedError(_("There is no Connection Manager "
-                                    "implemented for %s class.") %
-                                  store.__class__.__name__)

@@ -292,8 +292,7 @@ class SwiftTests(object):
         resp_full = b''.join([chunk for chunk in image_swift.wrapped])
         resp_half = resp_full[:len(resp_full) // 2]
         resp_half = six.BytesIO(resp_half)
-        manager = swift.get_manager_for_store(self.store, loc.store_location,
-                                              ctxt)
+        manager = self.store.get_manager(loc.store_location, ctxt)
 
         image_swift.wrapped = swift.swift_retry_iter(resp_half, image_size,
                                                      self.store,
@@ -1108,9 +1107,7 @@ class SwiftTests(object):
         store = Store(self.conf)
         store.configure()
         loc = mock.MagicMock()
-        swift.get_manager_for_store(store, loc)
-        self.assertEqual(swift.get_manager_for_store(store, loc),
-                         manager)
+        self.assertEqual(store.get_manager(loc), manager)
 
     @mock.patch("glance_store._drivers.swift."
                 "connection_manager.SingleTenantConnectionManager")
@@ -1120,15 +1117,12 @@ class SwiftTests(object):
         store = Store(self.conf)
         store.configure()
         loc = mock.MagicMock()
-        swift.get_manager_for_store(store, loc)
-        self.assertEqual(swift.get_manager_for_store(store, loc),
-                         manager)
+        self.assertEqual(store.get_manager(loc), manager)
 
     def test_get_connection_manager_failed(self):
-        store = mock.MagicMock()
+        store = swift.BaseStore(mock.MagicMock())
         loc = mock.MagicMock()
-        self.assertRaises(NotImplementedError, swift.get_manager_for_store,
-                          store, loc)
+        self.assertRaises(NotImplementedError, store.get_manager, loc)
 
     @mock.patch("glance_store._drivers.swift.store.ks_v3")
     @mock.patch("glance_store._drivers.swift.store.ks_session")
