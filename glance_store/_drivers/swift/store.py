@@ -866,8 +866,11 @@ class BaseStore(driver.Store):
                         # image_size == 0 is when we don't know the size
                         # of the image. This can occur with older clients
                         # that don't inspect the payload size.
-                        LOG.debug("Cannot determine image size. Adding as a "
-                                  "segmented object to Swift.")
+                        LOG.debug("Cannot determine image size because it is "
+                                  "either not provided in the request or "
+                                  "chunked-transfer encoding is used. "
+                                  "Adding image as a segmented object to "
+                                  "Swift.")
                         total_chunks = '?'
 
                     checksum = hashlib.md5()
