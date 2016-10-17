@@ -71,7 +71,6 @@ class TestConnectionManager(base.StoreBaseTest):
             store_location=self.location,
             context=self.context
         )
-        store._get_endpoint.assert_called_once_with(self.context)
         store.get_store_connection.assert_called_once_with(
             self.context.auth_token, manager.storage_url)
 
@@ -92,7 +91,6 @@ class TestConnectionManager(base.StoreBaseTest):
         )
         store.init_client.assert_called_once_with(self.location,
                                                   self.context)
-        store._get_endpoint.assert_called_once_with(self.context)
         store.get_store_connection.assert_called_once_with(
             self.context.auth_token, manager.storage_url)
         self.assertFalse(manager.allow_reauth)
@@ -107,7 +105,6 @@ class TestConnectionManager(base.StoreBaseTest):
         )
         store.init_client.assert_called_once_with(self.location,
                                                   self.context)
-        store._get_endpoint.assert_called_once_with(self.context)
         # return the same connection because it should not be expired
         auth_ref = mock.MagicMock()
         self.client.session.auth.get_auth_ref.return_value = auth_ref
@@ -128,7 +125,6 @@ class TestConnectionManager(base.StoreBaseTest):
         )
         store.init_client.assert_called_once_with(self.location,
                                                   self.context)
-        store._get_endpoint.assert_called_once_with(self.context)
         # return the same connection because it should not be expired
         auth_ref = mock.MagicMock()
         self.client.session.auth.get_auth_ref.return_value = auth_ref
