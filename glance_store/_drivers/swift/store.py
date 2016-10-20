@@ -295,12 +295,16 @@ in tenant specific Swift accounts. If this is disabled, Glance stores all
 images in its own account. More details multi-tenant store can be found at
 https://wiki.openstack.org/wiki/GlanceSwiftTenantSpecificStorage
 
+NOTE: If using multi-tenant swift store, please make sure
+that you do not set a swift configuration file with the
+'swift_store_config_file' option.
+
 Possible values:
     * True
     * False
 
 Related options:
-    * None
+    * swift_store_config_file
 
 """)),
     cfg.IntOpt('swift_store_multiple_containers_seed',
@@ -698,6 +702,19 @@ class StoreLocation(location.StoreLocation):
 
 
 def Store(conf):
+    # NOTE(dharinic): Multi-tenant store cannot work with swift config
+    if conf.glance_store.swift_store_multi_tenant:
+        if (conf.glance_store.default_store == 'swift+config' or
+           sutils.is_multiple_swift_store_accounts_enabled(conf)):
+            msg = _("Swift multi-tenant store cannot be configured to "
+                    "work with swift+config. The options "
+                    "'swift_store_multi_tenant' and "
+                    "'swift_store_config_file' are mutually exclusive. "
+                    "If you inted to use multi-tenant swift store, please "
+                    "make sure that you have not set a swift configuration "
+                    "file with the 'swift_store_config_file' option.")
+            raise exceptions.BadStoreConfiguration(store_name="swift",
+                                                   reason=msg)
     try:
         conf.register_opts(_SWIFT_OPTS + sutils.swift_opts,
                            group='glance_store')
