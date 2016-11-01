@@ -132,7 +132,12 @@ def _list_opts():
     driver_opts = []
     mgr = extension.ExtensionManager('glance_store.drivers')
     # NOTE(zhiyan): Handle available drivers entry_points provided
-    drivers = [ext.name for ext in mgr]
+    # NOTE(nikhil): Return a sorted list of drivers so that the oslo config
+    # generator can use that order to keep generating configuration file in a
+    # consistent manner. If this order is not preserved, in some cases the
+    # downstream packagers may see a long diff of the changes though not
+    # relevant as only order has changed. See some more details at bug 1619487.
+    drivers = sorted([ext.name for ext in mgr])
     handled_drivers = []  # Used to handle backwards-compatible entries
     for store_entry in drivers:
         driver_cls = _load_store(None, store_entry, False)
