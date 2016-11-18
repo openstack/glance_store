@@ -19,7 +19,7 @@ import six
 
 from glance_store._drivers import rbd as rbd_store
 from glance_store import exceptions
-from glance_store.location import Location
+from glance_store import location as g_location
 from glance_store.tests import base
 from glance_store.tests.unit import test_store_capabilities
 
@@ -248,10 +248,10 @@ class TestStore(base.StoreBaseTest,
         with mock.patch.object(MockRBD.RBD, 'remove') as remove_image:
             remove_image.side_effect = _fake_remove
 
-            self.store.delete(Location('test_rbd_store',
-                                       rbd_store.StoreLocation,
-                                       self.conf,
-                                       uri=self.location.get_uri()))
+            self.store.delete(g_location.Location('test_rbd_store',
+                                                  rbd_store.StoreLocation,
+                                                  self.conf,
+                                                  uri=self.location.get_uri()))
             self.called_commands_expected = ['remove']
 
     def test_delete_image(self):
@@ -326,8 +326,8 @@ class TestStore(base.StoreBaseTest,
             self.called_commands_expected = ['remove']
 
     def test_get_partial_image(self):
-        loc = Location('test_rbd_store', rbd_store.StoreLocation, self.conf,
-                       store_specs=self.store_specs)
+        loc = g_location.Location('test_rbd_store', rbd_store.StoreLocation,
+                                  self.conf, store_specs=self.store_specs)
         self.assertRaises(exceptions.StoreRandomGetNotSupported,
                           self.store.get, loc, chunk_size=1)
 

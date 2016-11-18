@@ -14,7 +14,7 @@
 
 import logging
 
-from collections import OrderedDict
+import collections
 
 from oslo_config import cfg
 from six.moves import configparser
@@ -105,7 +105,7 @@ _config_defaults = {'user_domain_id': 'default',
 # NOTE(bourke): The default dict_type is collections.OrderedDict in py27, but
 # we must set manually for compatibility with py26
 CONFIG = configparser.SafeConfigParser(defaults=_config_defaults,
-                                       dict_type=OrderedDict)
+                                       dict_type=collections.OrderedDict)
 LOG = logging.getLogger(__name__)
 
 
