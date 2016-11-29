@@ -111,7 +111,7 @@ please visit: https://specs.openstack.org/openstack/glance-specs/\
 specs/kilo/store-capabilities.html
 
 For more information on setting up a particular store in your
-deplyment and help with the usage of this feature, please contact
+deployment and help with the usage of this feature, please contact
 the storage driver maintainers listed here:
 http://docs.openstack.org/developer/glance_store/drivers/index.html
 
