@@ -500,7 +500,7 @@ class Store(glance_store.Store):
 
     def select_datastore(self, image_size):
         """Select a datastore with free space larger than image size."""
-        for k, v in sorted(six.iteritems(self.datastores), reverse=True):
+        for k, v in sorted(self.datastores.items(), reverse=True):
             max_ds = None
             max_fs = 0
             for ds in v:
