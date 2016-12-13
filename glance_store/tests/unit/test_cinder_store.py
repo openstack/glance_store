@@ -308,12 +308,16 @@ class TestCinderStore(base.StoreBaseTest,
                 volume_type='some_type')
 
     def test_cinder_add(self):
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available')
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
+                                     status='available',
+                                     size=1)
         volume_file = six.BytesIO()
         self._test_cinder_add(fake_volume, volume_file)
 
     def test_cinder_add_with_verifier(self):
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available')
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
+                                     status='available',
+                                     size=1)
         volume_file = six.BytesIO()
         verifier = mock.MagicMock()
         self._test_cinder_add(fake_volume, volume_file, 1, verifier)
@@ -323,7 +327,9 @@ class TestCinderStore(base.StoreBaseTest,
         e = IOError()
         volume_file = six.BytesIO()
         e.errno = errno.ENOSPC
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available')
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
+                                     status='available',
+                                     size=1)
         with mock.patch.object(volume_file, 'write', side_effect=e):
             self.assertRaises(exceptions.StorageFull,
                               self._test_cinder_add, fake_volume, volume_file)

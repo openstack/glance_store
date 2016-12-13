@@ -660,6 +660,7 @@ class Store(glance_store.driver.Store):
         volume = client.volumes.create(size_gb, name=name, metadata=metadata,
                                        volume_type=volume_type)
         volume = self._wait_volume_status(volume, 'creating', 'available')
+        size_gb = volume.size
 
         failed = True
         need_extend = True
@@ -694,6 +695,7 @@ class Store(glance_store.driver.Store):
                         volume = self._wait_volume_status(volume,
                                                           'extending',
                                                           'available')
+                        size_gb = volume.size
                     except exceptions.BackendException:
                         raise exceptions.StorageFull()
 
