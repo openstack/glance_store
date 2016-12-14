@@ -18,7 +18,6 @@ connection with valid credentials and updated token"""
 
 import logging
 
-from keystoneauth1 import exceptions as ks_exceptions
 from oslo_utils import encodeutils
 
 from glance_store import exceptions
@@ -188,13 +187,7 @@ class MultiTenantConnectionManager(SwiftConnectionManager):
             self.client.trusts.delete(self.client.trust_id)
 
     def _get_storage_url(self):
-        try:
-            return self.store._get_endpoint(self.context)
-        except (exceptions.BadStoreConfiguration,
-                ks_exceptions.EndpointNotFound) as e:
-            LOG.debug("Cannot obtain endpoint from context: %s. Use location "
-                      "value from database to obtain swift_url.", e)
-            return self.location.swift_url
+        return self.location.swift_url
 
     def _init_connection(self):
         if self.allow_reauth:

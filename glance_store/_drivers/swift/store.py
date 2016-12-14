@@ -20,7 +20,6 @@ import logging
 import math
 
 from keystoneauth1.access import service_catalog as keystone_sc
-from keystoneauth1 import exceptions as keystone_exc
 from keystoneauth1 import identity as ks_identity
 from keystoneauth1 import session as ks_session
 from keystoneclient.v3 import client as ks_client
@@ -1368,15 +1367,8 @@ class MultiTenantStore(BaseStore):
         return StoreLocation(specs, self.conf)
 
     def get_connection(self, location, context=None):
-        try:
-            storage_url = self._get_endpoint(context)
-        except (exceptions.BadStoreConfiguration,
-                keystone_exc.EndpointNotFound) as e:
-            LOG.debug("Cannot obtain swift endpoint url from Service Catalog: "
-                      "%s. Use url stored in database.", e)
-            storage_url = location.swift_url
         return swiftclient.Connection(
-            preauthurl=storage_url,
+            preauthurl=location.swift_url,
             preauthtoken=context.auth_token,
             insecure=self.insecure,
             ssl_compression=self.ssl_compression,

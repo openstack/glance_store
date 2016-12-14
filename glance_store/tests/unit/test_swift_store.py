@@ -34,6 +34,7 @@ from six.moves import http_client
 from six.moves import range
 import swiftclient
 
+from glance_store._drivers.swift import connection_manager as manager
 from glance_store._drivers.swift import store as swift
 from glance_store._drivers.swift import utils as sutils
 from glance_store import backend
@@ -401,6 +402,50 @@ class SwiftTests(object):
                                                        image_swift,
                                                        expected_swift_size)
         self.assertEqual(expected_location, location)
+
+    @mock.patch('glance_store._drivers.swift.utils'
+                '.is_multiple_swift_store_accounts_enabled',
+                mock.Mock(return_value=False))
+    def test_multi_tenant_image_add_uses_users_context(self):
+        expected_swift_size = FIVE_KB
+        expected_swift_contents = b"*" * expected_swift_size
+        expected_image_id = str(uuid.uuid4())
+        expected_container = 'container_' + expected_image_id
+        loc = 'swift+https://some_endpoint/%s/%s'
+        expected_location = loc % (expected_container, expected_image_id)
+        image_swift = six.BytesIO(expected_swift_contents)
+
+        global SWIFT_PUT_OBJECT_CALLS
+        SWIFT_PUT_OBJECT_CALLS = 0
+
+        self.config(swift_store_container='container')
+        self.config(swift_store_create_container_on_put=True)
+        self.config(swift_store_multi_tenant=True)
+        service_catalog = [
+            {
+                'endpoint_links': [],
+                'endpoints': [
+                    {
+                        'adminURL': 'https://some_admin_endpoint',
+                        'region': 'RegionOne',
+                        'internalURL': 'https://some_internal_endpoint',
+                        'publicURL': 'https://some_endpoint',
+                    },
+                ],
+                'type': 'object-store',
+                'name': 'Object Storage Service',
+            }
+        ]
+        ctxt = mock.MagicMock(
+            user='user', tenant='tenant', auth_token='123',
+            service_catalog=service_catalog)
+        store = swift.MultiTenantStore(self.conf)
+        store.configure()
+        loc, size, checksum, _ = store.add(expected_image_id, image_swift,
+                                           expected_swift_size,
+                                           context=ctxt)
+        # ensure that image add uses user's context
+        self.assertEqual(expected_location, loc)
 
     @mock.patch('glance_store._drivers.swift.utils'
                 '.is_multiple_swift_store_accounts_enabled',
@@ -1518,7 +1563,7 @@ class TestMultiTenantStoreConnections(base.StoreBaseTest):
         self.location = swift.StoreLocation(specs, self.conf)
         self.addCleanup(self.conf.reset)
 
-    def test_basic_connection_no_catalog(self):
+    def test_basic_connection(self):
         self.store.configure()
         connection = self.store.get_connection(self.location,
                                                context=self.context)
@@ -1531,7 +1576,7 @@ class TestMultiTenantStoreConnections(base.StoreBaseTest):
         self.assertEqual('0123', connection.preauthtoken)
         self.assertEqual({}, connection.os_options)
 
-    def test_connection_with_endpoint_from_catalog(self):
+    def test_connection_does_not_use_endpoint_from_catalog(self):
         self.store.configure()
         self.context.service_catalog = [
             {
@@ -1553,11 +1598,12 @@ class TestMultiTenantStoreConnections(base.StoreBaseTest):
         self.assertIsNone(connection.user)
         self.assertIsNone(connection.tenant_name)
         self.assertIsNone(connection.key)
-        self.assertEqual('https://scexample.com', connection.preauthurl)
+        self.assertNotEqual('https://scexample.com', connection.preauthurl)
+        self.assertEqual('https://example.com', connection.preauthurl)
         self.assertEqual('0123', connection.preauthtoken)
         self.assertEqual({}, connection.os_options)
 
-    def test_connection_with_no_endpoint_found(self):
+    def test_connection_manager_does_not_use_endpoint_from_catalog(self):
         self.store.configure()
         self.context.service_catalog = [
             {
@@ -1572,17 +1618,14 @@ class TestMultiTenantStoreConnections(base.StoreBaseTest):
                 'name': 'Object Storage Service',
             }
         ]
-        self.store.service_type = 'incorrect-store'
-        connection = self.store.get_connection(self.location,
-                                               context=self.context)
-        self.assertIsNone(connection.authurl)
-        self.assertEqual('1', connection.auth_version)
-        self.assertIsNone(connection.user)
-        self.assertIsNone(connection.tenant_name)
-        self.assertIsNone(connection.key)
-        self.assertEqual('https://example.com', connection.preauthurl)
-        self.assertEqual('0123', connection.preauthtoken)
-        self.assertEqual({}, connection.os_options)
+        connection_manager = manager.MultiTenantConnectionManager(
+            store=self.store,
+            store_location=self.location,
+            context=self.context
+        )
+        conn = connection_manager._init_connection()
+        self.assertNotEqual('https://scexample.com', conn.preauthurl)
+        self.assertEqual('https://example.com', conn.preauthurl)
 
 
 class TestMultiTenantStoreContext(base.StoreBaseTest):
