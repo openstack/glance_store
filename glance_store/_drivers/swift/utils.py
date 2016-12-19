@@ -87,12 +87,15 @@ and customized Swift referencing is disabled. Configuring this
 option is highly recommended while using Swift storage backend for
 image storage as it avoids storage of credentials in the database.
 
+NOTE: Please do not configure this option if you have set
+``swift_store_multi_tenant`` to ``True``.
+
 Possible values:
     * String value representing an absolute path on the glance-api
       node
 
 Related options:
-    * None
+    * swift_store_multi_tenant
 
 """)),
 ]

@@ -1,0 +1,9 @@
+---
+upgrade:
+  - If using Swift in the multi-tenant mode for storing
+    images in Glance, please note that the configuration
+    options ``swift_store_multi_tenant`` and
+    ``swift_store_config_file`` are now mutually exclusive
+    and cannot be configured together. If you intend to
+    use multi-tenant store, please make sure that you have
+    not set a swift configuration file.

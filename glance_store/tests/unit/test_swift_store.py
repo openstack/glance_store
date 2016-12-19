@@ -258,11 +258,25 @@ class SwiftTests(object):
         """Test that single tenant uris work with multi tenant on."""
         uri = ("swift://%s:key@auth_address/glance/%s" %
                (self.swift_store_user, FAKE_UUID))
+        self.config(swift_store_config_file=None)
         self.config(swift_store_multi_tenant=True)
         # NOTE(markwash): ensure the image is found
         ctxt = mock.MagicMock()
         size = backend.get_size_from_backend(uri, context=ctxt)
         self.assertEqual(5120, size)
+
+    def test_multi_tenant_with_swift_config(self):
+        """
+        Test that Glance does not start when a config file is set on
+        multi-tenant mode
+        """
+        schemes = ['swift', 'swift+config']
+        for s in schemes:
+            self.config(default_store=s,
+                        swift_store_config_file='not/none',
+                        swift_store_multi_tenant=True)
+            self.assertRaises(exceptions.BadStoreConfiguration,
+                              Store, self.conf)
 
     def test_get(self):
         """Test a "normal" retrieval of an image in chunks."""
@@ -1097,6 +1111,7 @@ class SwiftTests(object):
         """
         Test that we can set a public read acl.
         """
+        self.config(swift_store_config_file=None)
         self.config(swift_store_multi_tenant=True)
         store = Store(self.conf)
         store.configure()
@@ -1112,6 +1127,7 @@ class SwiftTests(object):
         """
         Test that we can set read acl for tenants.
         """
+        self.config(swift_store_config_file=None)
         self.config(swift_store_multi_tenant=True)
         store = Store(self.conf)
         store.configure()
@@ -1129,6 +1145,7 @@ class SwiftTests(object):
         """
         Test that we can set write acl for tenants.
         """
+        self.config(swift_store_config_file=None)
         self.config(swift_store_multi_tenant=True)
         store = Store(self.conf)
         store.configure()
@@ -1147,6 +1164,7 @@ class SwiftTests(object):
     def test_get_connection_manager_multi_tenant(self, manager_class):
         manager = mock.MagicMock()
         manager_class.return_value = manager
+        self.config(swift_store_config_file=None)
         self.config(swift_store_multi_tenant=True)
         store = Store(self.conf)
         store.configure()
@@ -1177,6 +1195,7 @@ class SwiftTests(object):
                                       mock_identity):
         """Test that keystone client was initialized correctly"""
         # initialize store and connection parameters
+        self.config(swift_store_config_file=None)
         self.config(swift_store_multi_tenant=True)
         store = Store(self.conf)
         store.configure()
