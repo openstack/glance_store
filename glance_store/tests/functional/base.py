@@ -51,7 +51,7 @@ class Base(testtools.TestCase):
 
         CONF.set_override('stores', [self.driver_name], group='glance_store')
         CONF.set_override('default_store',
-                          [self.driver_name],
+                          self.driver_name,
                           group='glance_store'
                           )
         glance_store.create_stores()
