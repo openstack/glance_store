@@ -920,7 +920,7 @@ class BaseStore(driver.Store):
                             with excutils.save_and_reraise_exception():
                                 reason = _LE("Error during chunked upload to "
                                              "backend, deleting stale chunks")
-                                LOG.exception(reason)
+                                LOG.error(reason)
                                 self._delete_stale_chunks(
                                     manager.get_connection(),
                                     location.container,
