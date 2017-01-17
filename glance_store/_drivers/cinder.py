@@ -582,7 +582,7 @@ class Store(glance_store.driver.Store):
             return (iterator, chunk_size or size)
         except cinder_exception.NotFound:
             reason = _("Failed to get image size due to "
-                       "volume can not be found: %s") % volume.id
+                       "volume can not be found: %s") % loc.volume_id
             LOG.error(reason)
             raise exceptions.NotFound(reason)
         except cinder_exception.ClientException as e:
