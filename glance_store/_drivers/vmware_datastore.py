@@ -59,9 +59,9 @@ DS_URL_PREFIX = '/folder'
 STORE_SCHEME = 'vsphere'
 
 _VMWARE_OPTS = [
-    cfg.StrOpt('vmware_server_host',
-               sample_default='127.0.0.1',
-               help=_("""
+    cfg.HostAddressOpt('vmware_server_host',
+                       sample_default='127.0.0.1',
+                       help=_("""
 Address of the ESX/ESXi or vCenter Server target system.
 
 This configuration option sets the address of the ESX/ESXi or vCenter

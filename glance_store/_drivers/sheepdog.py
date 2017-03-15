@@ -87,9 +87,9 @@ Related Options:
     * sheepdog_store_address
 
 """)),
-    cfg.StrOpt('sheepdog_store_address',
-               default=DEFAULT_ADDR,
-               help=_("""
+    cfg.HostAddressOpt('sheepdog_store_address',
+                       default=DEFAULT_ADDR,
+                       help=_("""
 Address to bind the Sheepdog daemon to.
 
 Provide a string value representing the address to bind the
