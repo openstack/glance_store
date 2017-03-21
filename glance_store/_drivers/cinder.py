@@ -493,10 +493,13 @@ class Store(glance_store.driver.Store):
             device = conn.connect_volume(connection_info['data'])
             volume.attach(None, None, attach_mode, host_name=host)
             volume = self._wait_volume_status(volume, 'attaching', 'in-use')
-            LOG.debug('Opening host device "%s"', device['path'])
-            with temporary_chown(device['path']), \
-                    open(device['path'], mode) as f:
-                yield f
+            if (connection_info['driver_volume_type'] == 'rbd' and
+               not conn.do_local_attach):
+                yield device['path']
+            else:
+                with temporary_chown(device['path']), \
+                        open(device['path'], mode) as f:
+                    yield f
         except Exception:
             LOG.exception(_LE('Exception while accessing to cinder volume '
                               '%(volume_id)s.'), {'volume_id': volume.id})
