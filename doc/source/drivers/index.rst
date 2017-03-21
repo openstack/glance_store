@@ -16,7 +16,7 @@ below the table of supported drivers and maintainers:
 +-------------------+---------------------+------------------------------------+------------------+
 | RBD               |    Fei Long Wang    |  flwang@catalyst.net.nz            |   flwang         |
 +-------------------+---------------------+------------------------------------+------------------+
-| Cinder            |  Tomoki Sekiyama    |  tomoki.sekiyama.qu@hitachi.com    |                  |
+| Cinder            |  Tomoki Sekiyama    |  tomoki.sekiyama@gmail.com         |                  |
 +-------------------+---------------------+------------------------------------+------------------+
 | Swift             |  Matthew Oliver     |  matt@oliver.net.au                |   mattoliverau   |
 +-------------------+---------------------+------------------------------------+------------------+
