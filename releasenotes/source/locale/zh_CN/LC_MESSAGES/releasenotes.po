@@ -1,0 +1,80 @@
+# zzxwill <zzxwill@gmail.com>, 2016. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: Glance_store Release Notes 0.20.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2017-03-22 21:38+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2016-08-23 02:05+0000\n"
+"Last-Translator: zzxwill <zzxwill@gmail.com>\n"
+"Language-Team: Chinese (China)\n"
+"Language: zh-CN\n"
+"X-Generator: Zanata 3.9.6\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+
+msgid "0.11.0"
+msgstr "0.11.0"
+
+msgid "0.12.0"
+msgstr "0.12.0"
+
+msgid "0.16.0"
+msgstr "0.16.0"
+
+msgid "0.17.0"
+msgstr "0.17.0"
+
+msgid "Current Series Release Notes"
+msgstr "当前版本发布说明"
+
+msgid "Deprecation Notes"
+msgstr "弃用说明"
+
+msgid "Glance_store Release Notes"
+msgstr "Glance_store发布说明"
+
+msgid "Liberty Series Release Notes"
+msgstr "Liberty版本发布说明"
+
+msgid "Mitaka Series Release Notes"
+msgstr "Mitaka 版本发布说明"
+
+msgid "New Features"
+msgstr "新特性"
+
+msgid "Other Notes"
+msgstr "其他说明"
+
+msgid "Security Issues"
+msgstr "安全问题"
+
+msgid "Start using reno to manage release notes."
+msgstr "开始使用reno管理发布说明。"
+
+msgid ""
+"The following list of exceptions have been deprecated since 0.10.0 release "
+"-- ``Conflict``, ``ForbiddenPublicImage`` ``ProtectedImageDelete``, "
+"``BadDriverConfiguration``, ``InvalidRedirect``, ``WorkerCreationFailure``, "
+"``SchemaLoadError``, ``InvalidObject``, ``UnsupportedHeaderFeature``, "
+"``ImageDataNotFound``, ``InvalidParameterValue``, "
+"``InvalidImageStatusTransition``. This release removes these exceptions so "
+"any remnant consumption of the same must be avoided/removed."
+msgstr ""
+"以下的异常列表自0.10.0版本后已经弃用了 ——``Conflict``, "
+"``ForbiddenPublicImage`` ``ProtectedImageDelete``, "
+"``BadDriverConfiguration``, ``InvalidRedirect``, ``WorkerCreationFailure``, "
+"``SchemaLoadError``, ``InvalidObject``, ``UnsupportedHeaderFeature``, "
+"``ImageDataNotFound``, ``InvalidParameterValue``, "
+"``InvalidImageStatusTransition``。该版本移除了这些异常，所以任何遗留的相同的"
+"使用方式必须避免或去掉。"
+
+msgid "Upgrade Notes"
+msgstr "升级说明"
+
+msgid "glance_store._drivers.gridfs"
+msgstr "glance_store._drivers.gridfs"
+
+msgid "glance_store._drivers.s3 removed from tree."
+msgstr "glance_store._drivers.s3从树上移除了。"
