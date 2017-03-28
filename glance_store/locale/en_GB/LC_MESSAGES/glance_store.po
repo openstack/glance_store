@@ -1,11 +1,10 @@
-# OpenStack Infra <zanata@openstack.org>, 2015. #zanata
 # Andi Chandler <andi@gowling.com>, 2016. #zanata
 # Andreas Jaeger <jaegerandi@gmail.com>, 2016. #zanata
 msgid ""
 msgstr ""
-"Project-Id-Version: glance_store 0.13.1.dev57\n"
+"Project-Id-Version: glance_store 0.20.1.dev18\n"
 "Report-Msgid-Bugs-To: https://bugs.launchpad.net/openstack-i18n/\n"
-"POT-Creation-Date: 2016-07-01 12:05+0000\n"
+"POT-Creation-Date: 2017-03-22 21:38+0000\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -13,7 +12,7 @@ msgstr ""
 "Last-Translator: Andi Chandler <andi@gowling.com>\n"
 "Language-Team: English (United Kingdom)\n"
 "Language: en-GB\n"
-"X-Generator: Zanata 3.7.3\n"
+"X-Generator: Zanata 3.9.6\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
 
 #, python-format
@@ -23,9 +22,6 @@ msgid ""
 msgstr ""
 "A bad metadata structure was returned from the %(driver)s storage driver: "
 "%(metadata)s.  %(e)s."
-
-msgid "An object with the same identifier is currently being operated on."
-msgstr "An object with the same identifier is currently being operated on."
 
 msgid "An unknown exception occurred"
 msgstr "An unknown exception occurred"
@@ -49,21 +45,8 @@ msgstr "Connect error/bad request to Auth service at URL %(url)s."
 msgid "Data supplied was not valid."
 msgstr "Data supplied was not valid."
 
-msgid ""
-"Default scheme to use to store image data. The scheme must be registered by "
-"one of the stores defined by the 'stores' config option."
-msgstr ""
-"Default scheme to use to store image data. The scheme must be registered by "
-"one of the stores defined by the 'stores' config option."
-
 msgid "Deleting images from this store is not supported."
 msgstr "Deleting images from this store is not supported."
-
-#, python-format
-msgid ""
-"Driver %(driver_name)s could not be configured correctly. Reason: %(reason)s"
-msgstr ""
-"Driver %(driver_name)s could not be configured correctly. Reason: %(reason)s"
 
 #, python-format
 msgid "Driver %(driver_name)s could not be loaded."
@@ -97,50 +80,16 @@ msgid "Image %(image)s not found"
 msgstr "Image %(image)s not found"
 
 #, python-format
-msgid "Image %(image_id)s is protected and cannot be deleted."
-msgstr "Image %(image_id)s is protected and cannot be deleted."
-
-#, python-format
-msgid ""
-"Image status transition from %(cur_status)s to %(new_status)s is not allowed"
-msgstr ""
-"Image status transition from %(cur_status)s to %(new_status)s is not allowed"
-
-#, python-format
 msgid ""
 "Incorrect auth strategy, expected \"%(expected)s\" but received "
 "\"%(received)s\""
 msgstr ""
 "Incorrect auth strategy, expected \"%(expected)s\" but received "
 "\"%(received)s\""
-
-#, python-format
-msgid "Invalid value '%(value)s' for parameter '%(param)s': %(extra_msg)s"
-msgstr "Invalid value '%(value)s' for parameter '%(param)s': %(extra_msg)s"
-
-msgid ""
-"List of stores enabled. Valid stores are: cinder, file, http, rbd, sheepdog, "
-"swift, s3, vsphere"
-msgstr ""
-"List of stores enabled. Valid stores are: cinder, file, http, rbd, sheepdog, "
-"swift, s3, vsphere"
 
 #, python-format
 msgid "Maximum redirects (%(redirects)s) was exceeded."
 msgstr "Maximum redirects (%(redirects)s) was exceeded."
-
-msgid ""
-"Minimum interval seconds to execute updating dynamic storage capabilities "
-"based on backend status then. It's not a periodic routine, the update logic "
-"will be executed only when interval seconds elapsed and an operation of "
-"store has triggered. The feature will be enabled only when the option value "
-"greater then zero."
-msgstr ""
-"Minimum interval seconds to execute updating dynamic storage capabilities "
-"based on backend status then. It's not a periodic routine, the update logic "
-"will be executed only when interval seconds elapsed and an operation of "
-"store has triggered. The feature will be enabled only when the option value "
-"greater then zero."
 
 #, python-format
 msgid "Missing required credential: %(required)s"
@@ -154,22 +103,8 @@ msgstr ""
 "Multiple 'image' service matches for region %(region)s. This generally means "
 "that a region is required and you have not supplied one."
 
-msgid "No image data could be found"
-msgstr "No image data could be found"
-
 msgid "Permission to write image storage media denied."
 msgstr "Permission to write image storage media denied."
-
-#, python-format
-msgid "Provided header feature is unsupported: %(feature)s"
-msgstr "Provided header feature is unsupported: %(feature)s"
-
-#, python-format
-msgid "Provided object does not match schema '%(schema)s': %(reason)s"
-msgstr "Provided object does not match schema '%(schema)s': %(reason)s"
-
-msgid "Received invalid HTTP redirect."
-msgstr "Received invalid HTTP redirect."
 
 #, python-format
 msgid "Redirecting to %(uri)s for authorization."
@@ -180,10 +115,6 @@ msgstr "Remote server where the image is present is unavailable."
 
 msgid "Response from Keystone does not contain a Glance endpoint."
 msgstr "Response from Keystone does not contain a Glance endpoint."
-
-#, python-format
-msgid "Server worker creation failed: %(reason)s."
-msgstr "Server worker creation failed: %(reason)s."
 
 msgid "Skipping store.set_acls... not implemented."
 msgstr "Skipping store.set_acls... not implemented."
@@ -230,10 +161,6 @@ msgstr ""
 
 msgid "There is not enough disk space on the image storage media."
 msgstr "There is not enough disk space on the image storage media."
-
-#, python-format
-msgid "Unable to load schema: %(reason)s"
-msgstr "Unable to load schema: %(reason)s"
 
 #, python-format
 msgid "Unknown scheme '%(scheme)s' found in URI"
