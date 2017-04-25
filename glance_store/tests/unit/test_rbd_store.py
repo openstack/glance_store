@@ -24,6 +24,10 @@ from glance_store.tests import base
 from glance_store.tests.unit import test_store_capabilities
 
 
+class TestException(Exception):
+    pass
+
+
 class MockRados(object):
 
     class Error(Exception):
@@ -78,6 +82,9 @@ class MockRBD(object):
         pass
 
     class ImageNotFound(Exception):
+        pass
+
+    class InvalidArgument(Exception):
         pass
 
     class Image(object):
@@ -297,6 +304,54 @@ class TestStore(base.StoreBaseTest,
 
         self.called_commands_expected = ['unprotect_snap', 'remove_snap',
                                          'remove']
+
+    @mock.patch.object(MockRBD.RBD, 'remove')
+    @mock.patch.object(MockRBD.Image, 'remove_snap')
+    @mock.patch.object(MockRBD.Image, 'unprotect_snap')
+    def test_delete_image_w_unprotected_snap(self, unprotect, remove_snap,
+                                             remove):
+        def _fake_unprotect_snap(*args, **kwargs):
+            self.called_commands_actual.append('unprotect_snap')
+            raise MockRBD.InvalidArgument()
+
+        def _fake_remove_snap(*args, **kwargs):
+            self.called_commands_actual.append('remove_snap')
+
+        def _fake_remove(*args, **kwargs):
+            self.called_commands_actual.append('remove')
+
+        remove.side_effect = _fake_remove
+        unprotect.side_effect = _fake_unprotect_snap
+        remove_snap.side_effect = _fake_remove_snap
+        self.store._delete_image('fake_pool', self.location.image,
+                                 snapshot_name='snap')
+
+        self.called_commands_expected = ['unprotect_snap', 'remove_snap',
+                                         'remove']
+
+    @mock.patch.object(MockRBD.RBD, 'remove')
+    @mock.patch.object(MockRBD.Image, 'remove_snap')
+    @mock.patch.object(MockRBD.Image, 'unprotect_snap')
+    def test_delete_image_w_snap_with_error(self, unprotect, remove_snap,
+                                            remove):
+        def _fake_unprotect_snap(*args, **kwargs):
+            self.called_commands_actual.append('unprotect_snap')
+            raise TestException()
+
+        def _fake_remove_snap(*args, **kwargs):
+            self.called_commands_actual.append('remove_snap')
+
+        def _fake_remove(*args, **kwargs):
+            self.called_commands_actual.append('remove')
+
+        remove.side_effect = _fake_remove
+        unprotect.side_effect = _fake_unprotect_snap
+        remove_snap.side_effect = _fake_remove_snap
+        self.assertRaises(TestException, self.store._delete_image,
+                          'fake_pool', self.location.image,
+                          snapshot_name='snap')
+
+        self.called_commands_expected = ['unprotect_snap']
 
     def test_delete_image_w_snap_exc_image_busy(self):
         def _fake_unprotect_snap(*args, **kwargs):

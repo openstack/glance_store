@@ -388,7 +388,7 @@ class Store(driver.Store):
                     if snapshot_name is not None:
                         with rbd.Image(ioctx, image_name) as image:
                             try:
-                                image.unprotect_snap(snapshot_name)
+                                self._unprotect_snapshot(image, snapshot_name)
                                 image.remove_snap(snapshot_name)
                             except rbd.ImageNotFound as exc:
                                 msg = (_("Snap Operating Exception "
@@ -421,6 +421,15 @@ class Store(driver.Store):
                 except rbd.ImageNotFound:
                     msg = _("RBD image %s does not exist") % image_name
                     raise exceptions.NotFound(message=msg)
+
+    def _unprotect_snapshot(self, image, snap_name):
+        try:
+            image.unprotect_snap(snap_name)
+        except rbd.InvalidArgument:
+            # NOTE(slaweq): if snapshot was unprotected already, rbd library
+            # raises InvalidArgument exception without any "clear" message.
+            # Such exception is not dangerous for us so it will be just logged
+            LOG.debug("Snapshot %s is unprotected already" % snap_name)
 
     @capabilities.check
     def add(self, image_id, image_file, image_size, context=None,
