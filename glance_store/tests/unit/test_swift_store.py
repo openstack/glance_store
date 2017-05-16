@@ -1900,22 +1900,12 @@ class TestMultipleContainers(base.StoreBaseTest):
         self.assertEqual(expected, actual)
 
     def test_get_container_name_with_negative_seed(self):
-        self.config(swift_store_multiple_containers_seed=-1)
-        self.store = swift.SingleTenantStore(self.conf)
-
-        test_image_id = 'random_id'
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store.get_container_name, test_image_id,
-                          'default_container')
+        self.assertRaises(ValueError, self.config,
+                          swift_store_multiple_containers_seed=-1)
 
     def test_get_container_name_with_seed_beyond_max(self):
-        self.config(swift_store_multiple_containers_seed=33)
-        self.store = swift.SingleTenantStore(self.conf)
-
-        test_image_id = 'random_id'
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store.get_container_name, test_image_id,
-                          'default_container')
+        self.assertRaises(ValueError, self.config,
+                          swift_store_multiple_containers_seed=33)
 
     def test_get_container_name_with_max_seed(self):
         self.config(swift_store_multiple_containers_seed=32)

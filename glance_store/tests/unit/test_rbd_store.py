@@ -388,7 +388,7 @@ class TestStore(base.StoreBaseTest,
 
     @mock.patch.object(MockRados.Rados, 'connect')
     def test_rados_connect_timeout(self, mock_rados_connect):
-        socket_timeout = 1.5
+        socket_timeout = 1
         self.config(rados_connect_timeout=socket_timeout)
         self.store.configure()
         with self.store.get_connection('conffile', 'rados_id'):
