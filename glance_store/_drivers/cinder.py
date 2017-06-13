@@ -18,6 +18,7 @@ import hashlib
 import logging
 import math
 import os
+import shlex
 import socket
 import time
 
@@ -38,10 +39,12 @@ try:
     from cinderclient import exceptions as cinder_exception
     from cinderclient.v2 import client as cinderclient
     from os_brick.initiator import connector
+    from oslo_privsep import priv_context
 except ImportError:
     cinder_exception = None
     cinderclient = None
     connector = None
+    priv_context = None
 
 
 CONF = cfg.CONF
@@ -473,6 +476,7 @@ class Store(glance_store.driver.Store):
         attach_mode = 'rw' if mode == 'wb' else 'ro'
         device = None
         root_helper = get_root_helper()
+        priv_context.init(root_helper=shlex.split(root_helper))
         host = socket.gethostname()
         properties = connector.get_connector_properties(root_helper, host,
                                                         False, False)
