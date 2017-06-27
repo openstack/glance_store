@@ -24,6 +24,7 @@ ChangeLog
 AUTHORS
 subunit.log
 covhtml/
+doc/source/reference/api
 
 # Files created by releasenotes build
 releasenotes/build

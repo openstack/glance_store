@@ -24,11 +24,3 @@ below the table of supported drivers and maintainers:
 +-------------------+---------------------+------------------------------------+------------------+
 | Sheepdog          |  YAMADA Hideki      |  yamada.hideki@lab.ntt.co.jp       |   yamada-h       |
 +-------------------+---------------------+------------------------------------+------------------+
-
-
-Indices and tables
-------------------
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
