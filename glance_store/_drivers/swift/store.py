@@ -1099,7 +1099,7 @@ class BaseStore(driver.Store):
         :param auth_token: auth token
         :param storage_url: swift storage url
         :return: swiftclient connection that allows to request container and
-        others
+                 others
         """
         # initialize a connection
         return swiftclient.Connection(
