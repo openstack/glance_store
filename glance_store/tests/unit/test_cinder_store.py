@@ -37,7 +37,7 @@ from glance_store.tests.unit import test_store_capabilities
 
 class FakeObject(object):
     def __init__(self, **kwargs):
-        for name, value in six.iteritems(kwargs):
+        for name, value in kwargs.items():
             setattr(self, name, value)
 
 
