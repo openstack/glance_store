@@ -590,7 +590,7 @@ class Store(glance_store.driver.Store):
             LOG.error(reason)
             raise exceptions.NotFound(reason)
         except cinder_exception.ClientException as e:
-            msg = (_('Failed to get image volume %(volume_id): %(error)s')
+            msg = (_('Failed to get image volume %(volume_id)s: %(error)s')
                    % {'volume_id': loc.volume_id, 'error': e})
             LOG.error(msg)
             raise exceptions.BackendException(msg)
