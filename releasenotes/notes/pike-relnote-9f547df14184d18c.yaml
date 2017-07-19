@@ -1,0 +1,45 @@
+---
+prelude: >
+  This was a quiet development cycle for the ``glance_store`` library.
+  No new features were added.  Several bugs were fixed and some code
+  changes were committed to increase stability.
+fixes:
+  - |
+    The following bugs were fixed during the Pike release cycle.
+
+    * Bug 1618666_: Fix SafeConfigParser DeprecationWarning in Python 3.2+
+    * Bug 1668848_: PBR 2.0.0 will break projects not using constraints
+    * Bug 1657710_: Unit test passes only because is launched as non-root user
+    * Bug 1686063_: RBD driver can't delete image with unprotected snapshot
+    * Bug 1691132_: Fixed tests failing due to updated oslo.config
+    * Bug 1693670_: Fix doc generation for Python3
+    * Bug 1643516_: Cinder driver: TypeError in _open_cinder_volume
+    * Bug 1620214_: Sheepdog: command execution failure
+
+    .. _1618666: https://code.launchpad.net/bugs/1618666
+    .. _1668848: https://code.launchpad.net/bugs/1668848
+    .. _1657710: https://code.launchpad.net/bugs/1657710
+    .. _1686063: https://code.launchpad.net/bugs/1686063
+    .. _1691132: https://code.launchpad.net/bugs/1691132
+    .. _1693670: https://code.launchpad.net/bugs/1693670
+    .. _1643516: https://code.launchpad.net/bugs/1643516
+    .. _1620214: https://code.launchpad.net/bugs/1620214
+
+other:
+  - |
+    The following improvements were made during the Pike release cycle.
+
+    * `Fixed string formatting in log message
+      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=802c5a785444ba9ea5888c7cd131d004ec2a19ad>`_
+    * `Correct error msg variable that could be unassigned
+      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=ccc9696e3f071383cd05d88ba2488f5a5ee98120>`_
+    * `Use HostAddressOpt for store opts that accept IP and hostnames
+      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=d6f3c4e2d921d8a6db8be79e4a81e393334cfa4c>`_
+    * `Replace six.iteritems() with .items()
+      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=edc19a290b05a12f39f3059b11e2b978a9362052>`_
+    * `Add python 3.5 in classifier and envlist
+      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=963e2a0fd1c173556a2c40915ad26db28d8375a6>`_
+    * `Initialize privsep root_helper command
+      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=d16dff9a08d1104540182f3aa36758dc89603fc0>`_
+    * `Documentation was reorganized according to the new standard layout
+      <http://specs.openstack.org/openstack/docs-specs/specs/pike/os-manuals-migration.html>`_
