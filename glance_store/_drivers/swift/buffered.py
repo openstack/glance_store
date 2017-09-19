@@ -21,7 +21,7 @@ from glance_store import exceptions
 from glance_store.i18n import _
 
 LOG = logging.getLogger(__name__)
-READ_SZ = 65536
+READ_SIZE = 65536
 
 BUFFERING_OPTS = [
     cfg.StrOpt('swift_upload_buffer_dir',
@@ -107,12 +107,12 @@ class BufferedReader(object):
         # Setting the file pointer back to the beginning of file
         self._tmpfile.seek(0)
 
-    def read(self, sz):
+    def read(self, size):
         """Read up to a chunk's worth of data from the input stream into a
         file buffer.  Then return data out of that buffer.
         """
         remaining = self.total - self._tmpfile.tell()
-        read_size = min(remaining, sz)
+        read_size = min(remaining, size)
         # read out of the buffered chunk
         result = self._tmpfile.read(read_size)
         # update the checksum and verifier with only the bytes
@@ -130,9 +130,9 @@ class BufferedReader(object):
         LOG.debug("Buffering %s bytes of image segment" % to_buffer)
 
         while not self._buffered:
-            read_sz = min(to_buffer, READ_SZ)
+            read_size = min(to_buffer, READ_SIZE)
             try:
-                buf = self.fd.read(read_sz)
+                buf = self.fd.read(read_size)
             except IOError as e:
                 # We actually don't know what exactly self.fd is. And as a
                 # result we don't know which exception it may raise. To pass
