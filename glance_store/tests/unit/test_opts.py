@@ -122,6 +122,8 @@ class OptsTestCase(base.StoreBaseTest):
             'swift_store_ssl_compression',
             'swift_store_use_trusts',
             'swift_store_user',
+            'swift_buffer_on_upload',
+            'swift_upload_buffer_dir',
             'vmware_insecure',
             'vmware_ca_file',
             'vmware_api_retry_count',

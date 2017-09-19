@@ -35,8 +35,8 @@ try:
 except ImportError:
     swiftclient = None
 
-
 import glance_store
+from glance_store._drivers.swift import buffered
 from glance_store._drivers.swift import connection_manager
 from glance_store._drivers.swift import utils as sutils
 from glance_store import capabilities
@@ -447,6 +447,32 @@ Possible values:
 Related options:
     * swift_store_multi_tenant
 
+""")),
+    cfg.BoolOpt('swift_buffer_on_upload',
+                default=False,
+                help=_("""
+Buffer image segments before upload to Swift.
+
+Provide a boolean value to indicate whether or not Glance should
+buffer image data to disk while uploading to swift. This enables
+Glance to resume uploads on error.
+
+NOTES:
+When enabling this option, one should take great care as this
+increases disk usage on the API node. Be aware that depending
+upon how the file system is configured, the disk space used
+for buffering may decrease the actual disk space available for
+the glance image cache.  Disk utilization will cap according to
+the following equation:
+(``swift_store_large_object_chunk_size`` * ``workers`` * 1000)
+
+Possible values:
+    * True
+    * False
+
+Related options:
+    * swift_upload_buffer_dir
+
 """))
 ]
 
@@ -715,8 +741,8 @@ def Store(conf):
             raise exceptions.BadStoreConfiguration(store_name="swift",
                                                    reason=msg)
     try:
-        conf.register_opts(_SWIFT_OPTS + sutils.swift_opts,
-                           group='glance_store')
+        conf.register_opts(_SWIFT_OPTS + sutils.swift_opts +
+                           buffered.BUFFERING_OPTS, group='glance_store')
     except cfg.DuplicateOptError:
         pass
 
@@ -724,7 +750,7 @@ def Store(conf):
         return MultiTenantStore(conf)
     return SingleTenantStore(conf)
 
-Store.OPTIONS = _SWIFT_OPTS + sutils.swift_opts
+Store.OPTIONS = _SWIFT_OPTS + sutils.swift_opts + buffered.BUFFERING_OPTS
 
 
 def _is_slo(slo_header):
@@ -762,6 +788,14 @@ class BaseStore(driver.Store):
             msg = _("Missing dependency python_swiftclient.")
             raise exceptions.BadStoreConfiguration(store_name="swift",
                                                    reason=msg)
+
+        if glance_conf.swift_buffer_on_upload:
+            buffer_dir = glance_conf.swift_upload_buffer_dir
+            if buffered.validate_buffering(buffer_dir):
+                self.reader_class = buffered.BufferedReader
+        else:
+            self.reader_class = ChunkReader
+
         super(BaseStore, self).configure(re_raise_bsc=re_raise_bsc)
 
     def _get_object(self, location, manager, start=None):
@@ -905,42 +939,45 @@ class BaseStore(driver.Store):
                             content_length = chunk_size
 
                         chunk_name = "%s-%05d" % (location.obj, chunk_id)
-                        reader = ChunkReader(image_file, checksum, chunk_size,
-                                             verifier)
-                        if reader.is_zero_size is True:
-                            LOG.debug('Not writing zero-length chunk.')
-                            break
-                        try:
-                            chunk_etag = manager.get_connection().put_object(
-                                location.container, chunk_name, reader,
-                                content_length=content_length)
-                            written_chunks.append(chunk_name)
-                        except Exception:
-                            # Delete orphaned segments from swift backend
-                            with excutils.save_and_reraise_exception():
-                                reason = _LE("Error during chunked upload to "
-                                             "backend, deleting stale chunks")
-                                LOG.error(reason)
-                                self._delete_stale_chunks(
-                                    manager.get_connection(),
-                                    location.container,
-                                    written_chunks)
 
-                        bytes_read = reader.bytes_read
-                        msg = ("Wrote chunk %(chunk_name)s (%(chunk_id)d/"
-                               "%(total_chunks)s) of length %(bytes_read)d "
-                               "to Swift returning MD5 of content: "
-                               "%(chunk_etag)s" %
-                               {'chunk_name': chunk_name,
-                                'chunk_id': chunk_id,
-                                'total_chunks': total_chunks,
-                                'bytes_read': bytes_read,
-                                'chunk_etag': chunk_etag})
-                        LOG.debug(msg)
+                        with self.reader_class(image_file, checksum,
+                                               chunk_size, verifier) as reader:
+                            if reader.is_zero_size is True:
+                                LOG.debug('Not writing zero-length chunk.')
+                                break
+
+                            try:
+                                chunk_etag = \
+                                    manager.get_connection().put_object(
+                                        location.container,
+                                        chunk_name, reader,
+                                        content_length=content_length)
+                                written_chunks.append(chunk_name)
+                            except Exception:
+                                # Delete orphaned segments from swift backend
+                                with excutils.save_and_reraise_exception():
+                                    LOG.error(_("Error during chunked upload "
+                                                "to backend, deleting stale "
+                                                "chunks."))
+                                    self._delete_stale_chunks(
+                                        manager.get_connection(),
+                                        location.container,
+                                        written_chunks)
+
+                            bytes_read = reader.bytes_read
+                            msg = ("Wrote chunk %(chunk_name)s (%(chunk_id)d/"
+                                   "%(total_chunks)s) of length %(bytes_read)"
+                                   "d to Swift returning MD5 of content: "
+                                   "%(chunk_etag)s" %
+                                   {'chunk_name': chunk_name,
+                                    'chunk_id': chunk_id,
+                                    'total_chunks': total_chunks,
+                                    'bytes_read': bytes_read,
+                                    'chunk_etag': chunk_etag})
+                            LOG.debug(msg)
 
                         chunk_id += 1
                         combined_chunks_size += bytes_read
-
                     # In the case we have been given an unknown image size,
                     # set the size to the total size of the combined chunks.
                     if image_size == 0:
@@ -1501,3 +1538,9 @@ class ChunkReader(object):
         if self.verifier:
             self.verifier.update(result)
         return result
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        pass

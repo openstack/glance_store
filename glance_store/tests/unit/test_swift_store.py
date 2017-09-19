@@ -34,6 +34,7 @@ from six.moves import http_client
 from six.moves import range
 import swiftclient
 
+from glance_store._drivers.swift import buffered
 from glance_store._drivers.swift import connection_manager as manager
 from glance_store._drivers.swift import store as swift
 from glance_store._drivers.swift import utils as sutils
@@ -354,6 +355,28 @@ class SwiftTests(object):
                           self.store.get,
                           loc)
 
+    def test_buffered_reader_opts(self):
+        self.config(swift_buffer_on_upload=True)
+        self.config(swift_upload_buffer_dir=self.test_dir)
+        try:
+            self.store = Store(self.conf)
+        except exceptions.BadStoreConfiguration:
+            self.fail("Buffered Reader exception raised when it "
+                      "should not have been")
+
+    def test_buffered_reader_with_invalid_path(self):
+        self.config(swift_buffer_on_upload=True)
+        self.config(swift_upload_buffer_dir="/some/path")
+        self.store = Store(self.conf)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure)
+
+    def test_buffered_reader_with_no_path_given(self):
+        self.config(swift_buffer_on_upload=True)
+        self.store = Store(self.conf)
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          self.store.configure)
+
     @mock.patch('glance_store._drivers.swift.utils'
                 '.is_multiple_swift_store_accounts_enabled',
                 mock.Mock(return_value=False))
@@ -455,7 +478,8 @@ class SwiftTests(object):
             service_catalog=service_catalog)
         store = swift.MultiTenantStore(self.conf)
         store.configure()
-        loc, size, checksum, _ = store.add(expected_image_id, image_swift,
+        loc, size, checksum, _ = store.add(expected_image_id,
+                                           image_swift,
                                            expected_swift_size,
                                            context=ctxt)
         # ensure that image add uses user's context
@@ -496,7 +520,8 @@ class SwiftTests(object):
             self.mock_keystone_client()
             self.store = Store(self.conf)
             self.store.configure()
-            loc, size, checksum, _ = self.store.add(image_id, image_swift,
+            loc, size, checksum, _ = self.store.add(image_id,
+                                                    image_swift,
                                                     expected_swift_size)
 
             self.assertEqual(expected_location, loc)
@@ -803,7 +828,8 @@ class SwiftTests(object):
             service_catalog=service_catalog)
         store = swift.MultiTenantStore(self.conf)
         store.configure()
-        location, size, checksum, _ = store.add(expected_image_id, image_swift,
+        location, size, checksum, _ = store.add(expected_image_id,
+                                                image_swift,
                                                 expected_swift_size,
                                                 context=ctxt)
         self.assertEqual(expected_location, location)
@@ -895,7 +921,8 @@ class SwiftTests(object):
             self.store.large_object_size = units.Ki
             self.store.large_object_chunk_size = units.Ki
             loc, size, checksum, _ = self.store.add(expected_image_id,
-                                                    image_swift, 0)
+                                                    image_swift,
+                                                    0)
         finally:
             self.store.large_object_chunk_size = orig_temp_size
             self.store.large_object_size = orig_max_size
@@ -1946,3 +1973,179 @@ class TestMultipleContainers(base.StoreBaseTest):
                                                'default_container')
         expected = 'default_container'
         self.assertEqual(expected, actual)
+
+
+class TestBufferedReader(base.StoreBaseTest):
+
+    _CONF = cfg.CONF
+
+    def setUp(self):
+        super(TestBufferedReader, self).setUp()
+        self.config(swift_upload_buffer_dir=self.test_dir)
+        s = b'1234567890'
+        self.infile = six.BytesIO(s)
+        self.infile.seek(0)
+
+        self.checksum = hashlib.md5()
+        self.verifier = mock.MagicMock(name='mock_verifier')
+        total = 7  # not the full 10 byte string - defines segment boundary
+        self.reader = buffered.BufferedReader(self.infile, self.checksum,
+                                              total, self.verifier)
+        self.addCleanup(self.conf.reset)
+
+    def tearDown(self):
+        super(TestBufferedReader, self).tearDown()
+        self.reader.__exit__(None, None, None)
+
+    def test_buffer(self):
+        self.reader.read(4)
+        self.assertTrue(self.reader._buffered, True)
+
+        # test buffer position
+        self.assertEqual(4, self.reader.tell())
+
+        # also test buffer contents
+        buf = self.reader._tmpfile
+        buf.seek(0)
+        self.assertEqual(b'1234567', buf.read())
+
+    def test_read(self):
+        buf = self.reader.read(4)  # buffer and return 1234
+        self.assertEqual(b'1234', buf)
+
+        buf = self.reader.read(4)  # return 567
+        self.assertEqual(b'567', buf)
+        self.assertEqual(7, self.reader.tell())
+
+    def test_read_limited(self):
+        # read should not exceed the segment boundary described
+        # by 'total'
+        self.assertEqual(b'1234567', self.reader.read(100))
+
+    def test_reset(self):
+        # test a reset like what swiftclient would do
+        # if a segment upload failed.
+        self.assertEqual(0, self.reader.tell())
+        self.reader.read(4)
+        self.assertEqual(4, self.reader.tell())
+
+        self.reader.seek(0)
+        self.assertEqual(0, self.reader.tell())
+
+        # confirm a read after reset
+        self.assertEqual(b'1234', self.reader.read(4))
+
+    def test_partial_reset(self):
+        # reset, but not all the way to the beginning
+        self.reader.read(4)
+        self.reader.seek(2)
+        self.assertEqual(b'34567', self.reader.read(10))
+
+    def test_checksum(self):
+        # the md5 checksum is updated only once on a full segment read
+        expected_csum = hashlib.md5()
+        expected_csum.update(b'1234567')
+        self.reader.read(7)
+        self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+
+    def test_checksum_updated_only_once_w_full_segment_read(self):
+        # Test that the checksum is updated only once when a full segment read
+        # is followed by a seek and partial reads.
+        expected_csum = hashlib.md5()
+        expected_csum.update(b'1234567')
+        self.reader.read(7)  # attempted read of the entire chunk
+        self.reader.seek(4)  # seek back due to possible partial failure
+        self.reader.read(1)  # read one more byte
+        # checksum was updated just once during the first attempted full read
+        self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+
+    def test_checksum_updates_during_partial_segment_reads(self):
+        # Test to check that checksum is updated with only the bytes it has
+        # not seen when the number of bytes being read is changed
+        expected_csum = hashlib.md5()
+        self.reader.read(4)
+        expected_csum.update(b'1234')
+        self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+        self.reader.seek(0)  # possible failure
+        self.reader.read(2)
+        self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+        self.reader.read(4)  # checksum missing two bytes
+        expected_csum.update(b'56')
+        # checksum updated with only the bytes it did not see
+        self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+
+    def test_checksum_rolling_calls(self):
+        # Test that the checksum continues on to the next segment
+        expected_csum = hashlib.md5()
+        self.reader.read(7)
+        expected_csum.update(b'1234567')
+        self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+        # another reader to complete reading the image file
+        reader1 = buffered.BufferedReader(self.infile, self.checksum, 3,
+                                          self.reader.verifier)
+        reader1.read(3)
+        expected_csum.update(b'890')
+        self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+
+    def test_verifier(self):
+        # Test that the verifier is updated only once on a full segment read.
+        self.reader.read(7)
+        self.verifier.update.assert_called_once_with(b'1234567')
+
+    def test_verifier_updated_only_once_w_full_segment_read(self):
+        # Test that the verifier is updated only once when a full segment read
+        # is followed by a seek and partial reads.
+        self.reader.read(7)  # attempted read of the entire chunk
+        self.reader.seek(4)  # seek back due to possible partial failure
+        self.reader.read(5)  # continue reading
+        # verifier was updated just once during the first attempted full read
+        self.verifier.update.assert_called_once_with(b'1234567')
+
+    def test_verifier_updates_during_partial_segment_reads(self):
+        # Test to check that verifier is updated with only the bytes it has
+        # not seen when the number of bytes being read is changed
+        self.reader.read(4)
+        self.verifier.update.assert_called_once_with(b'1234')
+        self.reader.seek(0)  # possible failure
+        self.reader.read(2)  # verifier knows ahead
+        self.verifier.update.assert_called_once_with(b'1234')
+        self.reader.read(4)  # verify missing 2 bytes
+        # verifier updated with only the bytes it did not see
+        self.verifier.update.assert_called_with(b'56')  # verifier updated
+        self.assertEqual(2, self.verifier.update.call_count)
+
+    def test_verifier_rolling_calls(self):
+        # Test that the verifier continues on to the next segment
+        self.reader.read(7)
+        self.verifier.update.assert_called_once_with(b'1234567')
+        self.assertEqual(1, self.verifier.update.call_count)
+        # another reader to complete reading the image file
+        reader1 = buffered.BufferedReader(self.infile, self.checksum, 3,
+                                          self.reader.verifier)
+        reader1.read(3)
+        self.verifier.update.assert_called_with(b'890')
+        self.assertEqual(2, self.verifier.update.call_count)
+
+    def test_light_buffer(self):
+        # eventlet nonblocking fds means sometimes the buffer won't fill.
+        # simulate testing where there is less in the buffer than a
+        # full segment
+        s = b'12'
+        infile = six.BytesIO(s)
+        infile.seek(0)
+        total = 7
+        checksum = hashlib.md5()
+        self.reader = buffered.BufferedReader(infile, checksum, total)
+
+        self.reader.read(0)  # read into buffer
+        self.assertEqual(b'12', self.reader.read(7))
+        self.assertEqual(2, self.reader.tell())
+
+    def test_context_exit(self):
+        # should close tempfile on context exit
+        with self.reader:
+            pass
+
+        # file objects are not required to have a 'close' attribute
+        if getattr(self.reader._tmpfile, 'closed'):
+            self.assertTrue(self.reader._tmpfile.closed)
