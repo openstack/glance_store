@@ -568,12 +568,12 @@ class Store(glance_store.driver.Store):
         where to find the image file, and returns a tuple of generator
         (for reading the image file) and image_size
 
-        :param location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                         from glance_store.location.get_location_from_uri()
         :param offset: offset to start reading
         :param chunk_size: size to read, or None to get all the image
         :param context: Request context
-        :raises `glance_store.exceptions.NotFound` if image does not exist
+        :raises: `glance_store.exceptions.NotFound` if image does not exist
         """
 
         loc = location.store_location
@@ -638,9 +638,9 @@ class Store(glance_store.driver.Store):
         :param context: The request context
         :param verifier: An object used to verify signatures for images
 
-        :retval tuple of URL in backing store, bytes written, checksum
+        :returns: tuple of URL in backing store, bytes written, checksum
                 and a dictionary with storage system specific information
-        :raises `glance_store.exceptions.Duplicate` if the image already
+        :raises: `glance_store.exceptions.Duplicate` if the image already
                 existed
         """
 
@@ -745,11 +745,11 @@ class Store(glance_store.driver.Store):
         Takes a `glance_store.location.Location` object that indicates
         where to find the image file to delete
 
-        :location `glance_store.location.Location` object, supplied
+        :param location: `glance_store.location.Location` object, supplied
                   from glance_store.location.get_location_from_uri()
 
-        :raises NotFound if image does not exist
-        :raises Forbidden if cannot delete because of permissions
+        :raises: NotFound if image does not exist
+        :raises: Forbidden if cannot delete because of permissions
         """
         loc = location.store_location
         self._check_context(context)
