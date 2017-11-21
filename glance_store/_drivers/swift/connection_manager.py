@@ -80,8 +80,7 @@ class SwiftConnectionManager(object):
             # connection manager users. Also we disable re-authentication
             # if there is not way to execute it (cannot initialize trusts for
             # multi-tenant or auth_version is not 3)
-            auth_ref = self.client.session.auth.get_auth_ref(
-                self.client.session)
+            auth_ref = self.client.session.auth.auth_ref
             # if connection token is going to expire soon (keystone checks
             # is token is going to expire or expired already)
             if auth_ref.will_expire_soon(
