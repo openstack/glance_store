@@ -107,7 +107,7 @@ class TestConnectionManager(base.StoreBaseTest):
                                                   self.context)
         # return the same connection because it should not be expired
         auth_ref = mock.MagicMock()
-        self.client.session.auth.get_auth_ref.return_value = auth_ref
+        self.client.session.auth.auth_ref = auth_ref
         auth_ref.will_expire_soon.return_value = False
         manager.get_connection()
         # check that we don't update connection
@@ -149,7 +149,7 @@ class TestConnectionManager(base.StoreBaseTest):
         )
         # return the same connection because it should not be expired
         auth_ref = mock.MagicMock()
-        self.client.session.auth.get_auth_ref.return_value = auth_ref
+        self.client.session.auth.auth_ref = auth_ref
         auth_ref.will_expire_soon.return_value = False
         manager.get_connection()
         # check that we don't update connection
