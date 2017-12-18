@@ -906,9 +906,28 @@ class BaseStore(driver.Store):
                 LOG.exception(msg % {'container': container,
                                      'chunk': chunk})
 
+    @driver.back_compat_add
     @capabilities.check
-    def add(self, image_id, image_file, image_size,
+    def add(self, image_id, image_file, image_size, hashing_algo,
             context=None, verifier=None):
+        """
+        Stores an image file with supplied identifier to the backend
+        storage system and returns a tuple containing information
+        about the stored image.
+
+        :param image_id: The opaque image identifier
+        :param image_file: The image data to write, as a file-like object
+        :param image_size: The size of the image data to write, in bytes
+        :param hashing_algo: A hashlib algorithm identifier (string)
+        :param verifier: An object used to verify signatures for images
+
+        :returns: tuple of URL in backing store, bytes written, checksum,
+                multihash value, and a dictionary with storage system
+                specific information
+        :raises: `glance_store.exceptions.Duplicate` if something already
+                exists at this location
+        """
+        os_hash_value = hashlib.new(str(hashing_algo))
         location = self.create_location(image_id, context=context)
         # initialize a manager with re-auth if image need to be splitted
         need_chunks = (image_size == 0) or (
@@ -925,17 +944,13 @@ class BaseStore(driver.Store):
                 if not need_chunks:
                     # Image size is known, and is less than large_object_size.
                     # Send to Swift with regular PUT.
-                    if verifier:
-                        checksum = hashlib.md5()
-                        reader = ChunkReader(image_file, checksum,
-                                             image_size, verifier)
-                        obj_etag = manager.get_connection().put_object(
-                            location.container, location.obj,
-                            reader, content_length=image_size)
-                    else:
-                        obj_etag = manager.get_connection().put_object(
-                            location.container, location.obj,
-                            image_file, content_length=image_size)
+                    checksum = hashlib.md5()
+                    reader = ChunkReader(image_file, checksum,
+                                         os_hash_value, image_size,
+                                         verifier=verifier)
+                    obj_etag = manager.get_connection().put_object(
+                        location.container, location.obj,
+                        reader, content_length=image_size)
                 else:
                     # Write the image into Swift in chunks.
                     chunk_id = 1
@@ -972,7 +987,8 @@ class BaseStore(driver.Store):
                         chunk_name = "%s-%05d" % (location.obj, chunk_id)
 
                         with self.reader_class(
-                                image_file, checksum, chunk_size, verifier,
+                                image_file, checksum, os_hash_value,
+                                chunk_size, verifier,
                                 backend_group=self.backend_group) as reader:
                             if reader.is_zero_size is True:
                                 LOG.debug('Not writing zero-length chunk.')
@@ -1047,7 +1063,8 @@ class BaseStore(driver.Store):
                     metadata['backend'] = u"%s" % self.backend_group
 
                 return (location.get_uri(credentials_included=include_creds),
-                        image_size, obj_etag, metadata)
+                        image_size, obj_etag, os_hash_value.hexdigest(),
+                        metadata)
             except swiftclient.ClientException as e:
                 if e.http_status == http_client.CONFLICT:
                     msg = _("Swift already has an image at this location")
@@ -1590,10 +1607,11 @@ class MultiTenantStore(BaseStore):
 
 
 class ChunkReader(object):
-    def __init__(self, fd, checksum, total, verifier=None,
+    def __init__(self, fd, checksum, os_hash_value, total, verifier=None,
                  backend_group=None):
         self.fd = fd
         self.checksum = checksum
+        self.os_hash_value = os_hash_value
         self.total = total
         self.verifier = verifier
         self.backend_group = backend_group
@@ -1617,6 +1635,7 @@ class ChunkReader(object):
         result = self.do_read(i)
         self.bytes_read += len(result)
         self.checksum.update(result)
+        self.os_hash_value.update(result)
         if self.verifier:
             self.verifier.update(result)
         return result

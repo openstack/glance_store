@@ -659,8 +659,9 @@ class Store(glance_store.driver.Store):
 
         return best_datadir
 
+    @glance_store.driver.back_compat_add
     @capabilities.check
-    def add(self, image_id, image_file, image_size, context=None,
+    def add(self, image_id, image_file, image_size, hashing_algo, context=None,
             verifier=None):
         """
         Stores an image file with supplied identifier to the backend
@@ -670,12 +671,15 @@ class Store(glance_store.driver.Store):
         :param image_id: The opaque image identifier
         :param image_file: The image data to write, as a file-like object
         :param image_size: The size of the image data to write, in bytes
+        :param hashing_algo: A hashlib algorithm identifier (string)
+        :param context: The request context
         :param verifier: An object used to verify signatures for images
 
-        :returns: tuple of URL in backing store, bytes written, checksum
-                and a dictionary with storage system specific information
+        :returns: tuple of: (1) URL in backing store, (2) bytes written,
+                  (3) checksum, (4) multihash value, and (5) a dictionary
+                  with storage system specific information
         :raises: `glance_store.exceptions.Duplicate` if the image already
-                existed
+                 exists
 
         :note:: By default, the backend writes the image data to a file
               `/<DATADIR>/<ID>`, where <DATADIR> is the value of
@@ -688,7 +692,7 @@ class Store(glance_store.driver.Store):
 
         if os.path.exists(filepath):
             raise exceptions.Duplicate(image=filepath)
-
+        os_hash_value = hashlib.new(str(hashing_algo))
         checksum = hashlib.md5()
         bytes_written = 0
         try:
@@ -696,6 +700,7 @@ class Store(glance_store.driver.Store):
                 for buf in utils.chunkreadable(image_file,
                                                self.WRITE_CHUNKSIZE):
                     bytes_written += len(buf)
+                    os_hash_value.update(buf)
                     checksum.update(buf)
                     if verifier:
                         verifier.update(buf)
@@ -711,14 +716,16 @@ class Store(glance_store.driver.Store):
             with excutils.save_and_reraise_exception():
                 self._delete_partial(filepath, image_id)
 
+        hash_hex = os_hash_value.hexdigest()
         checksum_hex = checksum.hexdigest()
         metadata = self._get_metadata(filepath)
 
-        LOG.debug(_("Wrote %(bytes_written)d bytes to %(filepath)s with "
-                    "checksum %(checksum_hex)s"),
+        LOG.debug(("Wrote %(bytes_written)d bytes to %(filepath)s with "
+                   "checksum %(checksum_hex)s and multihash %(hash_hex)s"),
                   {'bytes_written': bytes_written,
                    'filepath': filepath,
-                   'checksum_hex': checksum_hex})
+                   'checksum_hex': checksum_hex,
+                   'hash_hex': hash_hex})
 
         if self.backend_group:
             fstore_perm = getattr(
@@ -738,7 +745,11 @@ class Store(glance_store.driver.Store):
         if self.backend_group:
             metadata['backend'] = u"%s" % self.backend_group
 
-        return ('file://%s' % filepath, bytes_written, checksum_hex, metadata)
+        return ('file://%s' % filepath,
+                bytes_written,
+                checksum_hex,
+                hash_hex,
+                metadata)
 
     @staticmethod
     def _delete_partial(filepath, iid):

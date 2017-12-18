@@ -31,11 +31,14 @@ class TestStoreAddToBackend(base.StoreBaseTest):
         self.size = len(self.data)
         self.location = "file:///ab/cde/fgh"
         self.checksum = "md5"
+        self.multihash = 'multihash'
+        self.default_hash_algo = 'md5'
+        self.hash_algo = 'sha256'
 
     def _bad_metadata(self, in_metadata):
         mstore = mock.Mock()
-        mstore.add.return_value = (self.location, self.size,
-                                   self.checksum, in_metadata)
+        mstore.add.return_value = (self.location, self.size, self.checksum,
+                                   in_metadata)
         mstore.__str__ = lambda self: "hello"
         mstore.__unicode__ = lambda self: "hello"
 
@@ -47,13 +50,31 @@ class TestStoreAddToBackend(base.StoreBaseTest):
                           mstore)
 
         mstore.add.assert_called_once_with(self.image_id, mock.ANY,
-                                           self.size, context=None,
-                                           verifier=None)
+                                           self.size,
+                                           context=None, verifier=None)
+
+        newstore = mock.Mock()
+        newstore.add.return_value = (self.location, self.size, self.checksum,
+                                     self.multihash, in_metadata)
+        newstore.__str__ = lambda self: "hello"
+        newstore.__unicode__ = lambda self: "hello"
+
+        self.assertRaises(exceptions.BackendException,
+                          backend.store_add_to_backend_with_multihash,
+                          self.image_id,
+                          self.data,
+                          self.size,
+                          self.hash_algo,
+                          newstore)
+
+        newstore.add.assert_called_once_with(self.image_id, mock.ANY,
+                                             self.size, self.hash_algo,
+                                             context=None, verifier=None)
 
     def _good_metadata(self, in_metadata):
         mstore = mock.Mock()
-        mstore.add.return_value = (self.location, self.size,
-                                   self.checksum, in_metadata)
+        mstore.add.return_value = (self.location, self.size, self.checksum,
+                                   in_metadata)
 
         (location,
          size,
@@ -70,6 +91,30 @@ class TestStoreAddToBackend(base.StoreBaseTest):
         self.assertEqual(self.location, location)
         self.assertEqual(self.size, size)
         self.assertEqual(self.checksum, checksum)
+        self.assertEqual(in_metadata, metadata)
+
+        newstore = mock.Mock()
+        newstore.add.return_value = (self.location, self.size, self.checksum,
+                                     self.multihash, in_metadata)
+        (location,
+         size,
+         checksum,
+         multihash,
+         metadata) = backend.store_add_to_backend_with_multihash(
+             self.image_id,
+             self.data,
+             self.size,
+             self.hash_algo,
+             newstore)
+
+        newstore.add.assert_called_once_with(self.image_id, mock.ANY,
+                                             self.size, self.hash_algo,
+                                             context=None, verifier=None)
+
+        self.assertEqual(self.location, location)
+        self.assertEqual(self.size, size)
+        self.assertEqual(self.checksum, checksum)
+        self.assertEqual(self.multihash, multihash)
         self.assertEqual(in_metadata, metadata)
 
     def test_empty(self):

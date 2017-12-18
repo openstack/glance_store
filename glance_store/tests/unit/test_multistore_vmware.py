@@ -89,6 +89,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
             "vmware1": "vmware",
             "vmware2": "vmware"
         }
+        self.hash_algo = 'sha256'
         self.conf = self._CONF
         self.conf(args=[])
         self.conf.register_opt(cfg.DictOpt('enabled_backends'))
@@ -244,11 +245,11 @@ class TestMultiStore(base.MultiStoreBaseTest,
         image = six.BytesIO(contents)
         with mock.patch('requests.Session.request') as HttpConn:
             HttpConn.return_value = utils.fake_response()
-            location, size, checksum, metadata = self.store.add(
-                image_id, image, size, verifier=verifier)
+            location, size, checksum, multihash, metadata = self.store.add(
+                image_id, image, size, self.hash_algo, verifier=verifier)
             self.assertEqual("vmware1", metadata["backend"])
 
-        fake_reader.assert_called_with(image, verifier)
+        fake_reader.assert_called_with(image, self.hash_algo, verifier)
 
     @mock.patch.object(vm_store.Store, 'select_datastore')
     @mock.patch('glance_store._drivers.vmware_datastore._Reader')
@@ -261,11 +262,11 @@ class TestMultiStore(base.MultiStoreBaseTest,
         image = six.BytesIO(contents)
         with mock.patch('requests.Session.request') as HttpConn:
             HttpConn.return_value = utils.fake_response()
-            location, size, checksum, metadata = self.store.add(
-                image_id, image, 0, verifier=verifier)
+            location, size, checksum, multihash, metadata = self.store.add(
+                image_id, image, 0, self.hash_algo, verifier=verifier)
             self.assertEqual("vmware1", metadata["backend"])
 
-        fake_reader.assert_called_with(image, verifier)
+        fake_reader.assert_called_with(image, self.hash_algo, verifier)
 
     @mock.patch('oslo_vmware.api.VMwareAPISession')
     def test_delete(self, mock_api_session):
@@ -326,27 +327,31 @@ class TestMultiStore(base.MultiStoreBaseTest,
         content = b'XXX'
         image = six.BytesIO(content)
         expected_checksum = hashlib.md5(content).hexdigest()
-        reader = vm_store._Reader(image)
+        expected_multihash = hashlib.sha256(content).hexdigest()
+        reader = vm_store._Reader(image, self.hash_algo)
         ret = reader.read()
         self.assertEqual(content, ret)
         self.assertEqual(expected_checksum, reader.checksum.hexdigest())
+        self.assertEqual(expected_multihash, reader.os_hash_value.hexdigest())
         self.assertEqual(len(content), reader.size)
 
     def test_reader_partial(self):
         content = b'XXX'
         image = six.BytesIO(content)
         expected_checksum = hashlib.md5(b'X').hexdigest()
-        reader = vm_store._Reader(image)
+        expected_multihash = hashlib.sha256(b'X').hexdigest()
+        reader = vm_store._Reader(image, self.hash_algo)
         ret = reader.read(1)
         self.assertEqual(b'X', ret)
         self.assertEqual(expected_checksum, reader.checksum.hexdigest())
+        self.assertEqual(expected_multihash, reader.os_hash_value.hexdigest())
         self.assertEqual(1, reader.size)
 
     def test_reader_with_verifier(self):
         content = b'XXX'
         image = six.BytesIO(content)
         verifier = mock.MagicMock(name='mock_verifier')
-        reader = vm_store._Reader(image, verifier)
+        reader = vm_store._Reader(image, self.hash_algo, verifier)
         reader.read()
         verifier.update.assert_called_with(content)
 

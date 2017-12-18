@@ -440,8 +440,9 @@ class Store(driver.Store):
             # Such exception is not dangerous for us so it will be just logged
             LOG.debug("Snapshot %s is unprotected already" % snap_name)
 
+    @driver.back_compat_add
     @capabilities.check
-    def add(self, image_id, image_file, image_size, context=None,
+    def add(self, image_id, image_file, image_size, hashing_algo, context=None,
             verifier=None):
         """
         Stores an image file with supplied identifier to the backend
@@ -451,14 +452,18 @@ class Store(driver.Store):
         :param image_id: The opaque image identifier
         :param image_file: The image data to write, as a file-like object
         :param image_size: The size of the image data to write, in bytes
+        :param hashing_algo: A hashlib algorithm identifier (string)
+        :param context: A context object
         :param verifier: An object used to verify signatures for images
 
-        :returns: tuple of URL in backing store, bytes written, checksum
-                and a dictionary with storage system specific information
+        :returns: tuple of: (1) URL in backing store, (2) bytes written,
+                  (3) checksum, (4) multihash value, and (5) a dictionary
+                  with storage system specific information
         :raises: `glance_store.exceptions.Duplicate` if the image already
-                existed
+                 exists
         """
         checksum = hashlib.md5()
+        os_hash_value = hashlib.new(str(hashing_algo))
         image_name = str(image_id)
         with self.get_connection(conffile=self.conf_file,
                                  rados_id=self.user) as conn:
@@ -502,6 +507,7 @@ class Store(driver.Store):
                             LOG.debug(_("writing chunk at offset %s") %
                                       (offset))
                             offset += image.write(chunk, offset)
+                            os_hash_value.update(chunk)
                             checksum.update(chunk)
                             if verifier:
                                 verifier.update(chunk)
@@ -534,7 +540,11 @@ class Store(driver.Store):
         if self.backend_group:
             metadata['backend'] = u"%s" % self.backend_group
 
-        return (loc.get_uri(), image_size, checksum.hexdigest(), metadata)
+        return (loc.get_uri(),
+                image_size,
+                checksum.hexdigest(),
+                os_hash_value.hexdigest(),
+                metadata)
 
     @capabilities.check
     def delete(self, location, context=None):

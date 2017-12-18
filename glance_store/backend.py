@@ -1,4 +1,5 @@
 # Copyright 2010-2011 OpenStack Foundation
+# Copyright 2018 Verizon Wireless
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -13,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import hashlib
 import logging
 
 from oslo_config import cfg
@@ -25,7 +27,6 @@ from glance_store import capabilities
 from glance_store import exceptions
 from glance_store.i18n import _
 from glance_store import location
-
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
@@ -438,6 +439,25 @@ def check_location_metadata(val, key=''):
                                           % dict(key=key, type=type(val)))
 
 
+def _check_metadata(store, metadata):
+    if not isinstance(metadata, dict):
+        msg = (_("The storage driver %(driver)s returned invalid "
+                 " metadata %(metadata)s. This must be a dictionary type")
+               % dict(driver=str(store), metadata=str(metadata)))
+        LOG.error(msg)
+        raise exceptions.BackendException(msg)
+    try:
+        check_location_metadata(metadata)
+    except exceptions.BackendException as e:
+        e_msg = (_("A bad metadata structure was returned from the "
+                   "%(driver)s storage driver: %(metadata)s.  %(e)s.") %
+                 dict(driver=encodeutils.exception_to_unicode(store),
+                      metadata=encodeutils.exception_to_unicode(metadata),
+                      e=encodeutils.exception_to_unicode(e)))
+        LOG.error(e_msg)
+        raise exceptions.BackendException(e_msg)
+
+
 def store_add_to_backend(image_id, data, size, store, context=None,
                          verifier=None):
     """
@@ -461,23 +481,47 @@ def store_add_to_backend(image_id, data, size, store, context=None,
                                                      context=context,
                                                      verifier=verifier)
     if metadata is not None:
-        if not isinstance(metadata, dict):
-            msg = (_("The storage driver %(driver)s returned invalid "
-                     " metadata %(metadata)s. This must be a dictionary type")
-                   % dict(driver=str(store), metadata=str(metadata)))
-            LOG.error(msg)
-            raise exceptions.BackendException(msg)
-        try:
-            check_location_metadata(metadata)
-        except exceptions.BackendException as e:
-            e_msg = (_("A bad metadata structure was returned from the "
-                       "%(driver)s storage driver: %(metadata)s.  %(e)s.") %
-                     dict(driver=encodeutils.exception_to_unicode(store),
-                          metadata=encodeutils.exception_to_unicode(metadata),
-                          e=encodeutils.exception_to_unicode(e)))
-            LOG.error(e_msg)
-            raise exceptions.BackendException(e_msg)
+        _check_metadata(store, metadata)
+
     return (location, size, checksum, metadata)
+
+
+def store_add_to_backend_with_multihash(
+        image_id, data, size, hashing_algo, store,
+        context=None, verifier=None):
+    """
+    A wrapper around a call to each store's add() method that requires
+    a hashing_algo identifier and returns a 5-tuple including the
+    "multihash" computed using the specified hashing_algo.  (This
+    is an enhanced version of store_add_to_backend(), which is left
+    as-is for backward compatibility.)
+
+    :param image_id:  The image add to which data is added
+    :param data: The data to be stored
+    :param size: The length of the data in bytes
+    :param store: The store to which the data is being added
+    :param hashing_algo: A hashlib algorithm identifier (string)
+    :param context: The request context
+    :param verifier: An object used to verify signatures for images
+    :return: The url location of the file,
+             the size amount of data,
+             the checksum of the data,
+             the multihash of the data,
+             the storage system's metadata dictionary for the location
+    :raises: ``glance_store.exceptions.BackendException``
+             ``glance_store.exceptions.UnknownHashingAlgo``
+    """
+
+    if hashing_algo not in hashlib.algorithms_available:
+        raise exceptions.UnknownHashingAlgo(algo=hashing_algo)
+
+    (location, size, checksum, multihash, metadata) = store.add(
+        image_id, data, size, hashing_algo, context=context, verifier=verifier)
+
+    if metadata is not None:
+        _check_metadata(store, metadata)
+
+    return (location, size, checksum, multihash, metadata)
 
 
 def add_to_backend(conf, image_id, data, size, scheme=None, context=None,

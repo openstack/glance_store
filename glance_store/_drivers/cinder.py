@@ -645,8 +645,9 @@ class Store(glance_store.driver.Store):
                               "internal error."))
             return 0
 
+    @glance_store.driver.back_compat_add
     @capabilities.check
-    def add(self, image_id, image_file, image_size, context=None,
+    def add(self, image_id, image_file, image_size, hashing_algo, context=None,
             verifier=None):
         """
         Stores an image file with supplied identifier to the backend
@@ -656,19 +657,21 @@ class Store(glance_store.driver.Store):
         :param image_id: The opaque image identifier
         :param image_file: The image data to write, as a file-like object
         :param image_size: The size of the image data to write, in bytes
+        :param hashing_algo: A hashlib algorithm identifier (string)
         :param context: The request context
         :param verifier: An object used to verify signatures for images
 
-        :returns: tuple of URL in backing store, bytes written, checksum
-                and a dictionary with storage system specific information
+        :returns: tuple of: (1) URL in backing store, (2) bytes written,
+                  (3) checksum, (4) multihash value, and (5) a dictionary
+                  with storage system specific information
         :raises: `glance_store.exceptions.Duplicate` if the image already
-                existed
+                 exists
         """
 
         self._check_context(context, require_tenant=True)
         client = get_cinderclient(self.conf, context,
                                   backend=self.backend_group)
-
+        os_hash_value = hashlib.new(str(hashing_algo))
         checksum = hashlib.md5()
         bytes_written = 0
         size_gb = int(math.ceil(float(image_size) / units.Gi))
@@ -712,6 +715,7 @@ class Store(glance_store.driver.Store):
                         if not buf:
                             need_extend = False
                             break
+                        os_hash_value.update(buf)
                         checksum.update(buf)
                         if verifier:
                             verifier.update(buf)
@@ -757,6 +761,7 @@ class Store(glance_store.driver.Store):
             volume.update_all_metadata(metadata)
         volume.update_readonly_flag(volume, True)
 
+        hash_hex = os_hash_value.hexdigest()
         checksum_hex = checksum.hexdigest()
 
         LOG.debug("Wrote %(bytes_written)d bytes to volume %(volume_id)s "
@@ -769,8 +774,11 @@ class Store(glance_store.driver.Store):
         if self.backend_group:
             image_metadata['backend'] = u"%s" % self.backend_group
 
-        return ('cinder://%s' % volume.id, bytes_written,
-                checksum_hex, image_metadata)
+        return ('cinder://%s' % volume.id,
+                bytes_written,
+                checksum_hex,
+                hash_hex,
+                image_metadata)
 
     @capabilities.check
     def delete(self, location, context=None):

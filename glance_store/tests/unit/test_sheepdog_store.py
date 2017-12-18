@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import hashlib
 import mock
 from oslo_concurrency import processutils
 from oslo_utils import units
@@ -87,19 +88,26 @@ class TestSheepdogStore(base.StoreBaseTest,
         self.store_specs = {'image': '6bd59e6e-c410-11e5-ab67-0a73f1fda51b',
                             'addr': '127.0.0.1',
                             'port': 7000}
+        self.hash_algo = 'sha256'
 
     @mock.patch.object(sheepdog.SheepdogImage, 'write')
     @mock.patch.object(sheepdog.SheepdogImage, 'create')
     @mock.patch.object(sheepdog.SheepdogImage, 'exist')
     def test_add_image(self, mock_exist, mock_create, mock_write):
-        data = six.BytesIO(b'xx')
+        content = b'xx'
+        data = six.BytesIO(content)
         mock_exist.return_value = False
+        expected_checksum = hashlib.md5(content).hexdigest()
+        expected_multihash = hashlib.sha256(content).hexdigest()
 
-        (uri, size, checksum, loc) = self.store.add('fake_image_id', data, 2)
+        (uri, size, checksum, multihash, loc) = self.store.add(
+            'fake_image_id', data, 2, self.hash_algo)
 
         mock_exist.assert_called_once_with()
         mock_create.assert_called_once_with(2)
         mock_write.assert_called_once_with(b'xx', 0, 2)
+        self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
 
     @mock.patch.object(sheepdog.SheepdogImage, 'write')
     @mock.patch.object(sheepdog.SheepdogImage, 'exist')
@@ -108,7 +116,7 @@ class TestSheepdogStore(base.StoreBaseTest,
         mock_exist.return_value = False
 
         self.assertRaises(exceptions.Forbidden, self.store.add,
-                          'fake_image_id', data, 'test')
+                          'fake_image_id', data, 'test', self.hash_algo)
 
         mock_exist.assert_called_once_with()
         self.assertEqual(mock_write.call_count, 0)
@@ -124,7 +132,7 @@ class TestSheepdogStore(base.StoreBaseTest,
         mock_write.side_effect = exceptions.BackendException
 
         self.assertRaises(exceptions.BackendException, self.store.add,
-                          'fake_image_id', data, 2)
+                          'fake_image_id', data, 2, self.hash_algo)
 
         mock_exist.assert_called_once_with()
         mock_create.assert_called_once_with(2)
@@ -140,7 +148,7 @@ class TestSheepdogStore(base.StoreBaseTest,
             cmd.side_effect = _fake_run_command
             data = six.BytesIO(b'xx')
             self.assertRaises(exceptions.Duplicate, self.store.add,
-                              'fake_image_id', data, 2)
+                              'fake_image_id', data, 2, self.hash_algo)
 
     def test_get(self):
         def _fake_run_command(command, data, *params):
@@ -204,6 +212,7 @@ class TestSheepdogStore(base.StoreBaseTest,
 
         with mock.patch.object(sheepdog.SheepdogImage, '_run_command') as cmd:
             cmd.side_effect = _fake_run_command
-            self.store.add(image_id, image_file, file_size, verifier=verifier)
+            self.store.add(image_id, image_file, file_size, self.hash_algo,
+                           verifier=verifier)
 
         verifier.update.assert_called_with(file_contents)

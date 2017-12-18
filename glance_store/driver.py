@@ -1,5 +1,6 @@
 # Copyright 2011 OpenStack Foundation
 # Copyright 2012 RedHat Inc.
+# Copyright 2018 Verizon Wireless
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -16,12 +17,14 @@
 
 """Base class for all storage backends"""
 
+from functools import wraps
 import logging
 
 from oslo_config import cfg
 from oslo_utils import encodeutils
 from oslo_utils import importutils
 from oslo_utils import units
+import six
 
 from glance_store import capabilities
 from glance_store import exceptions
@@ -144,9 +147,13 @@ class Store(capabilities.StoreCapability):
         """
         raise NotImplementedError
 
+    # NOTE(rosmaita): use the @glance_store.driver.back_compat_add
+    # annotation on implementions for backward compatibility with
+    # pre-0.26.0 add().  Need backcompat because pre-0.26.0 returned
+    # a 4 tuple, this returns a 5-tuple
     @capabilities.check
-    def add(self, image_id, image_file, image_size, context=None,
-            verifier=None):
+    def add(self, image_id, image_file, image_size, hashing_algo,
+            context=None, verifier=None):
         """
         Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -155,11 +162,15 @@ class Store(capabilities.StoreCapability):
         :param image_id: The opaque image identifier
         :param image_file: The image data to write, as a file-like object
         :param image_size: The size of the image data to write, in bytes
+        :param hashing_algo: A hashlib algorithm identifier (string)
+        :param context: A context object
+        :param verifier: An object used to verify signatures for images
 
-        :returns: tuple of URL in backing store, bytes written, checksum
-               and a dictionary with storage system specific information
+        :returns: tuple of: (1) URL in backing store, (2) bytes written,
+                  (3) checksum, (4) multihash value, and (5) a dictionary
+                  with storage system specific information
         :raises: `glance_store.exceptions.Duplicate` if the image already
-                existed
+                 exists
         """
         raise NotImplementedError
 
@@ -190,3 +201,82 @@ class Store(capabilities.StoreCapability):
                       write access for an image.
         """
         raise NotImplementedError
+
+
+def back_compat_add(store_add_fun):
+    """
+    Provides backward compatibility for the 0.26.0+ Store.add() function.
+    In 0.26.0, the 'hashing_algo' parameter is introduced and Store.add()
+    returns a 5-tuple containing a computed 'multihash' value.
+
+    This wrapper behaves as follows:
+
+    If no hashing_algo identifier is supplied as an argument, the response
+    is the pre-0.26.0 4-tuple of::
+
+    (backend_url, bytes_written, checksum, metadata_dict)
+
+    If a hashing_algo is supplied, the response is a 5-tuple::
+
+    (backend_url, bytes_written, checksum, multihash, metadata_dict)
+
+    The wrapper detects the presence of a 'hashing_algo' argument both
+    by examining named arguments and positionally.
+    """
+
+    @wraps(store_add_fun)
+    def add_adapter(*args, **kwargs):
+        """
+        Wrapper for the store 'add' function.  If no hashing_algo identifier
+        is supplied, the response is the pre-0.25.0 4-tuple of::
+
+        (backend_url, bytes_written, checksum, metadata_dict)
+
+        If a hashing_algo is supplied, the response is a 5-tuple::
+
+        (backend_url, bytes_written, checksum, multihash, metadata_dict)
+        """
+        # strategy: assume this until we determine otherwise
+        back_compat_required = True
+
+        # specify info about 0.26.0 Store.add() call (can't introspect
+        # this because the add method is wrapped by the capabilities
+        # check)
+        p_algo = 4
+        max_args = 7
+
+        num_args = len(args)
+        num_kwargs = len(kwargs)
+
+        if num_args + num_kwargs == max_args:
+            # everything is present, including hashing_algo
+            back_compat_required = False
+        elif ('hashing_algo' in kwargs or
+              (num_args >= p_algo + 1 and isinstance(args[p_algo],
+                                                     six.string_types))):
+            # there is a hashing_algo argument present
+            back_compat_required = False
+        else:
+            # this is a pre-0.26.0-style call, so let's figure out
+            # whether to insert the hashing_algo in the args or kwargs
+            if kwargs and 'image_' in ''.join(kwargs):
+                # if any of the image_* is named, everything after it
+                # must be named as well, so slap the algo into kwargs
+                kwargs['hashing_algo'] = 'md5'
+            else:
+                args = args[:p_algo] + ('md5',) + args[p_algo:]
+
+        # business time
+        (backend_url,
+         bytes_written,
+         checksum,
+         multihash,
+         metadata_dict) = store_add_fun(*args, **kwargs)
+
+        if back_compat_required:
+            return (backend_url, bytes_written, checksum, metadata_dict)
+
+        return (backend_url, bytes_written, checksum, multihash,
+                metadata_dict)
+
+    return add_adapter

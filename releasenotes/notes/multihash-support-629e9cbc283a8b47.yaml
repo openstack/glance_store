@@ -1,0 +1,13 @@
+---
+prelude: >
+  This release adds support for Glance multihash computation.
+features:
+  - |
+    A new function, ``store_add_to_backend_with_multihash``, has been
+    added.  This function wraps each store's ``add`` method to provide
+    consumers with a constant interface.  It is similar to the existing
+    ``store_add_to_backend`` function but requires the caller to
+    specify an additional ``hashing_algo`` argument whose value is
+    a hashlib algorithm identifier.  The function returns a 5-tuple
+    containing a ``multihash`` value, which is a hexdigest of the
+    stored data computed using the specified hashing algorithm.

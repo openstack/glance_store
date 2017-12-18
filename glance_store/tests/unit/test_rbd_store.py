@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import hashlib
 import mock
 from oslo_utils import units
 import six
@@ -183,13 +184,15 @@ class TestStore(base.StoreBaseTest,
         # Provide enough data to get more than one chunk iteration.
         self.data_len = 3 * units.Ki
         self.data_iter = six.BytesIO(b'*' * self.data_len)
+        self.hash_algo = 'sha256'
 
     def test_add_w_image_size_zero(self):
         """Assert that correct size is returned even though 0 was provided."""
         self.store.chunk_size = units.Ki
         with mock.patch.object(rbd_store.rbd.Image, 'resize') as resize:
             with mock.patch.object(rbd_store.rbd.Image, 'write') as write:
-                ret = self.store.add('fake_image_id', self.data_iter, 0)
+                ret = self.store.add(
+                    'fake_image_id', self.data_iter, 0, self.hash_algo)
 
                 self.assertTrue(resize.called)
                 self.assertTrue(write.called)
@@ -216,8 +219,10 @@ class TestStore(base.StoreBaseTest,
         delete.side_effect = _fake_delete_image
         enter.side_effect = _fake_enter
 
-        self.assertRaises(exceptions.NotFound, self.store.add,
-                          'fake_image_id', self.data_iter, self.data_len)
+        self.assertRaises(exceptions.NotFound,
+                          self.store.add,
+                          'fake_image_id', self.data_iter, self.data_len,
+                          self.hash_algo)
 
         self.called_commands_expected = ['create', 'delete']
 
@@ -230,8 +235,10 @@ class TestStore(base.StoreBaseTest,
         with mock.patch.object(self.store, '_create_image') as create_image:
             create_image.side_effect = _fake_create_image
 
-            self.assertRaises(exceptions.Duplicate, self.store.add,
-                              'fake_image_id', self.data_iter, self.data_len)
+            self.assertRaises(exceptions.Duplicate,
+                              self.store.add,
+                              'fake_image_id', self.data_iter, self.data_len,
+                              self.hash_algo)
             self.called_commands_expected = ['create']
 
     def test_add_with_verifier(self):
@@ -244,9 +251,26 @@ class TestStore(base.StoreBaseTest,
         image_file = six.BytesIO(file_contents)
 
         with mock.patch.object(rbd_store.rbd.Image, 'write'):
-            self.store.add(image_id, image_file, file_size, verifier=verifier)
+            self.store.add(image_id, image_file, file_size, self.hash_algo,
+                           verifier=verifier)
 
         verifier.update.assert_called_with(file_contents)
+
+    def test_add_checksums(self):
+        self.store.chunk_size = units.Ki
+        image_id = 'fake_image_id'
+        file_size = 5 * units.Ki  # 5K
+        file_contents = b"*" * file_size
+        image_file = six.BytesIO(file_contents)
+        expected_checksum = hashlib.md5(file_contents).hexdigest()
+        expected_multihash = hashlib.sha256(file_contents).hexdigest()
+
+        with mock.patch.object(rbd_store.rbd.Image, 'write'):
+            loc, size, checksum, multihash, _ = self.store.add(
+                image_id, image_file, file_size, self.hash_algo)
+
+        self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
 
     def test_delete(self):
         def _fake_remove(*args, **kwargs):

@@ -81,6 +81,10 @@ class NotFound(GlanceStoreException):
     message = _("Image %(image)s not found")
 
 
+class UnknownHashingAlgo(GlanceStoreException):
+    message = _("Unknown hashing algorithm identifier: %(algo)s")
+
+
 class UnknownScheme(GlanceStoreException):
     message = _("Unknown scheme '%(scheme)s' found in URI")
 

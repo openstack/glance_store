@@ -54,6 +54,7 @@ FAKE_UUID2 = lambda: str(uuid.uuid4())
 Store = swift.Store
 FIVE_KB = 5 * units.Ki
 FIVE_GB = 5 * units.Gi
+HASH_ALGO = 'sha256'
 MAX_SWIFT_OBJECT_SIZE = FIVE_GB
 SWIFT_PUT_OBJECT_CALLS = 0
 SWIFT_CONF = {'swift_store_auth_address': 'localhost:8080',
@@ -389,6 +390,8 @@ class SwiftTests(object):
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
         expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
+        expected_multihash = hashlib.sha256(
+            expected_swift_contents).hexdigest()
         expected_image_id = str(uuid.uuid4())
         loc = "swift+https://tenant%%3Auser1:key@localhost:8080/glance/%s"
         expected_location = loc % (expected_image_id)
@@ -397,13 +400,14 @@ class SwiftTests(object):
         global SWIFT_PUT_OBJECT_CALLS
         SWIFT_PUT_OBJECT_CALLS = 0
 
-        loc, size, checksum, _ = self.store.add(expected_image_id,
-                                                image_swift,
-                                                expected_swift_size)
+        loc, size, checksum, multihash, _ = self.store.add(
+            expected_image_id, image_swift, expected_swift_size,
+            HASH_ALGO)
 
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_swift_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
         # Expecting a single object to be created on Swift i.e. no chunking.
         self.assertEqual(1, SWIFT_PUT_OBJECT_CALLS)
 
@@ -435,9 +439,8 @@ class SwiftTests(object):
 
         expected_location = loc % (expected_image_id)
 
-        location, size, checksum, arg = self.store.add(expected_image_id,
-                                                       image_swift,
-                                                       expected_swift_size)
+        location, size, checksum, multihash, arg = self.store.add(
+            expected_image_id, image_swift, expected_swift_size, HASH_ALGO)
         self.assertEqual(expected_location, location)
 
     @mock.patch('glance_store._drivers.swift.utils'
@@ -478,10 +481,9 @@ class SwiftTests(object):
             service_catalog=service_catalog)
         store = swift.MultiTenantStore(self.conf)
         store.configure()
-        loc, size, checksum, _ = store.add(expected_image_id,
-                                           image_swift,
-                                           expected_swift_size,
-                                           context=ctxt)
+        loc, size, checksum, multihash, _ = store.add(
+            expected_image_id, image_swift, expected_swift_size, HASH_ALGO,
+            context=ctxt)
         # ensure that image add uses user's context
         self.assertEqual(expected_location, loc)
 
@@ -509,6 +511,8 @@ class SwiftTests(object):
             expected_swift_contents = b"*" * expected_swift_size
             expected_checksum = \
                 hashlib.md5(expected_swift_contents).hexdigest()
+            expected_multihash = \
+                hashlib.sha256(expected_swift_contents).hexdigest()
 
             image_swift = six.BytesIO(expected_swift_contents)
 
@@ -520,13 +524,13 @@ class SwiftTests(object):
             self.mock_keystone_client()
             self.store = Store(self.conf)
             self.store.configure()
-            loc, size, checksum, _ = self.store.add(image_id,
-                                                    image_swift,
-                                                    expected_swift_size)
+            loc, size, checksum, multihash, _ = self.store.add(
+                image_id, image_swift, expected_swift_size, HASH_ALGO)
 
             self.assertEqual(expected_location, loc)
             self.assertEqual(expected_swift_size, size)
             self.assertEqual(expected_checksum, checksum)
+            self.assertEqual(expected_multihash, multihash)
             self.assertEqual(1, SWIFT_PUT_OBJECT_CALLS)
 
             loc = location.get_location_from_uri(expected_location,
@@ -564,7 +568,7 @@ class SwiftTests(object):
         # simply used self.assertRaises here
         exception_caught = False
         try:
-            self.store.add(str(uuid.uuid4()), image_swift, 0)
+            self.store.add(str(uuid.uuid4()), image_swift, 0, HASH_ALGO)
         except exceptions.BackendException as e:
             exception_caught = True
             self.assertIn("container noexist does not exist in Swift",
@@ -583,6 +587,8 @@ class SwiftTests(object):
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
         expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
+        expected_multihash = \
+            hashlib.sha256(expected_swift_contents).hexdigest()
         expected_image_id = str(uuid.uuid4())
         loc = 'swift+config://ref1/noexist/%s'
         expected_location = loc % (expected_image_id)
@@ -599,13 +605,13 @@ class SwiftTests(object):
         self.mock_keystone_client()
         self.store = Store(self.conf)
         self.store.configure()
-        loc, size, checksum, _ = self.store.add(expected_image_id,
-                                                image_swift,
-                                                expected_swift_size)
+        loc, size, checksum, multihash, _ = self.store.add(
+            expected_image_id, image_swift, expected_swift_size, HASH_ALGO)
 
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_swift_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
         self.assertEqual(1, SWIFT_PUT_OBJECT_CALLS)
 
         loc = location.get_location_from_uri(expected_location, conf=self.conf)
@@ -627,6 +633,8 @@ class SwiftTests(object):
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
         expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
+        expected_multihash = \
+            hashlib.sha256(expected_swift_contents).hexdigest()
         expected_image_id = str(uuid.uuid4())
         container = 'randomname_' + expected_image_id[:2]
         loc = 'swift+config://ref1/%s/%s'
@@ -646,13 +654,13 @@ class SwiftTests(object):
 
         self.store = Store(self.conf)
         self.store.configure()
-        loc, size, checksum, _ = self.store.add(expected_image_id,
-                                                image_swift,
-                                                expected_swift_size)
+        loc, size, checksum, multihash, _ = self.store.add(
+            expected_image_id, image_swift, expected_swift_size, HASH_ALGO)
 
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_swift_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
         self.assertEqual(1, SWIFT_PUT_OBJECT_CALLS)
 
         loc = location.get_location_from_uri(expected_location, conf=self.conf)
@@ -696,7 +704,7 @@ class SwiftTests(object):
         # simply used self.assertRaises here
         exception_caught = False
         try:
-            self.store.add(expected_image_id, image_swift, 0)
+            self.store.add(expected_image_id, image_swift, 0, HASH_ALGO)
         except exceptions.BackendException as e:
             exception_caught = True
             expected_msg = "container %s does not exist in Swift"
@@ -726,7 +734,7 @@ class SwiftTests(object):
         try:
             self.store.large_object_size = custom_size
             self.store.large_object_chunk_size = custom_size
-            self.store.add(image_id, image_swift, swift_size,
+            self.store.add(image_id, image_swift, swift_size, HASH_ALGO,
                            verifier=verifier)
         finally:
             self.store.large_object_chunk_size = orig_temp_size
@@ -773,7 +781,7 @@ class SwiftTests(object):
         try:
             self.store.large_object_size = custom_size
             self.store.large_object_chunk_size = custom_size
-            self.store.add(image_id, image_swift, swift_size,
+            self.store.add(image_id, image_swift, swift_size, HASH_ALGO,
                            verifier=verifier)
         finally:
             self.store.large_object_chunk_size = orig_temp_size
@@ -828,10 +836,9 @@ class SwiftTests(object):
             service_catalog=service_catalog)
         store = swift.MultiTenantStore(self.conf)
         store.configure()
-        location, size, checksum, _ = store.add(expected_image_id,
-                                                image_swift,
-                                                expected_swift_size,
-                                                context=ctxt)
+        location, size, checksum, multihash, _ = store.add(
+            expected_image_id, image_swift, expected_swift_size, HASH_ALGO,
+            context=ctxt)
         self.assertEqual(expected_location, location)
 
     @mock.patch('glance_store._drivers.swift.utils'
@@ -847,6 +854,8 @@ class SwiftTests(object):
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
         expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
+        expected_multihash = \
+            hashlib.sha256(expected_swift_contents).hexdigest()
         expected_image_id = str(uuid.uuid4())
         loc = 'swift+config://ref1/glance/%s'
         expected_location = loc % (expected_image_id)
@@ -862,9 +871,8 @@ class SwiftTests(object):
         try:
             self.store.large_object_size = units.Ki
             self.store.large_object_chunk_size = units.Ki
-            loc, size, checksum, _ = self.store.add(expected_image_id,
-                                                    image_swift,
-                                                    expected_swift_size)
+            loc, size, checksum, multihash, _ = self.store.add(
+                expected_image_id, image_swift, expected_swift_size, HASH_ALGO)
         finally:
             self.store.large_object_chunk_size = orig_temp_size
             self.store.large_object_size = orig_max_size
@@ -872,6 +880,7 @@ class SwiftTests(object):
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_swift_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
         # Expecting 6 objects to be created on Swift -- 5 chunks and 1
         # manifest.
         self.assertEqual(6, SWIFT_PUT_OBJECT_CALLS)
@@ -899,6 +908,8 @@ class SwiftTests(object):
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
         expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
+        expected_multihash = \
+            hashlib.sha256(expected_swift_contents).hexdigest()
         expected_image_id = str(uuid.uuid4())
         loc = 'swift+config://ref1/glance/%s'
         expected_location = loc % (expected_image_id)
@@ -920,9 +931,8 @@ class SwiftTests(object):
             MAX_SWIFT_OBJECT_SIZE = units.Ki
             self.store.large_object_size = units.Ki
             self.store.large_object_chunk_size = units.Ki
-            loc, size, checksum, _ = self.store.add(expected_image_id,
-                                                    image_swift,
-                                                    0)
+            loc, size, checksum, multihash, _ = self.store.add(
+                expected_image_id, image_swift, 0, HASH_ALGO)
         finally:
             self.store.large_object_chunk_size = orig_temp_size
             self.store.large_object_size = orig_max_size
@@ -931,6 +941,7 @@ class SwiftTests(object):
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_swift_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
         # Expecting 6 calls to put_object -- 5 chunks, and the manifest.
         self.assertEqual(6, SWIFT_PUT_OBJECT_CALLS)
 
@@ -952,7 +963,7 @@ class SwiftTests(object):
         image_swift = six.BytesIO(b"nevergonnamakeit")
         self.assertRaises(exceptions.Duplicate,
                           self.store.add,
-                          FAKE_UUID, image_swift, 0)
+                          FAKE_UUID, image_swift, 0, HASH_ALGO)
 
     def _option_required(self, key):
         conf = self.getConfig()
@@ -1743,7 +1754,7 @@ class TestMultiTenantStoreContext(base.StoreBaseTest):
         store.configure()
         content = b'Some data'
         pseudo_file = six.BytesIO(content)
-        store.add('123', pseudo_file, len(content),
+        store.add('123', pseudo_file, len(content), HASH_ALGO,
                   context=self.ctx)
         self.assertEqual(b'0123',
                          head_req.last_request.headers['X-Auth-Token'])
@@ -1878,22 +1889,28 @@ class TestChunkReader(base.StoreBaseTest):
         repeated creation of the ChunkReader object
         """
         CHUNKSIZE = 100
-        checksum = hashlib.md5()
+        data = b'*' * units.Ki
+        expected_checksum = hashlib.md5(data).hexdigest()
+        expected_multihash = hashlib.sha256(data).hexdigest()
         data_file = tempfile.NamedTemporaryFile()
-        data_file.write(b'*' * units.Ki)
+        data_file.write(data)
         data_file.flush()
         infile = open(data_file.name, 'rb')
         bytes_read = 0
+        checksum = hashlib.md5()
+        os_hash_value = hashlib.sha256()
         while True:
-            cr = swift.ChunkReader(infile, checksum, CHUNKSIZE)
+            cr = swift.ChunkReader(infile, checksum, os_hash_value, CHUNKSIZE)
             chunk = cr.read(CHUNKSIZE)
             if len(chunk) == 0:
                 self.assertEqual(True, cr.is_zero_size)
                 break
             bytes_read += len(chunk)
         self.assertEqual(units.Ki, bytes_read)
-        self.assertEqual('fb10c6486390bec8414be90a93dfff3b',
+        self.assertEqual(expected_checksum,
                          cr.checksum.hexdigest())
+        self.assertEqual(expected_multihash,
+                         cr.os_hash_value.hexdigest())
         data_file.close()
         infile.close()
 
@@ -1902,21 +1919,24 @@ class TestChunkReader(base.StoreBaseTest):
         Replicate what goes on in the Swift driver with the
         repeated creation of the ChunkReader object
         """
+        expected_checksum = hashlib.md5(b'').hexdigest()
+        expected_multihash = hashlib.sha256(b'').hexdigest()
         CHUNKSIZE = 100
         checksum = hashlib.md5()
+        os_hash_value = hashlib.sha256()
         data_file = tempfile.NamedTemporaryFile()
         infile = open(data_file.name, 'rb')
         bytes_read = 0
         while True:
-            cr = swift.ChunkReader(infile, checksum, CHUNKSIZE)
+            cr = swift.ChunkReader(infile, checksum, os_hash_value, CHUNKSIZE)
             chunk = cr.read(CHUNKSIZE)
             if len(chunk) == 0:
                 break
             bytes_read += len(chunk)
         self.assertEqual(True, cr.is_zero_size)
         self.assertEqual(0, bytes_read)
-        self.assertEqual('d41d8cd98f00b204e9800998ecf8427e',
-                         cr.checksum.hexdigest())
+        self.assertEqual(expected_checksum, cr.checksum.hexdigest())
+        self.assertEqual(expected_multihash, cr.os_hash_value.hexdigest())
         data_file.close()
         infile.close()
 
@@ -1999,10 +2019,13 @@ class TestBufferedReader(base.StoreBaseTest):
         self.infile.seek(0)
 
         self.checksum = hashlib.md5()
+        self.hash_algo = HASH_ALGO
+        self.os_hash_value = hashlib.sha256()
         self.verifier = mock.MagicMock(name='mock_verifier')
         total = 7  # not the full 10 byte string - defines segment boundary
         self.reader = buffered.BufferedReader(self.infile, self.checksum,
-                                              total, self.verifier)
+                                              self.os_hash_value, total,
+                                              self.verifier)
         self.addCleanup(self.conf.reset)
 
     def tearDown(self):
@@ -2053,51 +2076,76 @@ class TestBufferedReader(base.StoreBaseTest):
         self.reader.seek(2)
         self.assertEqual(b'34567', self.reader.read(10))
 
-    def test_checksum(self):
-        # the md5 checksum is updated only once on a full segment read
+    def test_checksums(self):
+        # checksums are updated only once on a full segment read
         expected_csum = hashlib.md5()
         expected_csum.update(b'1234567')
+        expected_multihash = hashlib.sha256()
+        expected_multihash.update(b'1234567')
         self.reader.read(7)
         self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+        self.assertEqual(expected_multihash.hexdigest(),
+                         self.os_hash_value.hexdigest())
 
     def test_checksum_updated_only_once_w_full_segment_read(self):
-        # Test that the checksum is updated only once when a full segment read
+        # Test that checksums are updated only once when a full segment read
         # is followed by a seek and partial reads.
         expected_csum = hashlib.md5()
         expected_csum.update(b'1234567')
+        expected_multihash = hashlib.sha256()
+        expected_multihash.update(b'1234567')
         self.reader.read(7)  # attempted read of the entire chunk
         self.reader.seek(4)  # seek back due to possible partial failure
         self.reader.read(1)  # read one more byte
         # checksum was updated just once during the first attempted full read
         self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+        self.assertEqual(expected_multihash.hexdigest(),
+                         self.os_hash_value.hexdigest())
 
     def test_checksum_updates_during_partial_segment_reads(self):
-        # Test to check that checksum is updated with only the bytes it has
+        # Test to check that checksums are updated with only the bytes
         # not seen when the number of bytes being read is changed
         expected_csum = hashlib.md5()
+        expected_multihash = hashlib.sha256()
         self.reader.read(4)
         expected_csum.update(b'1234')
+        expected_multihash.update(b'1234')
         self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+        self.assertEqual(expected_multihash.hexdigest(),
+                         self.os_hash_value.hexdigest())
         self.reader.seek(0)  # possible failure
         self.reader.read(2)
         self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+        self.assertEqual(expected_multihash.hexdigest(),
+                         self.os_hash_value.hexdigest())
         self.reader.read(4)  # checksum missing two bytes
         expected_csum.update(b'56')
+        expected_multihash.update(b'56')
         # checksum updated with only the bytes it did not see
         self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+        self.assertEqual(expected_multihash.hexdigest(),
+                         self.os_hash_value.hexdigest())
 
     def test_checksum_rolling_calls(self):
         # Test that the checksum continues on to the next segment
         expected_csum = hashlib.md5()
+        expected_multihash = hashlib.sha256()
         self.reader.read(7)
         expected_csum.update(b'1234567')
+        expected_multihash.update(b'1234567')
         self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+        self.assertEqual(expected_multihash.hexdigest(),
+                         self.os_hash_value.hexdigest())
         # another reader to complete reading the image file
-        reader1 = buffered.BufferedReader(self.infile, self.checksum, 3,
+        reader1 = buffered.BufferedReader(self.infile, self.checksum,
+                                          self.os_hash_value, 3,
                                           self.reader.verifier)
         reader1.read(3)
         expected_csum.update(b'890')
+        expected_multihash.update(b'890')
         self.assertEqual(expected_csum.hexdigest(), self.checksum.hexdigest())
+        self.assertEqual(expected_multihash.hexdigest(),
+                         self.os_hash_value.hexdigest())
 
     def test_verifier(self):
         # Test that the verifier is updated only once on a full segment read.
@@ -2132,7 +2180,10 @@ class TestBufferedReader(base.StoreBaseTest):
         self.verifier.update.assert_called_once_with(b'1234567')
         self.assertEqual(1, self.verifier.update.call_count)
         # another reader to complete reading the image file
-        reader1 = buffered.BufferedReader(self.infile, self.checksum, 3,
+        reader1 = buffered.BufferedReader(self.infile,
+                                          self.checksum,
+                                          self.os_hash_value,
+                                          3,
                                           self.reader.verifier)
         reader1.read(3)
         self.verifier.update.assert_called_with(b'890')
@@ -2147,7 +2198,9 @@ class TestBufferedReader(base.StoreBaseTest):
         infile.seek(0)
         total = 7
         checksum = hashlib.md5()
-        self.reader = buffered.BufferedReader(infile, checksum, total)
+        os_hash_value = hashlib.sha256()
+        self.reader = buffered.BufferedReader(
+            infile, checksum, os_hash_value, total)
 
         self.reader.read(0)  # read into buffer
         self.assertEqual(b'12', self.reader.read(7))

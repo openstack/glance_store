@@ -90,10 +90,12 @@ class BufferedReader(object):
     to ensure there is enough disk space available.
     """
 
-    def __init__(self, fd, checksum, total, verifier=None, backend_group=None):
+    def __init__(self, fd, checksum, os_hash_value, total, verifier=None,
+                 backend_group=None):
         self.fd = fd
         self.total = total
         self.checksum = checksum
+        self.os_hash_value = os_hash_value
         self.verifier = verifier
         self.backend_group = backend_group
         # maintain a pointer to use to update checksum and verifier
@@ -126,6 +128,7 @@ class BufferedReader(object):
         update = self.update_position - self._tmpfile.tell()
         if update < 0:
             self.checksum.update(result[update:])
+            self.os_hash_value.update(result[update:])
             if self.verifier:
                 self.verifier.update(result[update:])
             self.update_position += abs(update)

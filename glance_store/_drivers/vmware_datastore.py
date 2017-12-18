@@ -258,16 +258,18 @@ def http_response_iterator(conn, response, size):
 
 class _Reader(object):
 
-    def __init__(self, data, verifier=None):
+    def __init__(self, data, hashing_algo, verifier=None):
         self._size = 0
         self.data = data
         self.checksum = hashlib.md5()
+        self.os_hash_value = hashlib.new(str(hashing_algo))
         self.verifier = verifier
 
     def read(self, size=None):
         result = self.data.read(size)
         self._size += len(result)
         self.checksum.update(result)
+        self.os_hash_value.update(result)
         if self.verifier:
             self.verifier.update(result)
         return result
@@ -554,8 +556,9 @@ class Store(glance_store.Store):
             cookie = list(vim_cookies)[0]
             return cookie.name + '=' + cookie.value
 
+    @glance_store.driver.back_compat_add
     @capabilities.check
-    def add(self, image_id, image_file, image_size, context=None,
+    def add(self, image_id, image_file, image_size, hashing_algo, context=None,
             verifier=None):
         """Stores an image file with supplied identifier to the backend
         storage system and returns a tuple containing information
@@ -564,17 +567,21 @@ class Store(glance_store.Store):
         :param image_id: The opaque image identifier
         :param image_file: The image data to write, as a file-like object
         :param image_size: The size of the image data to write, in bytes
+        :param hashing_algo: A hashlib algorithm identifier (string)
+        :param context: A context object
         :param verifier: An object used to verify signatures for images
-        :returns: tuple of URL in backing store, bytes written, checksum
-                and a dictionary with storage system specific information
-        :raises: `glance.common.exceptions.Duplicate` if the image already
-                existed
-                `glance.common.exceptions.UnexpectedStatus` if the upload
-                request returned an unexpected status. The expected responses
-                are 201 Created and 200 OK.
+
+        :returns: tuple of: (1) URL in backing store, (2) bytes written,
+                  (3) checksum, (4) multihash value, and (5) a dictionary
+                  with storage system specific information
+        :raises: `glance_store.exceptions.Duplicate` if the image already
+                 exists
+        :raises: `glance.common.exceptions.UnexpectedStatus` if the upload
+                 request returned an unexpected status. The expected responses
+                 are 201 Created and 200 OK.
         """
         ds = self.select_datastore(image_size)
-        image_file = _Reader(image_file, verifier)
+        image_file = _Reader(image_file, hashing_algo, verifier)
         headers = {}
         if image_size > 0:
             headers.update({'Content-Length': six.text_type(image_size)})
@@ -638,8 +645,11 @@ class Store(glance_store.Store):
         if self.backend_group:
             metadata['backend'] = u"%s" % self.backend_group
 
-        return (loc.get_uri(), image_file.size,
-                image_file.checksum.hexdigest(), metadata)
+        return (loc.get_uri(),
+                image_file.size,
+                image_file.checksum.hexdigest(),
+                image_file.os_hash_value.hexdigest(),
+                metadata)
 
     @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):

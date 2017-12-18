@@ -101,6 +101,8 @@ class TestStore(base.StoreBaseTest,
         self.store.store_image_dir = (
             VMWARE_DS['vmware_store_image_dir'])
 
+        self.hash_algo = 'sha256'
+
     def _mock_http_connection(self):
         return mock.patch('six.moves.http_client.HTTPConnection')
 
@@ -145,30 +147,35 @@ class TestStore(base.StoreBaseTest,
         expected_contents = b"*" * expected_size
         hash_code = hashlib.md5(expected_contents)
         expected_checksum = hash_code.hexdigest()
+        sha256_code = hashlib.sha256(expected_contents)
+        expected_multihash = sha256_code.hexdigest()
         fake_size.__get__ = mock.Mock(return_value=expected_size)
         expected_cookie = 'vmware_soap_session=fake-uuid'
         fake_cookie.return_value = expected_cookie
         expected_headers = {'Content-Length': six.text_type(expected_size),
                             'Cookie': expected_cookie}
         with mock.patch('hashlib.md5') as md5:
-            md5.return_value = hash_code
-            expected_location = format_location(
-                VMWARE_DS['vmware_server_host'],
-                VMWARE_DS['vmware_store_image_dir'],
-                expected_image_id,
-                VMWARE_DS['vmware_datastores'])
-            image = six.BytesIO(expected_contents)
-            with mock.patch('requests.Session.request') as HttpConn:
-                HttpConn.return_value = utils.fake_response()
-                location, size, checksum, _ = self.store.add(expected_image_id,
-                                                             image,
-                                                             expected_size)
-                _, kwargs = HttpConn.call_args
-                self.assertEqual(expected_headers, kwargs['headers'])
+            with mock.patch('hashlib.new') as fake_new:
+                md5.return_value = hash_code
+                fake_new.return_value = sha256_code
+                expected_location = format_location(
+                    VMWARE_DS['vmware_server_host'],
+                    VMWARE_DS['vmware_store_image_dir'],
+                    expected_image_id,
+                    VMWARE_DS['vmware_datastores'])
+                image = six.BytesIO(expected_contents)
+                with mock.patch('requests.Session.request') as HttpConn:
+                    HttpConn.return_value = utils.fake_response()
+                    location, size, checksum, multihash, _ = self.store.add(
+                        expected_image_id, image, expected_size,
+                        self.hash_algo)
+                    _, kwargs = HttpConn.call_args
+                    self.assertEqual(expected_headers, kwargs['headers'])
         self.assertEqual(utils.sort_url_by_qs_keys(expected_location),
                          utils.sort_url_by_qs_keys(location))
         self.assertEqual(expected_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
 
     @mock.patch.object(vm_store.Store, 'select_datastore')
     @mock.patch.object(vm_store._Reader, 'size')
@@ -185,23 +192,28 @@ class TestStore(base.StoreBaseTest,
         expected_contents = b"*" * expected_size
         hash_code = hashlib.md5(expected_contents)
         expected_checksum = hash_code.hexdigest()
+        sha256_code = hashlib.sha256(expected_contents)
+        expected_multihash = sha256_code.hexdigest()
         fake_size.__get__ = mock.Mock(return_value=expected_size)
         with mock.patch('hashlib.md5') as md5:
-            md5.return_value = hash_code
-            expected_location = format_location(
-                VMWARE_DS['vmware_server_host'],
-                VMWARE_DS['vmware_store_image_dir'],
-                expected_image_id,
-                VMWARE_DS['vmware_datastores'])
-            image = six.BytesIO(expected_contents)
-            with mock.patch('requests.Session.request') as HttpConn:
-                HttpConn.return_value = utils.fake_response()
-                location, size, checksum, _ = self.store.add(expected_image_id,
-                                                             image, 0)
+            with mock.patch('hashlib.new') as fake_new:
+                md5.return_value = hash_code
+                fake_new.return_value = sha256_code
+                expected_location = format_location(
+                    VMWARE_DS['vmware_server_host'],
+                    VMWARE_DS['vmware_store_image_dir'],
+                    expected_image_id,
+                    VMWARE_DS['vmware_datastores'])
+                image = six.BytesIO(expected_contents)
+                with mock.patch('requests.Session.request') as HttpConn:
+                    HttpConn.return_value = utils.fake_response()
+                    location, size, checksum, multihash, _ = self.store.add(
+                        expected_image_id, image, 0, self.hash_algo)
         self.assertEqual(utils.sort_url_by_qs_keys(expected_location),
                          utils.sort_url_by_qs_keys(location))
         self.assertEqual(expected_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
 
     @mock.patch.object(vm_store.Store, 'select_datastore')
     @mock.patch('glance_store._drivers.vmware_datastore._Reader')
@@ -214,9 +226,10 @@ class TestStore(base.StoreBaseTest,
         image = six.BytesIO(contents)
         with mock.patch('requests.Session.request') as HttpConn:
             HttpConn.return_value = utils.fake_response()
-            self.store.add(image_id, image, size, verifier=verifier)
+            self.store.add(image_id, image, size, self.hash_algo,
+                           verifier=verifier)
 
-        fake_reader.assert_called_with(image, verifier)
+        fake_reader.assert_called_with(image, self.hash_algo, verifier)
 
     @mock.patch.object(vm_store.Store, 'select_datastore')
     @mock.patch('glance_store._drivers.vmware_datastore._Reader')
@@ -229,9 +242,10 @@ class TestStore(base.StoreBaseTest,
         image = six.BytesIO(contents)
         with mock.patch('requests.Session.request') as HttpConn:
             HttpConn.return_value = utils.fake_response()
-            self.store.add(image_id, image, 0, verifier=verifier)
+            self.store.add(image_id, image, 0, self.hash_algo,
+                           verifier=verifier)
 
-        fake_reader.assert_called_with(image, verifier)
+        fake_reader.assert_called_with(image, self.hash_algo, verifier)
 
     @mock.patch('oslo_vmware.api.VMwareAPISession')
     def test_delete(self, mock_api_session):
@@ -290,27 +304,31 @@ class TestStore(base.StoreBaseTest,
         content = b'XXX'
         image = six.BytesIO(content)
         expected_checksum = hashlib.md5(content).hexdigest()
-        reader = vm_store._Reader(image)
+        expected_multihash = hashlib.sha256(content).hexdigest()
+        reader = vm_store._Reader(image, self.hash_algo)
         ret = reader.read()
         self.assertEqual(content, ret)
         self.assertEqual(expected_checksum, reader.checksum.hexdigest())
+        self.assertEqual(expected_multihash, reader.os_hash_value.hexdigest())
         self.assertEqual(len(content), reader.size)
 
     def test_reader_partial(self):
         content = b'XXX'
         image = six.BytesIO(content)
         expected_checksum = hashlib.md5(b'X').hexdigest()
-        reader = vm_store._Reader(image)
+        expected_multihash = hashlib.sha256(b'X').hexdigest()
+        reader = vm_store._Reader(image, self.hash_algo)
         ret = reader.read(1)
         self.assertEqual(b'X', ret)
         self.assertEqual(expected_checksum, reader.checksum.hexdigest())
+        self.assertEqual(expected_multihash, reader.os_hash_value.hexdigest())
         self.assertEqual(1, reader.size)
 
     def test_reader_with_verifier(self):
         content = b'XXX'
         image = six.BytesIO(content)
         verifier = mock.MagicMock(name='mock_verifier')
-        reader = vm_store._Reader(image, verifier)
+        reader = vm_store._Reader(image, self.hash_algo, verifier)
         reader.read()
         verifier.update.assert_called_with(content)
 
@@ -399,7 +417,8 @@ class TestStore(base.StoreBaseTest,
             HttpConn.return_value = utils.fake_response(status_code=401)
             self.assertRaises(exceptions.BackendException,
                               self.store.add,
-                              expected_image_id, image, expected_size)
+                              expected_image_id, image, expected_size,
+                              self.hash_algo)
 
     @mock.patch.object(vm_store.Store, 'select_datastore')
     @mock.patch.object(api, 'VMwareAPISession')
@@ -415,7 +434,8 @@ class TestStore(base.StoreBaseTest,
                                                         no_response_body=True)
             self.assertRaises(exceptions.BackendException,
                               self.store.add,
-                              expected_image_id, image, expected_size)
+                              expected_image_id, image, expected_size,
+                              self.hash_algo)
 
     @mock.patch.object(api, 'VMwareAPISession')
     def test_reset_session(self, mock_api_session):
@@ -456,7 +476,8 @@ class TestStore(base.StoreBaseTest,
             HttpConn.request.side_effect = IOError
             self.assertRaises(exceptions.BackendException,
                               self.store.add,
-                              expected_image_id, image, expected_size)
+                              expected_image_id, image, expected_size,
+                              self.hash_algo)
 
     def test_qs_sort_with_literal_question_mark(self):
         url = 'scheme://example.com/path?key2=val2&key1=val1?sort=true'

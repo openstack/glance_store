@@ -343,8 +343,9 @@ class Store(glance_store.driver.Store):
                                       % image.name)
         return image.get_size()
 
+    @glance_store.driver.back_compat_add
     @capabilities.check
-    def add(self, image_id, image_file, image_size, context=None,
+    def add(self, image_id, image_file, image_size, hashing_algo, context=None,
             verifier=None):
         """
         Stores an image file with supplied identifier to the backend
@@ -354,11 +355,15 @@ class Store(glance_store.driver.Store):
         :param image_id: The opaque image identifier
         :param image_file: The image data to write, as a file-like object
         :param image_size: The size of the image data to write, in bytes
+        :param hashing_algo: A hashlib algorithm identifier (string)
+        :param context: A context object
         :param verifier: An object used to verify signatures for images
 
-        :returns: tuple of URL in backing store, bytes written, and checksum
+        :returns: tuple of: (1) URL in backing store, (2) bytes written,
+                  (3) checksum, (4) multihash value, and (5) a dictionary
+                  with storage system specific information
         :raises: `glance_store.exceptions.Duplicate` if the image already
-                existed
+                 exists
         """
 
         image = SheepdogImage(self.addr, self.port, image_id,
@@ -377,6 +382,7 @@ class Store(glance_store.driver.Store):
 
         try:
             offset = 0
+            os_hash_value = hashlib.new(str(hashing_algo))
             checksum = hashlib.md5()
             chunks = utils.chunkreadable(image_file, self.WRITE_CHUNKSIZE)
             for chunk in chunks:
@@ -389,6 +395,7 @@ class Store(glance_store.driver.Store):
                     image.resize(offset + chunk_length)
                 image.write(chunk, offset, chunk_length)
                 offset += chunk_length
+                os_hash_value.update(chunk)
                 checksum.update(chunk)
                 if verifier:
                     verifier.update(chunk)
@@ -402,7 +409,11 @@ class Store(glance_store.driver.Store):
         if self.backend_group:
             metadata['backend'] = u"%s" % self.backend_group
 
-        return (location.get_uri(), offset, checksum.hexdigest(), metadata)
+        return (location.get_uri(),
+                offset,
+                checksum.hexdigest(),
+                os_hash_value.hexdigest(),
+                metadata)
 
     @capabilities.check
     def delete(self, location, context=None):

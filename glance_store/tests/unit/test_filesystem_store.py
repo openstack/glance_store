@@ -51,6 +51,7 @@ class TestStore(base.StoreBaseTest,
                     group="glance_store")
         self.store.configure()
         self.register_store_schemes(self.store, 'file')
+        self.hash_algo = 'sha256'
 
     def tearDown(self):
         """Clear the test environment."""
@@ -74,7 +75,7 @@ class TestStore(base.StoreBaseTest,
         image_file = six.BytesIO(expected_file_contents)
         self.store.FILESYSTEM_STORE_METADATA = in_metadata
         return self.store.add(expected_image_id, image_file,
-                              expected_file_size)
+                              expected_file_size, self.hash_algo)
 
     def test_get(self):
         """Test a "normal" retrieval of an image in chunks."""
@@ -83,9 +84,8 @@ class TestStore(base.StoreBaseTest,
         file_contents = b"chunk00000remainder"
         image_file = six.BytesIO(file_contents)
 
-        loc, size, checksum, _ = self.store.add(image_id,
-                                                image_file,
-                                                len(file_contents))
+        loc, size, checksum, multihash, _ = self.store.add(
+            image_id, image_file, len(file_contents), self.hash_algo)
 
         # Now read it back...
         uri = "file:///%s/%s" % (self.test_dir, image_id)
@@ -110,9 +110,8 @@ class TestStore(base.StoreBaseTest,
         file_contents = b"chunk00000remainder"
         image_file = six.BytesIO(file_contents)
 
-        loc, size, checksum, _ = self.store.add(image_id,
-                                                image_file,
-                                                len(file_contents))
+        loc, size, checksum, multihash, _ = self.store.add(
+            image_id, image_file, len(file_contents), self.hash_algo)
 
         # Now read it back...
         uri = "file:///%s/%s" % (self.test_dir, image_id)
@@ -157,17 +156,18 @@ class TestStore(base.StoreBaseTest,
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = b"*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (self.test_dir,
                                               expected_image_id)
         image_file = six.BytesIO(expected_file_contents)
 
-        loc, size, checksum, _ = self.store.add(expected_image_id,
-                                                image_file,
-                                                expected_file_size)
+        loc, size, checksum, multihash, _ = self.store.add(
+            expected_image_id, image_file, expected_file_size, self.hash_algo)
 
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_file_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
 
         uri = "file:///%s/%s" % (self.test_dir, expected_image_id)
         loc = location.get_location_from_uri(uri, conf=self.conf)
@@ -191,26 +191,30 @@ class TestStore(base.StoreBaseTest,
         file_contents = b"*" * file_size
         image_file = six.BytesIO(file_contents)
 
-        self.store.add(image_id, image_file, file_size, verifier=verifier)
+        self.store.add(image_id, image_file, file_size, self.hash_algo,
+                       verifier=verifier)
 
         verifier.update.assert_called_with(file_contents)
 
     def test_add_check_metadata_with_invalid_mountpoint_location(self):
         in_metadata = [{'id': 'abcdefg',
                        'mountpoint': '/xyz/images'}]
-        location, size, checksum, metadata = self._store_image(in_metadata)
+        location, size, checksum, multihash, metadata = self._store_image(
+            in_metadata)
         self.assertEqual({}, metadata)
 
     def test_add_check_metadata_list_with_invalid_mountpoint_locations(self):
         in_metadata = [{'id': 'abcdefg', 'mountpoint': '/xyz/images'},
                        {'id': 'xyz1234', 'mountpoint': '/pqr/images'}]
-        location, size, checksum, metadata = self._store_image(in_metadata)
+        location, size, checksum, multihash, metadata = self._store_image(
+            in_metadata)
         self.assertEqual({}, metadata)
 
     def test_add_check_metadata_list_with_valid_mountpoint_locations(self):
         in_metadata = [{'id': 'abcdefg', 'mountpoint': '/tmp'},
                        {'id': 'xyz1234', 'mountpoint': '/xyz'}]
-        location, size, checksum, metadata = self._store_image(in_metadata)
+        location, size, checksum, multihash, metadata = self._store_image(
+            in_metadata)
         self.assertEqual(in_metadata[0], metadata)
 
     def test_add_check_metadata_bad_nosuch_file(self):
@@ -224,9 +228,8 @@ class TestStore(base.StoreBaseTest,
         expected_file_contents = b"*" * expected_file_size
         image_file = six.BytesIO(expected_file_contents)
 
-        location, size, checksum, metadata = self.store.add(expected_image_id,
-                                                            image_file,
-                                                            expected_file_size)
+        location, size, checksum, multihash, metadata = self.store.add(
+            expected_image_id, image_file, expected_file_size, self.hash_algo)
 
         self.assertEqual(metadata, {})
 
@@ -241,13 +244,12 @@ class TestStore(base.StoreBaseTest,
         file_contents = b"*" * file_size
         image_file = six.BytesIO(file_contents)
 
-        location, size, checksum, _ = self.store.add(image_id,
-                                                     image_file,
-                                                     file_size)
+        location, size, checksum, multihash, _ = self.store.add(
+            image_id, image_file, file_size, self.hash_algo)
         image_file = six.BytesIO(b"nevergonnamakeit")
         self.assertRaises(exceptions.Duplicate,
                           self.store.add,
-                          image_id, image_file, 0)
+                          image_id, image_file, 0, self.hash_algo)
 
     def _do_test_add_write_failure(self, errno, exception):
         filesystem.ChunkedFile.CHUNKSIZE = units.Ki
@@ -264,7 +266,7 @@ class TestStore(base.StoreBaseTest,
 
             self.assertRaises(exception,
                               self.store.add,
-                              image_id, image_file, 0)
+                              image_id, image_file, 0, self.hash_algo)
             self.assertFalse(os.path.exists(path))
 
     def test_add_storage_full(self):
@@ -316,7 +318,7 @@ class TestStore(base.StoreBaseTest,
 
             self.assertRaises(AttributeError,
                               self.store.add,
-                              image_id, image_file, 0)
+                              image_id, image_file, 0, self.hash_algo)
             self.assertFalse(os.path.exists(path))
 
     def test_delete(self):
@@ -329,9 +331,8 @@ class TestStore(base.StoreBaseTest,
         file_contents = b"*" * file_size
         image_file = six.BytesIO(file_contents)
 
-        loc, size, checksum, _ = self.store.add(image_id,
-                                                image_file,
-                                                file_size)
+        loc, size, checksum, multihash, _ = self.store.add(
+            image_id, image_file, file_size, self.hash_algo)
 
         # Now check that we can delete it
         uri = "file:///%s/%s" % (self.test_dir, image_id)
@@ -362,9 +363,8 @@ class TestStore(base.StoreBaseTest,
         file_contents = b"*" * file_size
         image_file = six.BytesIO(file_contents)
 
-        loc, size, checksum, _ = self.store.add(image_id,
-                                                image_file,
-                                                file_size)
+        loc, size, checksum, multihash, _ = self.store.add(
+            image_id, image_file, file_size, self.hash_algo)
 
         uri = "file:///%s/%s" % (self.test_dir, image_id)
         loc = location.get_location_from_uri(uri, conf=self.conf)
@@ -523,17 +523,18 @@ class TestStore(base.StoreBaseTest,
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = b"*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store_map[1],
                                               expected_image_id)
         image_file = six.BytesIO(expected_file_contents)
 
-        loc, size, checksum, _ = self.store.add(expected_image_id,
-                                                image_file,
-                                                expected_file_size)
+        loc, size, checksum, multihash, _ = self.store.add(
+            expected_image_id, image_file, expected_file_size, self.hash_algo)
 
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_file_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
 
         loc = location.get_location_from_uri(expected_location,
                                              conf=self.conf)
@@ -569,17 +570,18 @@ class TestStore(base.StoreBaseTest,
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = b"*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store_map[1],
                                               expected_image_id)
         image_file = six.BytesIO(expected_file_contents)
 
-        loc, size, checksum, _ = self.store.add(expected_image_id,
-                                                image_file,
-                                                expected_file_size)
+        loc, size, checksum, multihash, _ = self.store.add(
+            expected_image_id, image_file, expected_file_size, self.hash_algo)
 
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_file_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
 
         loc = location.get_location_from_uri(expected_location,
                                              conf=self.conf)
@@ -623,9 +625,12 @@ class TestStore(base.StoreBaseTest,
             expected_file_contents = b"*" * expected_file_size
             image_file = six.BytesIO(expected_file_contents)
 
-            self.assertRaises(exceptions.StorageFull, self.store.add,
-                              expected_image_id, image_file,
-                              expected_file_size)
+            self.assertRaises(exceptions.StorageFull,
+                              self.store.add,
+                              expected_image_id,
+                              image_file,
+                              expected_file_size,
+                              self.hash_algo)
 
     def test_configure_add_with_file_perm(self):
         """
@@ -675,17 +680,18 @@ class TestStore(base.StoreBaseTest,
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = b"*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store,
                                               expected_image_id)
         image_file = six.BytesIO(expected_file_contents)
 
-        location, size, checksum, _ = self.store.add(expected_image_id,
-                                                     image_file,
-                                                     expected_file_size)
+        location, size, checksum, multihash, _ = self.store.add(
+            expected_image_id, image_file, expected_file_size, self.hash_algo)
 
         self.assertEqual(expected_location, location)
         self.assertEqual(expected_file_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
 
         # -rwx--x--x for store directory
         self.assertEqual(0o711, stat.S_IMODE(os.stat(store)[stat.ST_MODE]))
@@ -716,17 +722,18 @@ class TestStore(base.StoreBaseTest,
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = b"*" * expected_file_size
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store,
                                               expected_image_id)
         image_file = six.BytesIO(expected_file_contents)
 
-        location, size, checksum, _ = self.store.add(expected_image_id,
-                                                     image_file,
-                                                     expected_file_size)
+        location, size, checksum, multihash, _ = self.store.add(
+            expected_image_id, image_file, expected_file_size, self.hash_algo)
 
         self.assertEqual(expected_location, location)
         self.assertEqual(expected_file_size, size)
         self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
 
         # -rwx------ for store directory
         self.assertEqual(0o700, stat.S_IMODE(os.stat(store)[stat.ST_MODE]))

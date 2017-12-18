@@ -61,6 +61,7 @@ class TestCinderStore(base.StoreBaseTest,
                                   user='fake_user',
                                   auth_token='fake_token',
                                   tenant='fake_tenant')
+        self.hash_algo = 'sha256'
 
     def test_get_cinderclient(self):
         cc = cinder.get_cinderclient(self.conf, self.context)
@@ -290,6 +291,7 @@ class TestCinderStore(base.StoreBaseTest,
         expected_file_contents = b"*" * expected_size
         image_file = six.BytesIO(expected_file_contents)
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = 'cinder://%s' % fake_volume.id
         fake_client = FakeObject(auth_token=None, management_url=None)
         fake_volume.manager.get.return_value = fake_volume
@@ -306,14 +308,13 @@ class TestCinderStore(base.StoreBaseTest,
                                   side_effect=fake_open):
             mock_cc.return_value = FakeObject(client=fake_client,
                                               volumes=fake_volumes)
-            loc, size, checksum, _ = self.store.add(expected_image_id,
-                                                    image_file,
-                                                    expected_size,
-                                                    self.context,
-                                                    verifier)
+            loc, size, checksum, multihash, _ = self.store.add(
+                expected_image_id, image_file, expected_size, self.hash_algo,
+                self.context, verifier)
             self.assertEqual(expected_location, loc)
             self.assertEqual(expected_size, size)
             self.assertEqual(expected_checksum, checksum)
+            self.assertEqual(expected_multihash, multihash)
             fake_volumes.create.assert_called_once_with(
                 1,
                 name='image-%s' % expected_image_id,

@@ -2065,22 +2065,28 @@ class TestChunkReader(base.MultiStoreBaseTest):
         repeated creation of the ChunkReader object
         """
         CHUNKSIZE = 100
-        checksum = hashlib.md5()
+        data = b'*' * units.Ki
+        expected_checksum = hashlib.md5(data).hexdigest()
+        expected_multihash = hashlib.sha256(data).hexdigest()
         data_file = tempfile.NamedTemporaryFile()
-        data_file.write(b'*' * units.Ki)
+        data_file.write(data)
         data_file.flush()
         infile = open(data_file.name, 'rb')
         bytes_read = 0
+        checksum = hashlib.md5()
+        os_hash_value = hashlib.sha256()
         while True:
-            cr = swift.ChunkReader(infile, checksum, CHUNKSIZE)
+            cr = swift.ChunkReader(infile, checksum, os_hash_value, CHUNKSIZE)
             chunk = cr.read(CHUNKSIZE)
             if len(chunk) == 0:
                 self.assertEqual(True, cr.is_zero_size)
                 break
             bytes_read += len(chunk)
         self.assertEqual(units.Ki, bytes_read)
-        self.assertEqual('fb10c6486390bec8414be90a93dfff3b',
+        self.assertEqual(expected_checksum,
                          cr.checksum.hexdigest())
+        self.assertEqual(expected_multihash,
+                         cr.os_hash_value.hexdigest())
         data_file.close()
         infile.close()
 
@@ -2089,21 +2095,24 @@ class TestChunkReader(base.MultiStoreBaseTest):
         Replicate what goes on in the Swift driver with the
         repeated creation of the ChunkReader object
         """
+        expected_checksum = hashlib.md5(b'').hexdigest()
+        expected_multihash = hashlib.sha256(b'').hexdigest()
         CHUNKSIZE = 100
         checksum = hashlib.md5()
+        os_hash_value = hashlib.sha256()
         data_file = tempfile.NamedTemporaryFile()
         infile = open(data_file.name, 'rb')
         bytes_read = 0
         while True:
-            cr = swift.ChunkReader(infile, checksum, CHUNKSIZE)
+            cr = swift.ChunkReader(infile, checksum, os_hash_value, CHUNKSIZE)
             chunk = cr.read(CHUNKSIZE)
             if len(chunk) == 0:
                 break
             bytes_read += len(chunk)
         self.assertEqual(True, cr.is_zero_size)
         self.assertEqual(0, bytes_read)
-        self.assertEqual('d41d8cd98f00b204e9800998ecf8427e',
-                         cr.checksum.hexdigest())
+        self.assertEqual(expected_checksum, cr.checksum.hexdigest())
+        self.assertEqual(expected_multihash, cr.os_hash_value.hexdigest())
         data_file.close()
         infile.close()
 
