@@ -102,7 +102,7 @@ class BufferedReader(object):
         self._tmpfile = tempfile.TemporaryFile(dir=buffer_dir)
 
         self._buffered = False
-        self.is_zero_size = True
+        self.is_zero_size = False
         self._buffer()
         # Setting the file pointer back to the beginning of file
         self._tmpfile.seek(0)
@@ -142,7 +142,7 @@ class BufferedReader(object):
             if len(buf) == 0:
                 self._tmpfile.seek(0)
                 self._buffered = True
-                self.is_zero_size = False
+                self.is_zero_size = True
                 break
             self._tmpfile.write(buf)
             to_buffer -= len(buf)
