@@ -31,6 +31,6 @@ but for now using this library outside of Glance or Glare will not be
 supported by the core team.
 
 * License: Apache License, Version 2.0
-* Documentation: http://docs.openstack.org/developer/glance_store
+* Documentation: https://docs.openstack.org/glance_store/latest/
 * Source: http://git.openstack.org/cgit/openstack/glance_store
 * Bugs: http://bugs.launchpad.net/glance-store
