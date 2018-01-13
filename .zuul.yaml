@@ -1,0 +1,52 @@
+- job:
+    name: glance_store-dsvm-functional-base
+    parent: devstack-tox-functional
+    description: |
+      Base job for devstack-based functional tests for glance_store
+
+      Can only be used directly if a 'functional' testenv is defined
+      in tox.ini (which currently is not the case).
+    required-projects:
+      - openstack/glance_store
+    timeout: 4200
+    vars:
+      devstack_localrc:
+        LIBS_FROM_GIT: glance_store
+      devstack_services:
+        # turn off ceilometer
+        ceilometer-acentral: false
+        ceilometer-acompute: false
+        ceilometer-alarm-evaluator: false
+        ceilometer-alarm-notifier: false
+        ceilometer-anotification: false
+        ceilometer-api: false
+        ceilometer-collector: false
+      # Hardcode glance_store path so the job can be run on glance patches
+      zuul_work_dir: src/git.openstack.org/openstack/glance_store
+
+- job:
+    name: glance_store-dsvm-functional-filesystem
+    parent: glance_store-dsvm-functional-base
+    vars:
+      tox_envlist: functional-filesystem
+
+- job:
+    name: glance_store-dsvm-functional-swift
+    parent: glance_store-dsvm-functional-base
+    required-projects:
+      - openstack/swift
+    vars:
+      tox_envlist: functional-swift
+      devstack_services:
+        s-account: true
+        s-container: true
+        s-object: true
+        s-proxy: true
+      devstack_localrc:
+        ENABLE_IDENTITY_V2: True
+
+- project:
+    experimental:
+      jobs:
+        - glance_store-dsvm-functional-filesystem
+        - glance_store-dsvm-functional-swift
