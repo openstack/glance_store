@@ -180,7 +180,7 @@ class StoreLocation(glance_store.location.StoreLocation):
         versions of Python.
         """
         pieces = urllib.parse.urlparse(uri)
-        assert pieces.scheme in ('file', 'filesystem')
+        self.validate_schemas(uri, valid_schemas=('file://', 'filesystem://'))
         self.scheme = pieces.scheme
         path = (pieces.netloc + pieces.path).strip()
         if path == '':

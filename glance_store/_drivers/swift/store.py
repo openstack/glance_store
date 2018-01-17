@@ -685,8 +685,8 @@ class StoreLocation(location.StoreLocation):
             raise exceptions.BadStoreUri(message=reason)
 
         pieces = urllib.parse.urlparse(uri)
-        assert pieces.scheme in ('swift', 'swift+http', 'swift+https',
-                                 'swift+config')
+        self.validate_schemas(uri, valid_schemas=(
+            'swift://', 'swift+http://', 'swift+https://', 'swift+config://'))
 
         self.scheme = pieces.scheme
         netloc = pieces.netloc

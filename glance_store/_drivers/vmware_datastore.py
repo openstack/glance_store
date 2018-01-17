@@ -320,11 +320,7 @@ class StoreLocation(location.StoreLocation):
     #    return path.startswith(os.path.join(DS_URL_PREFIX, sdir))
 
     def parse_uri(self, uri):
-        if not uri.startswith('%s://' % STORE_SCHEME):
-            reason = (_("URI %(uri)s must start with %(scheme)s://") %
-                      {'uri': uri, 'scheme': STORE_SCHEME})
-            LOG.info(reason)
-            raise exceptions.BadStoreUri(message=reason)
+        self.validate_schemas(uri, valid_schemas=('%s://' % STORE_SCHEME,))
         (self.scheme, self.server_host,
          path, params, query, fragment) = urllib.parse.urlparse(uri)
         if not query:

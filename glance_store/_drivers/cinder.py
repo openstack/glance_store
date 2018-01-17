@@ -379,10 +379,7 @@ class StoreLocation(glance_store.location.StoreLocation):
         return "cinder://%s" % self.volume_id
 
     def parse_uri(self, uri):
-        if not uri.startswith('cinder://'):
-            reason = _("URI must start with 'cinder://'")
-            LOG.info(reason)
-            raise exceptions.BadStoreUri(message=reason)
+        self.validate_schemas(uri, valid_schemas=('cinder://',))
 
         self.scheme = 'cinder'
         self.volume_id = uri[9:]

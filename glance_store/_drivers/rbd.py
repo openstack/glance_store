@@ -182,12 +182,7 @@ class StoreLocation(location.StoreLocation):
 
     def parse_uri(self, uri):
         prefix = 'rbd://'
-        if not uri.startswith(prefix):
-            reason = _('URI must start with rbd://')
-            msg = _LI("Invalid URI: %s") % reason
-
-            LOG.info(msg)
-            raise exceptions.BadStoreUri(message=reason)
+        self.validate_schemas(uri, valid_schemas=(prefix,))
         # convert to ascii since librbd doesn't handle unicode
         try:
             ascii_uri = str(uri)

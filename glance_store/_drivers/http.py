@@ -125,7 +125,7 @@ class StoreLocation(glance_store.location.StoreLocation):
         versions of Python.
         """
         pieces = urllib.parse.urlparse(uri)
-        assert pieces.scheme in ('https', 'http')
+        self.validate_schemas(uri, valid_schemas=('https://', 'http://'))
         self.scheme = pieces.scheme
         netloc = pieces.netloc
         path = pieces.path
