@@ -1,0 +1,52 @@
+---
+prelude: >
+  This was a quiet development cycle for the ``glance_store`` library.
+  One new feature was added to the Swift store driver.  Several bugs
+  were fixed and some code changes were committed to increase stability.
+features:
+  - |
+    A `BufferedReader`_ has been added to the Swift store driver in
+    order to enable better recovery from errors during uploads of large
+    image files.  Because this reader buffers image data, it could
+    cause Glance to use a much larger amount of disk space, and so the
+    Buffered Reader is *not* enabled by default.
+
+    To use the new reader with the Swift store, you must do the following:
+
+    * Set the ``glance_store`` configuration option ``swift_buffer_on_upload``
+      to ``True``
+
+    * Set the ``glance_store`` configuration option ``swift_upload_buffer_dir``
+      to a string value representing an absolute directory path.  This
+      directory will be used to hold the buffered data.
+
+    The Buffered Reader works by taking advantage of the way Swift stores
+    large objects by segmenting them into discrete chunks.  Thus, the amount
+    of disk space a Glance API node will require for buffering is a function
+    of the ``swift_store_large_object_chunk_size`` setting and the number of
+    worker threads (configured in **glance-api.conf** as the value of
+    ``workers``).  Disk utilization will cap at the following value
+
+    swift_store_large_object_chunk_size * workers * 1000
+
+    Be aware that depending upon how the file system is configured, the disk
+    space used for buffering may decrease the actual disk space available for
+    the Glance image cache, which may affect overall performance.
+
+    For more information, see the `Buffered Reader for Swift Driver`_ spec.
+
+    .. _BufferedReader: http://git.openstack.org/cgit/openstack/glance_store/commit/?id=2e0024c85ca2ddf380014e44213be4fb876f680e
+    .. _Buffered Reader for Swift Driver: http://specs.openstack.org/openstack/glance-specs/specs/mitaka/approved/buffered-reader-for-swift-driver.html
+fixes:
+  - |
+    * Bug 1738331_: Fix BufferedReader writing zero size chunks
+    * Bug 1733502_: Use cached auth_ref instead of getting a new one each time
+
+    .. _1738331: https://code.launchpad.net/bugs/1738331
+    .. _1733502: https://code.launchpad.net/bugs/1733502
+upgrade:
+  - |
+    Two new configuration options, ``swift_buffer_on_upload`` and
+    ``swift_upload_buffer_dir`` have been introduced.  These apply only to
+    users of the Swift store and their use is optional.  See the New Features
+    section for more information.
