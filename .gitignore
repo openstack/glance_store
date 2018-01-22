@@ -8,6 +8,7 @@ TAGS
 build
 .coverage
 .tox
+.stestr
 cover
 venv
 .venv
