@@ -18,6 +18,8 @@ import logging
 import random
 import time
 
+from keystoneauth1.identity import v3
+from keystoneauth1 import session
 from oslo_config import cfg
 import swiftclient
 
@@ -33,27 +35,20 @@ class TestSwift(base.BaseFunctionalTests):
     def __init__(self, *args, **kwargs):
         super(TestSwift, self).__init__('swift', *args, **kwargs)
 
-        self.auth = self.config.get('admin', 'auth_address')
-        user = self.config.get('admin', 'user')
-        self.key = self.config.get('admin', 'key')
-        self.region = self.config.get('admin', 'region')
-
-        self.tenant, self.username = user.split(':')
-
         CONF.set_override('swift_store_user',
-                          user,
+                          '{1}:{0}'.format(self.username, self.project_name),
                           group='glance_store')
         CONF.set_override('swift_store_auth_address',
-                          self.auth,
+                          self.auth_url,
+                          group='glance_store')
+        CONF.set_override('swift_store_auth_version',
+                          self.keystone_version,
                           group='glance_store')
         CONF.set_override('swift_store_key',
-                          self.key,
-                          group='glance_store')
-        CONF.set_override('swift_store_create_container_on_put',
-                          True,
+                          self.password,
                           group='glance_store')
         CONF.set_override('swift_store_region',
-                          self.region,
+                          self.region_name,
                           group='glance_store')
         CONF.set_override('swift_store_create_container_on_put',
                           True,
@@ -70,14 +65,18 @@ class TestSwift(base.BaseFunctionalTests):
         super(TestSwift, self).setUp()
 
     def tearDown(self):
+        auth = v3.Password(auth_url=self.auth_url,
+                           username=self.username,
+                           password=self.password,
+                           project_name=self.project_name,
+                           user_domain_id=self.user_domain_id,
+                           project_domain_id=self.project_domain_id)
+        sess = session.Session(auth=auth)
+        swift = swiftclient.client.Connection(session=sess)
+
         for x in range(1, 4):
             time.sleep(x)
             try:
-                swift = swiftclient.client.Connection(auth_version='2',
-                                                      user=self.username,
-                                                      key=self.key,
-                                                      tenant_name=self.tenant,
-                                                      authurl=self.auth)
                 _, objects = swift.get_container(self.container)
                 for obj in objects:
                     swift.delete_object(self.container, obj.get('name'))

@@ -13,13 +13,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-try:
-    import configparser as ConfigParser
-except ImportError:
-    from six.moves import configparser as ConfigParser
 from io import BytesIO
+from os import environ
 
 import glance_store
+import os_client_config
 from oslo_config import cfg
 import testtools
 
@@ -37,17 +35,32 @@ class Base(testtools.TestCase):
     def __init__(self, driver_name, *args, **kwargs):
         super(Base, self).__init__(*args, **kwargs)
         self.driver_name = driver_name
-        self.config = ConfigParser.RawConfigParser()
-        self.config.read('functional_testing.conf')
 
+        # check whether a particular cloud should be used
+        cloud = environ.get('OS_TEST_GLANCE_STORE_FUNC_TEST_CLOUD',
+                            'devstack-admin')
+        creds = os_client_config.OpenStackConfig().get_one_cloud(
+            cloud=cloud)
+        auth = creds.get_auth_args()
+        self.username = auth["username"]
+        self.password = auth["password"]
+        self.project_name = auth["project_name"]
+        self.user_domain_id = auth["user_domain_id"]
+        self.project_domain_id = auth["project_domain_id"]
+        self.keystone_version = creds.get_api_version('identity')
+        self.cinder_version = creds.get_api_version('volume')
+        self.region_name = creds.get_region_name()
+        # auth_url in devstack clouds.yaml is unversioned
+        if auth["auth_url"].endswith('/v3'):
+            self.auth_url = auth["auth_url"]
+        else:
+            self.auth_url = '{}/v3'.format(auth["auth_url"])
+
+        # finally, load the configuration options
         glance_store.register_opts(CONF)
 
     def setUp(self):
         super(Base, self).setUp()
-
-        stores = self.config.get('tests', 'stores').split(',')
-        if self.driver_name not in stores:
-            self.skipTest('Not running %s store tests' % self.driver_name)
 
         CONF.set_override('stores', [self.driver_name], group='glance_store')
         CONF.set_override('default_store',
