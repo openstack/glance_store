@@ -228,7 +228,7 @@ Swift has an upper limit on the size of a single uploaded object. By default,
 this is 5GB. To upload objects bigger than this limit, objects are segmented
 into multiple smaller objects that are tied together with a manifest file.
 For more detail, refer to
-http://docs.openstack.org/developer/swift/overview_large_objects.html
+https://docs.openstack.org/swift/latest/overview_large_objects.html
 
 This configuration option specifies the size threshold over which the Swift
 driver will start segmenting image data into multiple smaller files.

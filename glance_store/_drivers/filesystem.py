@@ -88,7 +88,7 @@ defaults to zero.
 
 More information on configuring filesystem store with multiple store
 directories can be found at
-http://docs.openstack.org/developer/glance/configuring.html
+https://docs.openstack.org/glance/latest/configuration/configuring.html
 
 NOTE: This directory is used only when filesystem store is used as a
 storage backend. Either ``filesystem_store_datadir`` or
@@ -138,7 +138,7 @@ to the  default permissions. This value will be decoded as an octal
 digit.
 
 For more information, please refer the documentation at
-http://docs.openstack.org/developer/glance/configuring.html
+https://docs.openstack.org/glance/latest/configuration/configuring.html
 
 Possible values:
     * A valid file access permission
