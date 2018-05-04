@@ -113,7 +113,7 @@ specs/kilo/store-capabilities.html
 For more information on setting up a particular store in your
 deployment and help with the usage of this feature, please contact
 the storage driver maintainers listed here:
-http://docs.openstack.org/developer/glance_store/drivers/index.html
+https://docs.openstack.org/glance_store/latest/user/drivers.html
 
 Possible values:
     * Zero
