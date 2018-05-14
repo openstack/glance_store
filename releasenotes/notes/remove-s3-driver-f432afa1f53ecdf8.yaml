@@ -9,7 +9,7 @@ upgrade:
     We recommend you use a different storage backend that
     is still being supported by Glance. The standard
     deprecation path has been used to remove this. The
-    proces requiring store driver maintainers was initiated
+    process requiring store driver maintainers was initiated
     at http://lists.openstack.org/pipermail/openstack-dev/2015-December/081966.html .
     Since, S3 driver did not get any maintainer, it was
     decided to remove it.
