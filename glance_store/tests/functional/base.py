@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from io import BytesIO
+import io
 from os import environ
 
 import glance_store
@@ -75,19 +75,19 @@ class Base(testtools.TestCase):
 class BaseFunctionalTests(Base):
 
     def test_add(self):
-        image_file = BytesIO(IMAGE_BITS)
+        image_file = io.BytesIO(IMAGE_BITS)
         loc, written, _, _ = self.store.add(UUID1, image_file, len(IMAGE_BITS))
         self.assertEqual(len(IMAGE_BITS), written)
 
     def test_delete(self):
-        image_file = BytesIO(IMAGE_BITS)
+        image_file = io.BytesIO(IMAGE_BITS)
         loc, written, _, _ = self.store.add(UUID2, image_file, len(IMAGE_BITS))
         location = glance_store.location.get_location_from_uri(loc)
 
         self.store.delete(location)
 
     def test_get_size(self):
-        image_file = BytesIO(IMAGE_BITS)
+        image_file = io.BytesIO(IMAGE_BITS)
         loc, written, _, _ = self.store.add(UUID3, image_file, len(IMAGE_BITS))
         location = glance_store.location.get_location_from_uri(loc)
 
@@ -95,7 +95,7 @@ class BaseFunctionalTests(Base):
         self.assertEqual(len(IMAGE_BITS), size)
 
     def test_get(self):
-        image_file = BytesIO(IMAGE_BITS)
+        image_file = io.BytesIO(IMAGE_BITS)
         loc, written, _, _ = self.store.add(UUID3, image_file, len(IMAGE_BITS))
         location = glance_store.location.get_location_from_uri(loc)
 
