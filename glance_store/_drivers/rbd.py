@@ -353,7 +353,7 @@ class Store(driver.Store):
 
         :param image_name: Image's name
 
-        :retval: `glance_store.rbd.StoreLocation` object
+        :returns: `glance_store.rbd.StoreLocation` object
         """
         librbd = rbd.RBD()
         features = conn.conf_get('rbd_default_features')
@@ -443,7 +443,7 @@ class Store(driver.Store):
         :param image_size: The size of the image data to write, in bytes
         :param verifier: An object used to verify signatures for images
 
-        :retval: tuple of URL in backing store, bytes written, checksum
+        :returns: tuple of URL in backing store, bytes written, checksum
                 and a dictionary with storage system specific information
         :raises: `glance_store.exceptions.Duplicate` if the image already
                 existed

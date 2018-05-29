@@ -349,7 +349,7 @@ class Store(glance_store.driver.Store):
         :param image_size: The size of the image data to write, in bytes
         :param verifier: An object used to verify signatures for images
 
-        :retval: tuple of URL in backing store, bytes written, and checksum
+        :returns: tuple of URL in backing store, bytes written, and checksum
         :raises: `glance_store.exceptions.Duplicate` if the image already
                 existed
         """

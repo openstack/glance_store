@@ -136,7 +136,7 @@ class Store(capabilities.StoreCapability):
         :param image_file: The image data to write, as a file-like object
         :param image_size: The size of the image data to write, in bytes
 
-        :retval: tuple of URL in backing store, bytes written, checksum
+        :returns: tuple of URL in backing store, bytes written, checksum
                and a dictionary with storage system specific information
         :raises: `glance_store.exceptions.Duplicate` if the image already
                 existed
