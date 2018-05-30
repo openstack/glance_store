@@ -45,14 +45,126 @@
       devstack_localrc:
         ENABLE_IDENTITY_V2: True
 
+- job:
+    name: glance_store-tox-cinder-tips-base
+    parent: tox
+    description: Abstract job for glance_store vs. cinder
+    required-projects:
+      - name: openstack/os-brick
+      - name: openstack/python-cinderclient
+
+- job:
+    name: glance_store-tox-py27-cinder-tips
+    parent: glance_store-tox-cinder-tips-base
+    description: |
+      glance_store py27 unit tests vs. cinder masters
+    vars:
+      tox_envlist: py27
+
+- job:
+    name: glance_store-tox-py35-cinder-tips
+    parent: glance_store-tox-cinder-tips-base
+    description: |
+      glance_store py35 unit tests vs. cinder masters
+    vars:
+      tox_envlist: py35
+
+- job:
+    name: glance_store-tox-keystone-tips-base
+    parent: tox
+    description: Abstract job for glance_store vs. keystone
+    required-projects:
+      - name: openstack/keystoneauth
+      - name: openstack/python-keystoneclient
+
+- job:
+    name: glance_store-tox-py27-keystone-tips
+    parent: glance_store-tox-keystone-tips-base
+    description: |
+      glance_store py27 unit tests vs. keystone masters
+    vars:
+      tox_envlist: py27
+
+- job:
+    name: glance_store-tox-py35-keystone-tips
+    parent: glance_store-tox-keystone-tips-base
+    description: |
+      glance_store py35 unit tests vs. keystone masters
+    vars:
+      tox_envlist: py35
+
+- job:
+    name: glance_store-tox-oslo-tips-base
+    parent: tox
+    description: Abstract job for glance_store vs. oslo
+    required-projects:
+      - name: openstack/oslo.concurrency
+      - name: openstack/oslo.config
+      - name: openstack/oslo.i18n
+      - name: openstack/oslo.privsep
+      - name: openstack/oslo.rootwrap
+      - name: openstack/oslo.serialization
+      - name: openstack/oslo.utils
+      - name: openstack/oslo.vmware
+      - name: openstack/stevedore
+
+- job:
+    name: glance_store-tox-py27-oslo-tips
+    parent: glance_store-tox-oslo-tips-base
+    description: |
+      glance_store py27 unit tests vs. oslo masters
+    vars:
+      tox_envlist: py27
+
+- job:
+    name: glance_store-tox-py35-oslo-tips
+    parent: glance_store-tox-oslo-tips-base
+    description: |
+      glance_store py35 unit tests vs. oslo masters
+    vars:
+      tox_envlist: py35
+
+- job:
+    name: glance_store-tox-swift-tips-base
+    parent: tox
+    description: Abstract job for glance_store vs. swift
+    required-projects:
+      - name: openstack/python-swiftclient
+
+- job:
+    name: glance_store-tox-py27-swift-tips
+    parent: glance_store-tox-swift-tips-base
+    description: |
+      glance_store py27 unit tests vs. swift masters
+    vars:
+      tox_envlist: py27
+
+- job:
+    name: glance_store-tox-py35-swift-tips
+    parent: glance_store-tox-swift-tips-base
+    description: |
+      glance_store py35 unit tests vs. swift masters
+    vars:
+      tox_envlist: py35
+
 - project:
-    experimental:
-      jobs:
-        - glance_store-dsvm-functional-filesystem
-        - glance_store-dsvm-functional-swift
     check:
       jobs:
         - openstack-tox-lower-constraints
     gate:
       jobs:
         - openstack-tox-lower-constraints
+    experimental:
+      jobs:
+        - glance_store-dsvm-functional-filesystem
+        - glance_store-dsvm-functional-swift
+    periodic:
+      jobs:
+        - glance_store-tox-py27-cinder-tips
+        - glance_store-tox-py35-cinder-tips
+        - glance_store-tox-py27-keystone-tips
+        - glance_store-tox-py35-keystone-tips
+        - glance_store-tox-py27-oslo-tips
+        - glance_store-tox-py35-oslo-tips
+        - glance_store-tox-py27-swift-tips
+        - glance_store-tox-py35-swift-tips
