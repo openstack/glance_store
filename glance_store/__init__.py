@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from .multi_backend import *  # noqa
 from .backend import *  # noqa
 from .driver import *  # noqa
 from .exceptions import *  # noqa

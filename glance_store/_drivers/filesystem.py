@@ -273,13 +273,18 @@ class Store(glance_store.driver.Store):
         :datadir is a directory path in which glance writes image files.
         """
 
-        if self.conf.glance_store.filesystem_store_file_perm <= 0:
+        if self.backend_group:
+            fstore_perm = getattr(
+                self.conf, self.backend_group).filesystem_store_file_perm
+        else:
+            fstore_perm = self.conf.glance_store.filesystem_store_file_perm
+
+        if fstore_perm <= 0:
             return
 
         try:
             mode = os.stat(datadir)[stat.ST_MODE]
-            perm = int(str(self.conf.glance_store.filesystem_store_file_perm),
-                       8)
+            perm = int(str(fstore_perm), 8)
             if perm & stat.S_IRWXO > 0:
                 if not mode & stat.S_IXOTH:
                     # chmod o+x
@@ -378,26 +383,37 @@ class Store(glance_store.driver.Store):
         this method. If the store was not able to successfully configure
         itself, it should raise `exceptions.BadStoreConfiguration`
         """
-        if not (self.conf.glance_store.filesystem_store_datadir or
-                self.conf.glance_store.filesystem_store_datadirs):
+        if self.backend_group:
+            fdir = getattr(
+                self.conf, self.backend_group).filesystem_store_datadir
+            fdirs = getattr(
+                self.conf, self.backend_group).filesystem_store_datadirs
+            fstore_perm = getattr(
+                self.conf, self.backend_group).filesystem_store_file_perm
+            meta_file = getattr(
+                self.conf, self.backend_group).filesystem_store_metadata_file
+        else:
+            fdir = self.conf.glance_store.filesystem_store_datadir
+            fdirs = self.conf.glance_store.filesystem_store_datadirs
+            fstore_perm = self.conf.glance_store.filesystem_store_file_perm
+            meta_file = self.conf.glance_store.filesystem_store_metadata_file
+
+        if not (fdir or fdirs):
             reason = (_("Specify at least 'filesystem_store_datadir' or "
                         "'filesystem_store_datadirs' option"))
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="filesystem",
                                                    reason=reason)
 
-        if (self.conf.glance_store.filesystem_store_datadir and
-                self.conf.glance_store.filesystem_store_datadirs):
-
+        if fdir and fdirs:
             reason = (_("Specify either 'filesystem_store_datadir' or "
                         "'filesystem_store_datadirs' option"))
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="filesystem",
                                                    reason=reason)
 
-        if self.conf.glance_store.filesystem_store_file_perm > 0:
-            perm = int(str(self.conf.glance_store.filesystem_store_file_perm),
-                       8)
+        if fstore_perm > 0:
+            perm = int(str(fstore_perm), 8)
             if not perm & stat.S_IRUSR:
                 reason = _LE("Specified an invalid "
                              "'filesystem_store_file_perm' option which "
@@ -410,13 +426,13 @@ class Store(glance_store.driver.Store):
 
         self.multiple_datadirs = False
         directory_paths = set()
-        if self.conf.glance_store.filesystem_store_datadir:
-            self.datadir = self.conf.glance_store.filesystem_store_datadir
+        if fdir:
+            self.datadir = fdir
             directory_paths.add(self.datadir)
         else:
             self.multiple_datadirs = True
             self.priority_data_map = {}
-            for datadir in self.conf.glance_store.filesystem_store_datadirs:
+            for datadir in fdirs:
                 (datadir_path,
                  priority) = self._get_datadir_path_and_priority(datadir)
                 priority_paths = self.priority_data_map.setdefault(
@@ -431,9 +447,8 @@ class Store(glance_store.driver.Store):
 
         self._create_image_directories(directory_paths)
 
-        metadata_file = self.conf.glance_store.filesystem_store_metadata_file
-        if metadata_file:
-            self._validate_metadata(metadata_file)
+        if meta_file:
+            self._validate_metadata(meta_file)
 
     def _check_directory_paths(self, datadir_path, directory_paths,
                                priority_paths):
@@ -705,14 +720,23 @@ class Store(glance_store.driver.Store):
                    'filepath': filepath,
                    'checksum_hex': checksum_hex})
 
-        if self.conf.glance_store.filesystem_store_file_perm > 0:
-            perm = int(str(self.conf.glance_store.filesystem_store_file_perm),
-                       8)
+        if self.backend_group:
+            fstore_perm = getattr(
+                self.conf, self.backend_group).filesystem_store_file_perm
+        else:
+            fstore_perm = self.conf.glance_store.filesystem_store_file_perm
+
+        if fstore_perm > 0:
+            perm = int(str(fstore_perm), 8)
             try:
                 os.chmod(filepath, perm)
             except (IOError, OSError):
                 LOG.warning(_LW("Unable to set permission to image: %s") %
                             filepath)
+
+        # Add store backend information to location metadata
+        if self.backend_group:
+            metadata['backend'] = u"%s" % self.backend_group
 
         return ('file://%s' % filepath, bytes_written, checksum_hex, metadata)
 

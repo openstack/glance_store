@@ -281,17 +281,32 @@ class Store(driver.Store):
         itself, it should raise `exceptions.BadStoreConfiguration`
         """
         try:
-            chunk = self.conf.glance_store.rbd_store_chunk_size
+            if self.backend_group:
+                chunk = getattr(self.conf,
+                                self.backend_group).rbd_store_chunk_size
+                pool = getattr(self.conf, self.backend_group).rbd_store_pool
+                user = getattr(self.conf, self.backend_group).rbd_store_user
+                conf_file = getattr(self.conf,
+                                    self.backend_group).rbd_store_ceph_conf
+                connect_timeout = getattr(
+                    self.conf, self.backend_group).rados_connect_timeout
+            else:
+                chunk = self.conf.glance_store.rbd_store_chunk_size
+                pool = self.conf.glance_store.rbd_store_pool
+                user = self.conf.glance_store.rbd_store_user
+                conf_file = self.conf.glance_store.rbd_store_ceph_conf
+                connect_timeout = self.conf.glance_store.rados_connect_timeout
+
             self.chunk_size = chunk * units.Mi
             self.READ_CHUNKSIZE = self.chunk_size
             self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
 
             # these must not be unicode since they will be passed to a
             # non-unicode-aware C library
-            self.pool = str(self.conf.glance_store.rbd_store_pool)
-            self.user = str(self.conf.glance_store.rbd_store_user)
-            self.conf_file = str(self.conf.glance_store.rbd_store_ceph_conf)
-            self.connect_timeout = self.conf.glance_store.rados_connect_timeout
+            self.pool = str(pool)
+            self.user = str(user)
+            self.conf_file = str(conf_file)
+            self.connect_timeout = connect_timeout
         except cfg.ConfigFileValueError as e:
             reason = _("Error in store configuration: %s") % e
             LOG.error(reason)
@@ -514,7 +529,12 @@ class Store(driver.Store):
         if image_size == 0:
             image_size = bytes_written
 
-        return (loc.get_uri(), image_size, checksum.hexdigest(), {})
+        # Add store backend information to location metadata
+        metadata = {}
+        if self.backend_group:
+            metadata['backend'] = u"%s" % self.backend_group
+
+        return (loc.get_uri(), image_size, checksum.hexdigest(), metadata)
 
     @capabilities.check
     def delete(self, location, context=None):
