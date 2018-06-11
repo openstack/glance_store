@@ -230,9 +230,14 @@ class StoreLocation(glance_store.location.StoreLocation):
             self.addr = pieces[0]
         # This is used for backwards compatibility.
         else:
+            if self.backend_group:
+                store_conf = getattr(self.conf, self.backend_group)
+            else:
+                store_conf = self.conf.glance_store
+
             self.image = pieces[0]
-            self.port = self.conf.glance_store.sheepdog_store_port
-            self.addr = self.conf.glance_store.sheepdog_store_address
+            self.port = store_conf.sheepdog_store_port
+            self.addr = store_conf.sheepdog_store_address
 
 
 class ImageIterator(object):
@@ -272,15 +277,19 @@ class Store(glance_store.driver.Store):
         this method. If the store was not able to successfully configure
         itself, it should raise `exceptions.BadStoreConfiguration`
         """
+        if self.backend_group:
+            store_conf = getattr(self.conf, self.backend_group)
+        else:
+            store_conf = self.conf.glance_store
 
         try:
-            chunk_size = self.conf.glance_store.sheepdog_store_chunk_size
+            chunk_size = store_conf.sheepdog_store_chunk_size
             self.chunk_size = chunk_size * units.Mi
             self.READ_CHUNKSIZE = self.chunk_size
             self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
 
-            self.addr = self.conf.glance_store.sheepdog_store_address
-            self.port = self.conf.glance_store.sheepdog_store_port
+            self.addr = store_conf.sheepdog_store_address
+            self.port = store_conf.sheepdog_store_port
         except cfg.ConfigFileValueError as e:
             reason = _("Error in store configuration: %s") % e
             LOG.error(reason)
@@ -362,7 +371,7 @@ class Store(glance_store.driver.Store):
             'image': image_id,
             'addr': self.addr,
             'port': self.port
-        }, self.conf)
+        }, self.conf, backend_group=self.backend_group)
 
         image.create(image_size)
 
@@ -389,7 +398,11 @@ class Store(glance_store.driver.Store):
             with excutils.save_and_reraise_exception():
                 image.delete()
 
-        return (location.get_uri(), offset, checksum.hexdigest(), {})
+        metadata = {}
+        if self.backend_group:
+            metadata['backend'] = u"%s" % self.backend_group
+
+        return (location.get_uri(), offset, checksum.hexdigest(), metadata)
 
     @capabilities.check
     def delete(self, location, context=None):

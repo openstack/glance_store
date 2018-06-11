@@ -108,7 +108,7 @@ def get_location_from_uri_and_backend(uri, backend, conf=CONF):
         raise exceptions.UnknownScheme(scheme=backend)
 
     return Location(pieces.scheme, scheme_info['location_class'],
-                    conf, uri=uri)
+                    conf, uri=uri, backend=backend)
 
 
 def register_scheme_backend_map(scheme_map):
@@ -148,7 +148,7 @@ class Location(object):
     """
 
     def __init__(self, store_name, store_location_class, conf,
-                 uri=None, image_id=None, store_specs=None):
+                 uri=None, image_id=None, store_specs=None, backend=None):
         """
         Create a new Location object.
 
@@ -161,12 +161,15 @@ class Location(object):
         :param store_specs: Dictionary of information about the location
                             of the image that is dependent on the backend
                             store
+        :param backend: Name of store backend
         """
         self.store_name = store_name
         self.image_id = image_id
         self.store_specs = store_specs or {}
         self.conf = conf
-        self.store_location = store_location_class(self.store_specs, conf)
+        self.backend_group = backend
+        self.store_location = store_location_class(
+            self.store_specs, conf, backend_group=backend)
         if uri:
             self.store_location.parse_uri(uri)
 
@@ -187,9 +190,10 @@ class StoreLocation(object):
     Base class that must be implemented by each store
     """
 
-    def __init__(self, store_specs, conf):
+    def __init__(self, store_specs, conf, backend_group=None):
         self.conf = conf
         self.specs = store_specs
+        self.backend_group = backend_group
         if self.specs:
             self.process_specs()
 
