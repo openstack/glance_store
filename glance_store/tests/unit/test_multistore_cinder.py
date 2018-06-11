@@ -1,4 +1,4 @@
-# Copyright 2013 OpenStack Foundation
+# Copyright 2018-2019 RedHat Inc.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -24,16 +24,18 @@ import tempfile
 import time
 import uuid
 
-from cinderclient.v2 import client as cinderclient
+import fixtures
 from os_brick.initiator import connector
 from oslo_concurrency import processutils
+from oslo_config import cfg
 from oslo_utils import units
 
+import glance_store as store
 from glance_store._drivers import cinder
 from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
-from glance_store.tests.unit import test_store_capabilities
+from glance_store.tests.unit import test_store_capabilities as test_cap
 
 
 class FakeObject(object):
@@ -42,14 +44,39 @@ class FakeObject(object):
             setattr(self, name, value)
 
 
-class TestCinderStore(base.StoreBaseTest,
-                      test_store_capabilities.TestStoreCapabilitiesChecking):
+class TestMultiCinderStore(base.MultiStoreBaseTest,
+                           test_cap.TestStoreCapabilitiesChecking):
+
+    # NOTE(flaper87): temporary until we
+    # can move to a fully-local lib.
+    # (Swift store's fault)
+    _CONF = cfg.ConfigOpts()
 
     def setUp(self):
-        super(TestCinderStore, self).setUp()
-        self.store = cinder.Store(self.conf)
+        super(TestMultiCinderStore, self).setUp()
+        enabled_backends = {
+            "cinder1": "cinder",
+            "cinder2": "cinder"
+        }
+        self.conf = self._CONF
+        self.conf(args=[])
+        self.conf.register_opt(cfg.DictOpt('enabled_backends'))
+        self.config(enabled_backends=enabled_backends)
+        store.register_store_opts(self.conf)
+        self.config(default_backend='cinder1', group='glance_store')
+
+        # Ensure stores + locations cleared
+        location.SCHEME_TO_CLS_BACKEND_MAP = {}
+
+        store.create_multi_stores(self.conf)
+        self.addCleanup(setattr, location, 'SCHEME_TO_CLS_BACKEND_MAP',
+                        dict())
+        self.test_dir = self.useFixture(fixtures.TempDir()).path
+        self.addCleanup(self.conf.reset)
+
+        self.store = cinder.Store(self.conf, backend="cinder1")
         self.store.configure()
-        self.register_store_schemes(self.store, 'cinder')
+        self.register_store_backend_schemes(self.store, 'cinder', 'cinder1')
         self.store.READ_CHUNKSIZE = 4096
         self.store.WRITE_CHUNKSIZE = 4096
 
@@ -63,29 +90,20 @@ class TestCinderStore(base.StoreBaseTest,
                                   tenant='fake_tenant')
 
     def test_get_cinderclient(self):
-        cc = cinder.get_cinderclient(self.conf, self.context)
+        cc = cinder.get_cinderclient(self.conf, self.context,
+                                     backend="cinder1")
         self.assertEqual('fake_token', cc.client.auth_token)
         self.assertEqual('http://foo/public_url', cc.client.management_url)
 
     def test_get_cinderclient_with_user_overriden(self):
-        self.config(cinder_store_user_name='test_user')
-        self.config(cinder_store_password='test_password')
-        self.config(cinder_store_project_name='test_project')
-        self.config(cinder_store_auth_address='test_address')
-        cc = cinder.get_cinderclient(self.conf, self.context)
+        self.config(cinder_store_user_name='test_user', group="cinder1")
+        self.config(cinder_store_password='test_password', group="cinder1")
+        self.config(cinder_store_project_name='test_project', group="cinder1")
+        self.config(cinder_store_auth_address='test_address', group="cinder1")
+        cc = cinder.get_cinderclient(self.conf, self.context,
+                                     backend="cinder1")
         self.assertIsNone(cc.client.auth_token)
         self.assertEqual('test_address', cc.client.management_url)
-
-    def test_get_cinderclient_with_user_overriden_and_region(self):
-        self.config(cinder_os_region_name='test_region')
-        fake_client = FakeObject(client=FakeObject(auth_token=None))
-        with mock.patch.object(cinderclient, 'Client',
-                               return_value=fake_client) as mock_client:
-            self.test_get_cinderclient_with_user_overriden()
-            mock_client.assert_called_once_with(
-                'test_user', 'test_password', 'test_project',
-                auth_url='test_address', cacert=None, insecure=False,
-                region_name='test_region', retries=3)
 
     def test_temporary_chown(self):
         class fake_stat(object):
@@ -237,7 +255,9 @@ class TestCinderStore(base.StoreBaseTest,
             mock_cc.return_value = FakeObject(client=fake_client,
                                               volumes=fake_volumes)
             uri = "cinder://%s" % fake_volume_uuid
-            loc = location.get_location_from_uri(uri, conf=self.conf)
+            loc = location.get_location_from_uri_and_backend(uri,
+                                                             "cinder1",
+                                                             conf=self.conf)
             (image_file, image_size) = self.store.get(loc,
                                                       context=self.context)
 
@@ -262,7 +282,9 @@ class TestCinderStore(base.StoreBaseTest,
                                                 volumes=fake_volumes)
 
             uri = 'cinder://%s' % fake_volume_uuid
-            loc = location.get_location_from_uri(uri, conf=self.conf)
+            loc = location.get_location_from_uri_and_backend(uri,
+                                                             "cinder1",
+                                                             conf=self.conf)
             image_size = self.store.get_size(loc, context=self.context)
             self.assertEqual(fake_volume.size * units.Gi, image_size)
 
@@ -279,12 +301,14 @@ class TestCinderStore(base.StoreBaseTest,
                                                 volumes=fake_volumes)
 
             uri = 'cinder://%s' % fake_volume_uuid
-            loc = location.get_location_from_uri(uri, conf=self.conf)
+            loc = location.get_location_from_uri_and_backend(uri,
+                                                             "cinder1",
+                                                             conf=self.conf)
             image_size = self.store.get_size(loc, context=self.context)
             self.assertEqual(expected_image_size, image_size)
 
     def _test_cinder_add(self, fake_volume, volume_file, size_kb=5,
-                         verifier=None):
+                         verifier=None, backend="cinder1"):
         expected_image_id = str(uuid.uuid4())
         expected_size = size_kb * units.Ki
         expected_file_contents = b"*" * expected_size
@@ -294,7 +318,7 @@ class TestCinderStore(base.StoreBaseTest,
         fake_client = FakeObject(auth_token=None, management_url=None)
         fake_volume.manager.get.return_value = fake_volume
         fake_volumes = FakeObject(create=mock.Mock(return_value=fake_volume))
-        self.config(cinder_volume_type='some_type')
+        self.config(cinder_volume_type='some_type', group=backend)
 
         @contextlib.contextmanager
         def fake_open(client, volume, mode):
@@ -306,11 +330,11 @@ class TestCinderStore(base.StoreBaseTest,
                                   side_effect=fake_open):
             mock_cc.return_value = FakeObject(client=fake_client,
                                               volumes=fake_volumes)
-            loc, size, checksum, _ = self.store.add(expected_image_id,
-                                                    image_file,
-                                                    expected_size,
-                                                    self.context,
-                                                    verifier)
+            loc, size, checksum, metadata = self.store.add(expected_image_id,
+                                                           image_file,
+                                                           expected_size,
+                                                           self.context,
+                                                           verifier)
             self.assertEqual(expected_location, loc)
             self.assertEqual(expected_size, size)
             self.assertEqual(expected_checksum, checksum)
@@ -321,6 +345,7 @@ class TestCinderStore(base.StoreBaseTest,
                           'glance_image_id': expected_image_id,
                           'image_size': str(expected_size)},
                 volume_type='some_type')
+            self.assertEqual(backend, metadata["backend"])
 
     def test_cinder_add(self):
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
@@ -361,6 +386,19 @@ class TestCinderStore(base.StoreBaseTest,
                                                 volumes=fake_volumes)
 
             uri = 'cinder://%s' % fake_volume_uuid
-            loc = location.get_location_from_uri(uri, conf=self.conf)
+            loc = location.get_location_from_uri_and_backend(uri,
+                                                             "cinder1",
+                                                             conf=self.conf)
             self.store.delete(loc, context=self.context)
             fake_volume.delete.assert_called_once_with()
+
+    def test_cinder_add_different_backend(self):
+        self.store = cinder.Store(self.conf, backend="cinder2")
+        self.store.configure()
+        self.register_store_backend_schemes(self.store, 'cinder', 'cinder2')
+
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
+                                     status='available',
+                                     size=1)
+        volume_file = six.BytesIO()
+        self._test_cinder_add(fake_volume, volume_file, backend="cinder2")

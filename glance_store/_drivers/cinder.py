@@ -308,19 +308,33 @@ Related options:
 ]
 
 
-def get_root_helper():
-    return 'sudo glance-rootwrap %s' % CONF.glance_store.rootwrap_config
+def get_root_helper(backend=None):
+    if backend:
+        rootwrap = getattr(CONF, backend).rootwrap_config
+    else:
+        rootwrap = CONF.glance_store.rootwrap_config
+
+    return 'sudo glance-rootwrap %s' % rootwrap
 
 
-def is_user_overriden(conf):
-    return all([conf.glance_store.get('cinder_store_' + key)
+def is_user_overriden(conf, backend=None):
+    if backend:
+        store_conf = getattr(conf, backend)
+    else:
+        store_conf = conf.glance_store
+
+    return all([store_conf.get('cinder_store_' + key)
                 for key in ['user_name', 'password',
                             'project_name', 'auth_address']])
 
 
-def get_cinderclient(conf, context=None):
-    glance_store = conf.glance_store
-    user_overriden = is_user_overriden(conf)
+def get_cinderclient(conf, context=None, backend=None):
+    if backend:
+        glance_store = getattr(conf, backend)
+    else:
+        glance_store = conf.glance_store
+
+    user_overriden = is_user_overriden(conf, backend=backend)
     if user_overriden:
         username = glance_store.cinder_store_user_name
         password = glance_store.cinder_store_password
@@ -392,21 +406,21 @@ class StoreLocation(glance_store.location.StoreLocation):
 
 
 @contextlib.contextmanager
-def temporary_chown(path):
+def temporary_chown(path, backend=None):
     owner_uid = os.getuid()
     orig_uid = os.stat(path).st_uid
 
     if orig_uid != owner_uid:
         processutils.execute('chown', owner_uid, path,
                              run_as_root=True,
-                             root_helper=get_root_helper())
+                             root_helper=get_root_helper(backend=backend))
     try:
         yield
     finally:
         if orig_uid != owner_uid:
             processutils.execute('chown', orig_uid, path,
                                  run_as_root=True,
-                                 root_helper=get_root_helper())
+                                 root_helper=get_root_helper(backend=backend))
 
 
 class Store(glance_store.driver.Store):
@@ -429,7 +443,8 @@ class Store(glance_store.driver.Store):
         return ('cinder',)
 
     def _check_context(self, context, require_tenant=False):
-        user_overriden = is_user_overriden(self.conf)
+        user_overriden = is_user_overriden(self.conf,
+                                           backend=self.backend_group)
         if user_overriden and not require_tenant:
             return
         if context is None:
@@ -443,7 +458,12 @@ class Store(glance_store.driver.Store):
 
     def _wait_volume_status(self, volume, status_transition, status_expected):
         max_recheck_wait = 15
-        timeout = self.conf.glance_store.cinder_state_transition_timeout
+        if self.backend_group:
+            timeout = getattr(
+                self.conf, self.backend_group).cinder_state_transition_timeout
+        else:
+            timeout = self.conf.glance_store.cinder_state_transition_timeout
+
         volume = volume.manager.get(volume.id)
         tries = 0
         elapsed = 0
@@ -473,7 +493,7 @@ class Store(glance_store.driver.Store):
     def _open_cinder_volume(self, client, volume, mode):
         attach_mode = 'rw' if mode == 'wb' else 'ro'
         device = None
-        root_helper = get_root_helper()
+        root_helper = get_root_helper(backend=self.backend_group)
         priv_context.init(root_helper=shlex.split(root_helper))
         host = socket.gethostname()
         properties = connector.get_connector_properties(root_helper, host,
@@ -499,7 +519,8 @@ class Store(glance_store.driver.Store):
                not conn.do_local_attach):
                 yield device['path']
             else:
-                with temporary_chown(device['path']), \
+                with temporary_chown(device['path'],
+                                     backend=self.backend_group), \
                         open(device['path'], mode) as f:
                     yield f
         except Exception:
@@ -577,7 +598,8 @@ class Store(glance_store.driver.Store):
         loc = location.store_location
         self._check_context(context)
         try:
-            client = get_cinderclient(self.conf, context)
+            client = get_cinderclient(self.conf, context,
+                                      backend=self.backend_group)
             volume = client.volumes.get(loc.volume_id)
             size = int(volume.metadata.get('image_size',
                                            volume.size * units.Gi))
@@ -611,8 +633,9 @@ class Store(glance_store.driver.Store):
 
         try:
             self._check_context(context)
-            volume = get_cinderclient(self.conf,
-                                      context).volumes.get(loc.volume_id)
+            volume = get_cinderclient(
+                self.conf, context,
+                backend=self.backend_group).volumes.get(loc.volume_id)
             return int(volume.metadata.get('image_size',
                                            volume.size * units.Gi))
         except cinder_exception.NotFound:
@@ -643,7 +666,8 @@ class Store(glance_store.driver.Store):
         """
 
         self._check_context(context, require_tenant=True)
-        client = get_cinderclient(self.conf, context)
+        client = get_cinderclient(self.conf, context,
+                                  backend=self.backend_group)
 
         checksum = hashlib.md5()
         bytes_written = 0
@@ -655,7 +679,13 @@ class Store(glance_store.driver.Store):
         metadata = {'glance_image_id': image_id,
                     'image_size': str(image_size),
                     'image_owner': owner}
-        volume_type = self.conf.glance_store.cinder_volume_type
+
+        if self.backend_group:
+            volume_type = getattr(self.conf,
+                                  self.backend_group).cinder_volume_type
+        else:
+            volume_type = self.conf.glance_store.cinder_volume_type
+
         LOG.debug('Creating a new volume: image_size=%d size_gb=%d type=%s',
                   image_size, size_gb, volume_type or 'None')
         if image_size == 0:
@@ -735,7 +765,12 @@ class Store(glance_store.driver.Store):
                    'volume_id': volume.id,
                    'checksum_hex': checksum_hex})
 
-        return ('cinder://%s' % volume.id, bytes_written, checksum_hex, {})
+        image_metadata = {}
+        if self.backend_group:
+            image_metadata['backend'] = u"%s" % self.backend_group
+
+        return ('cinder://%s' % volume.id, bytes_written,
+                checksum_hex, image_metadata)
 
     @capabilities.check
     def delete(self, location, context=None):
@@ -752,8 +787,9 @@ class Store(glance_store.driver.Store):
         loc = location.store_location
         self._check_context(context)
         try:
-            volume = get_cinderclient(self.conf,
-                                      context).volumes.get(loc.volume_id)
+            volume = get_cinderclient(
+                self.conf, context,
+                backend=self.backend_group).volumes.get(loc.volume_id)
             volume.delete()
         except cinder_exception.NotFound:
             raise exceptions.NotFound(image=loc.volume_id)
