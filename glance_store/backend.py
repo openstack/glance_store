@@ -91,6 +91,16 @@ Related Options:
     cfg.IntOpt('store_capabilities_update_min_interval',
                default=0,
                min=0,
+               deprecated_for_removal=True,
+               deprecated_since='Rocky',
+               deprecated_reason=_("""
+This option configures a stub method that has not been implemented
+for any existing store drivers.  Hence it is non-operational, and
+giving it a value does absolutely nothing.
+
+This option is scheduled for removal early in the Stein development
+cycle.
+"""),
                help=_("""
 Minimum interval in seconds to execute updating dynamic storage
 capabilities based on current backend status.
@@ -106,7 +116,7 @@ of the store is triggered.
 By default, this option is set to zero and is disabled. Provide an
 integer value greater than zero to enable this option.
 
-NOTE: For more information on store capabilities and their updates,
+NOTE 1: For more information on store capabilities and their updates,
 please visit: https://specs.openstack.org/openstack/glance-specs/\
 specs/kilo/store-capabilities.html
 
@@ -114,6 +124,11 @@ For more information on setting up a particular store in your
 deployment and help with the usage of this feature, please contact
 the storage driver maintainers listed here:
 https://docs.openstack.org/glance_store/latest/user/drivers.html
+
+NOTE 2: The dynamic store update capability described above is not
+implemented by any current store drivers.  Thus, this option DOES
+NOT DO ANYTHING (and it never has).  It is DEPRECATED and scheduled
+for removal early in the Stein development cycle.
 
 Possible values:
     * Zero

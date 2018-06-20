@@ -1,0 +1,14 @@
+---
+deprecations:
+  - |
+    The glance_store configuration option
+    ``store_capabilities_update_min_interval`` is deprecated in this
+    release and is subject to removal at the beginning of the Stein
+    development cycle, following the `OpenStack standard deprecation policy
+    <https://governance.openstack.org/reference/tags/assert_follows-standard-deprecation.html>`_.
+
+    The option configures a stub method that has not been implemented
+    for any existing store drivers.  Hence it is non-operational.  Given
+    that it has *never* been operational, it will not be missed.  Its
+    presence is confusing to operators and thus it is hereby deprecated
+    for removal.
