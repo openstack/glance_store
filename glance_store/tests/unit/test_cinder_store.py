@@ -179,7 +179,8 @@ class TestCinderStore(base.StoreBaseTest,
             fake_connector.disconnect_volume.assert_called_once_with(
                 mock.ANY, fake_devinfo)
             fake_volume.attach.assert_called_once_with(
-                None, None, attach_mode, host_name=socket.gethostname())
+                None, 'glance_store', attach_mode,
+                host_name=socket.gethostname())
             fake_volumes.detach.assert_called_once_with(fake_volume)
 
     def test_open_cinder_volume_rw(self):
