@@ -82,7 +82,27 @@ More information on the RBD storage backend can be found here:
 http://ceph.com/planet/how-data-is-stored-in-ceph-cluster/
 
 Possible Values:
-    * A valid pool name
+    * A valid replicated pool name
+
+Related options:
+    * None
+
+"""),
+    cfg.StrOpt('rbd_store_data_pool', default='',
+               help="""
+RADOS erasure coded pool in which image data is stored.
+
+When RBD is used with an erasure coded pool the rbd metadata is stored
+in the rbd_store_pool while the image data is stored in the rbd_store_data_pool
+pool.  RBD metadata is stored in OMAP which can only be used with replicated
+pools.  To use erasure coding a replicaed pool must be specified for
+rbd_store_pool AND an erasure coded pool specifed for rbd_store_data_pool.
+
+More information on the RBD erasure coding can be found here:
+https://ceph.com/community/new-luminous-erasure-coding-rbd-cephfs/
+
+Possible Values:
+    * A valid erasure coded pool name
 
 Related options:
     * None
@@ -340,6 +360,7 @@ class Store(driver.Store):
             user = self.store_conf.rbd_store_user
             conf_file = self.store_conf.rbd_store_ceph_conf
             thin_provisioning = self.store_conf.rbd_thin_provisioning
+            data_pool = self.store_conf.rbd_store_data_pool
 
             self.thin_provisioning = thin_provisioning
             self.chunk_size = chunk * units.Mi
@@ -349,6 +370,7 @@ class Store(driver.Store):
             # these must not be unicode since they will be passed to a
             # non-unicode-aware C library
             self.pool = str(pool)
+            self.data_pool = str(data_pool)
             self.user = str(user)
             self.conf_file = str(conf_file)
         except cfg.ConfigFileValueError as e:
@@ -434,7 +456,8 @@ class Store(driver.Store):
             features = rbd.RBD_FEATURE_LAYERING
         rbd.RBD().create(ioctx, image_name, size, order,
                          old_format=False,
-                         features=int(features))
+                         features=int(features),
+                         data_pool=self.data_pool or None)
         return StoreLocation({
             'fsid': fsid,
             'pool': self.pool,
