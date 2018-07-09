@@ -24,6 +24,7 @@ import tempfile
 import time
 import uuid
 
+from cinderclient.v2 import client as cinderclient
 from os_brick.initiator import connector
 from oslo_concurrency import processutils
 from oslo_utils import units
@@ -74,6 +75,17 @@ class TestCinderStore(base.StoreBaseTest,
         cc = cinder.get_cinderclient(self.conf, self.context)
         self.assertIsNone(cc.client.auth_token)
         self.assertEqual('test_address', cc.client.management_url)
+
+    def test_get_cinderclient_with_user_overriden_and_region(self):
+        self.config(cinder_os_region_name='test_region')
+        fake_client = FakeObject(client=FakeObject(auth_token=None))
+        with mock.patch.object(cinderclient, 'Client',
+                               return_value=fake_client) as mock_client:
+            self.test_get_cinderclient_with_user_overriden()
+            mock_client.assert_called_once_with(
+                'test_user', 'test_password', 'test_project',
+                auth_url='test_address', cacert=None, insecure=False,
+                region_name='test_region', retries=3)
 
     def test_temporary_chown(self):
         class fake_stat(object):

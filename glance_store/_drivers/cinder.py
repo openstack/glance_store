@@ -352,6 +352,7 @@ def get_cinderclient(conf, context=None):
                             password,
                             project,
                             auth_url=url,
+                            region_name=glance_store.cinder_os_region_name,
                             insecure=glance_store.cinder_api_insecure,
                             retries=glance_store.cinder_http_retries,
                             cacert=glance_store.cinder_ca_certificates_file)
