@@ -493,7 +493,7 @@ class Store(glance_store.driver.Store):
                 connection_info['driver_volume_type'], root_helper,
                 conn=connection_info)
             device = conn.connect_volume(connection_info['data'])
-            volume.attach(None, None, attach_mode, host_name=host)
+            volume.attach(None, 'glance_store', attach_mode, host_name=host)
             volume = self._wait_volume_status(volume, 'attaching', 'in-use')
             if (connection_info['driver_volume_type'] == 'rbd' and
                not conn.do_local_attach):
