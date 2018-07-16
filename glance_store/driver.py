@@ -30,13 +30,25 @@ from glance_store.i18n import _
 LOG = logging.getLogger(__name__)
 
 
+_MULTI_BACKEND_OPTS = [
+    cfg.StrOpt('store_description',
+               help=_("""
+This option will be used to provide a constructive information about
+the store backend to end users. Using /v2/stores-info call user can
+seek more information on all available backends.
+
+"""))
+]
+
+
 class Store(capabilities.StoreCapability):
 
     OPTIONS = None
+    MULTI_BACKEND_OPTIONS = _MULTI_BACKEND_OPTS
     READ_CHUNKSIZE = 4 * units.Mi  # 4M
     WRITE_CHUNKSIZE = READ_CHUNKSIZE
 
-    def __init__(self, conf):
+    def __init__(self, conf, backend=None):
         """
         Initialize the Store
         """
@@ -44,11 +56,19 @@ class Store(capabilities.StoreCapability):
         super(Store, self).__init__()
 
         self.conf = conf
+        self.backend_group = backend
         self.store_location_class = None
 
         try:
             if self.OPTIONS is not None:
-                self.conf.register_opts(self.OPTIONS, group='glance_store')
+                group = 'glance_store'
+                if self.backend_group:
+                    group = self.backend_group
+                    if self.MULTI_BACKEND_OPTIONS is not None:
+                        self.conf.register_opts(
+                            self.MULTI_BACKEND_OPTIONS, group=group)
+
+                self.conf.register_opts(self.OPTIONS, group=group)
         except cfg.DuplicateOptError:
             pass
 

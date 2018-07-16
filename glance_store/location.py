@@ -49,6 +49,7 @@ CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
 
 SCHEME_TO_CLS_MAP = {}
+SCHEME_TO_CLS_BACKEND_MAP = {}
 
 
 def get_location_from_uri(uri, conf=CONF):
@@ -62,7 +63,7 @@ def get_location_from_uri(uri, conf=CONF):
 
     Example URIs:
         https://user:pass@example.com:80/images/some-id
-        http://images.oracle.com/123456
+        http://example.com/123456
         swift://example.com/container/obj-id
         swift://user:account:pass@authurl.com/container/obj-id
         swift+http://user:account:pass@authurl.com/container/obj-id
@@ -75,6 +76,56 @@ def get_location_from_uri(uri, conf=CONF):
     scheme_info = SCHEME_TO_CLS_MAP[pieces.scheme]
     return Location(pieces.scheme, scheme_info['location_class'],
                     conf, uri=uri)
+
+
+def get_location_from_uri_and_backend(uri, backend, conf=CONF):
+    """
+    Given a URI, return a Location object that has had an appropriate
+    store parse the URI.
+
+    :param uri: A URI that could come from the end-user in the Location
+                attribute/header.
+    :param backend: A backend name for the store.
+    :param conf: The global configuration.
+
+    Example URIs:
+        https://user:pass@example.com:80/images/some-id
+        http://example.com/123456
+        swift://example.com/container/obj-id
+        swift://user:account:pass@authurl.com/container/obj-id
+        swift+http://user:account:pass@authurl.com/container/obj-id
+        file:///var/lib/glance/images/1
+        cinder://volume-id
+    """
+
+    pieces = urllib.parse.urlparse(uri)
+
+    if pieces.scheme not in SCHEME_TO_CLS_BACKEND_MAP.keys():
+        raise exceptions.UnknownScheme(scheme=pieces.scheme)
+    try:
+        scheme_info = SCHEME_TO_CLS_BACKEND_MAP[pieces.scheme][backend]
+    except KeyError:
+        raise exceptions.UnknownScheme(scheme=backend)
+
+    return Location(pieces.scheme, scheme_info['location_class'],
+                    conf, uri=uri)
+
+
+def register_scheme_backend_map(scheme_map):
+    """
+    Given a mapping of 'scheme' to store_name, adds the mapping to the
+    known list of schemes.
+
+    This function overrides existing stores.
+    """
+
+    for (k, v) in scheme_map.items():
+        if k not in SCHEME_TO_CLS_BACKEND_MAP:
+            SCHEME_TO_CLS_BACKEND_MAP[k] = {}
+
+        LOG.debug("Registering scheme %s with %s", k, v)
+        for key, value in v.items():
+            SCHEME_TO_CLS_BACKEND_MAP[k][key] = value
 
 
 def register_scheme_map(scheme_map):
