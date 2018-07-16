@@ -61,7 +61,7 @@ STORE_SCHEME = 'vsphere'
 _VMWARE_OPTS = [
     cfg.HostAddressOpt('vmware_server_host',
                        sample_default='127.0.0.1',
-                       help=_("""
+                       help="""
 Address of the ESX/ESXi or vCenter Server target system.
 
 This configuration option sets the address of the ESX/ESXi or vCenter
@@ -77,10 +77,10 @@ Related options:
     * vmware_server_username
     * vmware_server_password
 
-""")),
+"""),
     cfg.StrOpt('vmware_server_username',
                sample_default='root',
-               help=_("""
+               help="""
 Server username.
 
 This configuration option takes the username for authenticating with
@@ -95,10 +95,10 @@ Related options:
     * vmware_server_host
     * vmware_server_password
 
-""")),
+"""),
     cfg.StrOpt('vmware_server_password',
                sample_default='vmware',
-               help=_("""
+               help="""
 Server password.
 
 This configuration option takes the password for authenticating with
@@ -113,12 +113,12 @@ Related options:
     * vmware_server_host
     * vmware_server_username
 
-"""),
+""",
                secret=True),
     cfg.IntOpt('vmware_api_retry_count',
                default=10,
                min=1,
-               help=_("""
+               help="""
 The number of VMware API retries.
 
 This configuration option specifies the number of times the VMware
@@ -132,11 +132,11 @@ Possible Values:
 Related options:
     * None
 
-""")),
+"""),
     cfg.IntOpt('vmware_task_poll_interval',
                default=5,
                min=1,
-               help=_("""
+               help="""
 Interval in seconds used for polling remote tasks invoked on VMware
 ESX/VC server.
 
@@ -149,10 +149,10 @@ Possible Values:
 Related options:
     * None
 
-""")),
+"""),
     cfg.StrOpt('vmware_store_image_dir',
                default=DEFAULT_STORE_IMAGE_DIR,
-               help=_("""
+               help="""
 The directory where the glance images will be stored in the datastore.
 
 This configuration option specifies the path to the directory where the
@@ -166,11 +166,11 @@ Possible Values:
 Related options:
     * None
 
-""")),
+"""),
     cfg.BoolOpt('vmware_insecure',
                 default=False,
                 deprecated_name='vmware_api_insecure',
-                help=_("""
+                help="""
 Set verification of the ESX/vCenter server certificate.
 
 This configuration option takes a boolean value to determine
@@ -190,10 +190,10 @@ Possible Values:
 Related options:
     * vmware_ca_file
 
-""")),
+"""),
     cfg.StrOpt('vmware_ca_file',
                sample_default='/etc/ssl/certs/ca-certificates.crt',
-               help=_("""
+               help="""
 Absolute path to the CA bundle file.
 
 This configuration option enables the operator to use a custom
@@ -209,10 +209,10 @@ Possible Values:
 Related options:
     * vmware_insecure
 
-""")),
+"""),
     cfg.MultiStrOpt(
         'vmware_datastores',
-        help=_("""
+        help="""
 The datastores where the image can be stored.
 
 This configuration option specifies the datastores where the image can
@@ -237,7 +237,7 @@ Possible Values:
 Related options:
    * None
 
-"""))]
+""")]
 
 
 def http_response_iterator(conn, response, size):

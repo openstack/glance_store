@@ -53,7 +53,7 @@ LOG = logging.getLogger(__name__)
 _CINDER_OPTS = [
     cfg.StrOpt('cinder_catalog_info',
                default='volumev2::publicURL',
-               help=_("""
+               help="""
 Information to match when looking for cinder in the service catalog.
 
 When the ``cinder_endpoint_template`` is not set and any of
@@ -79,10 +79,10 @@ Related options:
     * cinder_store_project_name
     * cinder_store_password
 
-""")),
+"""),
     cfg.StrOpt('cinder_endpoint_template',
                default=None,
-               help=_("""
+               help="""
 Override service catalog lookup with template for cinder endpoint.
 
 When this option is set, this value is used to generate cinder endpoint,
@@ -105,10 +105,10 @@ Related options:
     * cinder_store_password
     * cinder_catalog_info
 
-""")),
+"""),
     cfg.StrOpt('cinder_os_region_name', deprecated_name='os_region_name',
                default=None,
-               help=_("""
+               help="""
 Region name to lookup cinder service from the service catalog.
 
 This is used only when ``cinder_catalog_info`` is used for determining the
@@ -122,9 +122,9 @@ Possible values:
 Related options:
     * cinder_catalog_info
 
-""")),
+"""),
     cfg.StrOpt('cinder_ca_certificates_file',
-               help=_("""
+               help="""
 Location of a CA certificates file used for cinder client requests.
 
 The specified CA certificates file, if set, is used to verify cinder
@@ -137,11 +137,11 @@ Possible values:
 Related options:
     * cinder_api_insecure
 
-""")),
+"""),
     cfg.IntOpt('cinder_http_retries',
                min=0,
                default=3,
-               help=_("""
+               help="""
 Number of cinderclient retries on failed http calls.
 
 When a call failed by any errors, cinderclient will retry the call up to the
@@ -153,11 +153,11 @@ Possible values:
 Related options:
     * None
 
-""")),
+"""),
     cfg.IntOpt('cinder_state_transition_timeout',
                min=0,
                default=300,
-               help=_("""
+               help="""
 Time period, in seconds, to wait for a cinder volume transition to
 complete.
 
@@ -174,10 +174,10 @@ Possible values:
 Related options:
     * None
 
-""")),
+"""),
     cfg.BoolOpt('cinder_api_insecure',
                 default=False,
-                help=_("""
+                help="""
 Allow to perform insecure SSL requests to cinder.
 
 If this option is set to True, HTTPS endpoint connection is verified using the
@@ -190,10 +190,10 @@ Possible values:
 Related options:
     * cinder_ca_certificates_file
 
-""")),
+"""),
     cfg.StrOpt('cinder_store_auth_address',
                default=None,
-               help=_("""
+               help="""
 The address where the cinder authentication service is listening.
 
 When all of ``cinder_store_auth_address``, ``cinder_store_user_name``,
@@ -215,10 +215,10 @@ Related options:
     * cinder_store_password
     * cinder_store_project_name
 
-""")),
+"""),
     cfg.StrOpt('cinder_store_user_name',
                default=None,
-               help=_("""
+               help="""
 User name to authenticate against cinder.
 
 This must be used with all the following related options. If any of these are
@@ -232,9 +232,9 @@ Related options:
     * cinder_store_password
     * cinder_store_project_name
 
-""")),
+"""),
     cfg.StrOpt('cinder_store_password', secret=True,
-               help=_("""
+               help="""
 Password for the user authenticating against cinder.
 
 This must be used with all the following related options. If any of these are
@@ -248,10 +248,10 @@ Related options:
     * cinder_store_user_name
     * cinder_store_project_name
 
-""")),
+"""),
     cfg.StrOpt('cinder_store_project_name',
                default=None,
-               help=_("""
+               help="""
 Project name where the image volume is stored in cinder.
 
 If this configuration option is not set, the project in current context is
@@ -268,10 +268,10 @@ Related options:
     * ``cinder_store_user_name``
     * ``cinder_store_password``
 
-""")),
+"""),
     cfg.StrOpt('rootwrap_config',
                default='/etc/glance/rootwrap.conf',
-               help=_("""
+               help="""
 Path to the rootwrap configuration file to use for running commands as root.
 
 The cinder store requires root privileges to operate the image volumes (for
@@ -285,10 +285,10 @@ Possible values:
 Related options:
     * None
 
-""")),
+"""),
     cfg.StrOpt('cinder_volume_type',
                default=None,
-               help=_("""
+               help="""
 Volume type that will be used for volume creation in cinder.
 
 Some cinder backends can have several volume types to optimize storage usage.
@@ -304,7 +304,7 @@ Possible values:
 Related options:
     * None
 
-""")),
+"""),
 ]
 
 

@@ -35,15 +35,15 @@ _STORE_OPTS = [
                 default=['file', 'http'],
                 deprecated_for_removal=True,
                 deprecated_since='Rocky',
-                deprecated_reason=_("""
+                deprecated_reason="""
 This option is deprecated against new config option
 ``enabled_backends`` which helps to configure multiple backend stores
 of different schemes.
 
 This option is scheduled for removal in the Stein development
 cycle.
-"""),
-                help=_("""
+""",
+                help="""
 List of enabled Glance stores.
 
 Register the storage backends to use for storing disk images
@@ -63,24 +63,23 @@ Possible values:
 Related Options:
     * default_store
 
-""")),
+"""),
     cfg.StrOpt('default_store',
                default='file',
                choices=('file', 'filesystem', 'http', 'https', 'swift',
                         'swift+http', 'swift+https', 'swift+config', 'rbd',
                         'sheepdog', 'cinder', 'vsphere'),
-
                deprecated_for_removal=True,
                deprecated_since='Rocky',
-               deprecated_reason=_("""
+               deprecated_reason="""
 This option is deprecated against new config option
 ``default_backend`` which acts similar to ``default_store`` config
 option.
 
 This option is scheduled for removal in the Stein development
 cycle.
-"""),
-               help=_("""
+""",
+               help="""
 The default scheme to use for storing images.
 
 Provide a string value representing the default scheme to use for
@@ -108,21 +107,21 @@ Possible values:
 Related Options:
     * stores
 
-""")),
+"""),
     cfg.IntOpt('store_capabilities_update_min_interval',
                default=0,
                min=0,
                deprecated_for_removal=True,
                deprecated_since='Rocky',
-               deprecated_reason=_("""
+               deprecated_reason="""
 This option configures a stub method that has not been implemented
 for any existing store drivers.  Hence it is non-operational, and
 giving it a value does absolutely nothing.
 
 This option is scheduled for removal early in the Stein development
 cycle.
-"""),
-               help=_("""
+""",
+               help="""
 Minimum interval in seconds to execute updating dynamic storage
 capabilities based on current backend status.
 
@@ -158,7 +157,7 @@ Possible values:
 Related Options:
     * None
 
-""")),
+"""),
 ]
 
 _STORE_CFG_GROUP = 'glance_store'
