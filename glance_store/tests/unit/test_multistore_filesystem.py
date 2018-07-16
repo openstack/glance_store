@@ -171,10 +171,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.assertEqual(chunk_size, image_size)
 
     def test_get_non_existing(self):
-        """
-        Test that trying to retrieve a file that doesn't exist
-        raises an error
-        """
+        """Test trying to retrieve a file that doesn't exist raises error."""
         loc = location.get_location_from_uri_and_backend(
             "file:///%s/non-existing" % self.test_dir, 'file1', conf=self.conf)
         self.assertRaises(exceptions.NotFound,
@@ -182,10 +179,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                           loc)
 
     def test_get_non_existing_identifier(self):
-        """
-        Test that trying to retrieve a store that doesn't exist
-        raises an error
-        """
+        """Test trying to retrieve a store that doesn't exist raises error."""
         self.assertRaises(exceptions.UnknownScheme,
                           location.get_location_from_uri_and_backend,
                           "file:///%s/non-existing" % self.test_dir,
@@ -341,39 +335,36 @@ class TestMultiStore(base.MultiStoreBaseTest,
             self.assertFalse(os.path.exists(path))
 
     def test_add_storage_full(self):
-        """
+        """Tests adding an image without enough space.
+
         Tests that adding an image without enough space on disk
-        raises an appropriate exception
+        raises an appropriate exception.
         """
         self._do_test_add_write_failure(errno.ENOSPC, exceptions.StorageFull)
 
     def test_add_file_too_big(self):
-        """
+        """Tests adding a very large image.
+
         Tests that adding an excessively large image file
-        raises an appropriate exception
+        raises an appropriate exception.
         """
         self._do_test_add_write_failure(errno.EFBIG, exceptions.StorageFull)
 
     def test_add_storage_write_denied(self):
-        """
+        """Tests adding an image without store permissions.
+
         Tests that adding an image with insufficient filestore permissions
-        raises an appropriate exception
+        raises an appropriate exception.
         """
         self._do_test_add_write_failure(errno.EACCES,
                                         exceptions.StorageWriteDenied)
 
     def test_add_other_failure(self):
-        """
-        Tests that a non-space-related IOError does not raise a
-        StorageFull exceptions.
-        """
+        """Tests other IOErrors do not raise a StorageFull exception."""
         self._do_test_add_write_failure(errno.ENOTDIR, IOError)
 
     def test_add_cleanup_on_read_failure(self):
-        """
-        Tests the partial image file is cleaned up after a read
-        failure.
-        """
+        """Tests partial image is cleaned up after a read failure."""
         filesystem.ChunkedFile.CHUNKSIZE = units.Ki
         image_id = str(uuid.uuid4())
         file_size = 5 * units.Ki  # 5K
@@ -393,9 +384,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
             self.assertFalse(os.path.exists(path))
 
     def test_delete(self):
-        """
-        Test we can delete an existing image in the filesystem store
-        """
+        """Test we can delete an existing image in the filesystem store."""
         # First add an image
         image_id = str(uuid.uuid4())
         file_size = 5 * units.Ki  # 5K
@@ -416,10 +405,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.assertRaises(exceptions.NotFound, self.store.get, loc)
 
     def test_delete_non_existing(self):
-        """
-        Test that trying to delete a file that doesn't exist
-        raises an error
-        """
+        """Test deleting file that doesn't exist raises an error."""
         loc = location.get_location_from_uri_and_backend(
             "file:///tmp/glance-tests/non-existing", "file1", conf=self.conf)
         self.assertRaises(exceptions.NotFound,
@@ -427,10 +413,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                           loc)
 
     def test_delete_forbidden(self):
-        """
-        Tests that trying to delete a file without permissions
-        raises the correct error
-        """
+        """Tests deleting file without permissions raises the correct error."""
         # First add an image
         image_id = str(uuid.uuid4())
         file_size = 5 * units.Ki  # 5K
@@ -463,10 +446,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
             self.store.get(loc)
 
     def test_configure_add_with_multi_datadirs(self):
-        """
-        Tests multiple filesystem specified by filesystem_store_datadirs
-        are parsed correctly.
-        """
+        """Test multiple filesystems are parsed correctly."""
         store_map = [self.useFixture(fixtures.TempDir()).path,
                      self.useFixture(fixtures.TempDir()).path]
         self.conf.set_override('filesystem_store_datadir',
@@ -560,9 +540,11 @@ class TestMultiStore(base.MultiStoreBaseTest,
                           self.store.configure_add)
 
     def test_configure_add_same_dir_multiple_times(self):
-        """
+        """Tests handling of same dir in config multiple times.
+
         Tests BadStoreConfiguration exception is raised if same directory
-        is specified multiple times in filesystem_store_datadirs.
+        is specified multiple times in filesystem_store_datadirs with different
+        priorities.
         """
         store_map = [self.useFixture(fixtures.TempDir()).path,
                      self.useFixture(fixtures.TempDir()).path]
@@ -577,9 +559,11 @@ class TestMultiStore(base.MultiStoreBaseTest,
                           self.store.configure_add)
 
     def test_configure_add_same_dir_multiple_times_same_priority(self):
-        """
+        """Tests handling of same dir in config multiple times.
+
         Tests BadStoreConfiguration exception is raised if same directory
-        is specified multiple times in filesystem_store_datadirs.
+        is specified multiple times in filesystem_store_datadirs with the same
+        priority.
         """
         store_map = [self.useFixture(fixtures.TempDir()).path,
                      self.useFixture(fixtures.TempDir()).path]
@@ -676,7 +660,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.assertEqual(expected_file_size, new_image_file_size)
 
     def test_add_with_multiple_dirs_storage_full(self):
-        """
+        """Tests adding dirs with storage full.
+
         Test StorageFull exception is raised if no filesystem directory
         is found that can store an image.
         """
@@ -709,7 +694,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
                               expected_file_size)
 
     def test_configure_add_with_file_perm(self):
-        """
+        """Tests adding with permissions.
+
         Tests filesystem specified by filesystem_store_file_perm
         are parsed correctly.
         """
@@ -721,8 +707,9 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.store.configure_add()
         self.assertEqual(self.store.datadir, store)
 
-    def test_configure_add_with_unaccessible_file_perm(self):
-        """
+    def test_configure_add_with_inaccessible_file_perm(self):
+        """Tests adding with inaccessible file permissions.
+
         Tests BadStoreConfiguration exception is raised if an invalid
         file permission specified in filesystem_store_file_perm.
         """
@@ -735,7 +722,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
                           self.store.configure_add)
 
     def test_add_with_file_perm_for_group_other_users_access(self):
-        """
+        """Tests adding image with file permissions.
+
         Test that we can add an image via the filesystem backend with a
         required image file permission.
         """
@@ -778,7 +766,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.assertEqual(perm, stat.S_IMODE(mode))
 
     def test_add_with_file_perm_for_owner_users_access(self):
-        """
+        """Tests adding image with file permissions.
+
         Test that we can add an image via the filesystem backend with a
         required image file permission.
         """

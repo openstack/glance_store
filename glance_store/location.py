@@ -79,7 +79,8 @@ def get_location_from_uri(uri, conf=CONF):
 
 
 def get_location_from_uri_and_backend(uri, backend, conf=CONF):
-    """
+    """Extract backend location from a URI.
+
     Given a URI, return a Location object that has had an appropriate
     store parse the URI.
 
@@ -112,7 +113,8 @@ def get_location_from_uri_and_backend(uri, backend, conf=CONF):
 
 
 def register_scheme_backend_map(scheme_map):
-    """
+    """Registers a mapping between a scheme and a backend.
+
     Given a mapping of 'scheme' to store_name, adds the mapping to the
     known list of schemes.
 
