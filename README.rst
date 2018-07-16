@@ -2,8 +2,8 @@
 Team and repository tags
 ========================
 
-.. image:: http://governance.openstack.org/badges/glance_store.svg
-    :target: http://governance.openstack.org/reference/tags/index.html
+.. image:: https://governance.openstack.org/tc/badges/glance_store.svg
+    :target: https://governance.openstack.org/tc/reference/tags/index.html
     :alt: The following tags have been asserted for the Glance Store
           Library:
           "project:official",
