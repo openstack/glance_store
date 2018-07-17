@@ -1,0 +1,16 @@
+---
+prelude: >
+    This release contains the base work for multiple back-ends changing how
+    the back-ends get configured. Please note that in Rocky release the work
+    is still experimental. Thus it's not advised to utilize the new configs in
+    production environments before Stein release even though old config options
+    are deprecated for removal.
+features:
+  - |
+    EXPERIMENTAL: Multiple back-end stores
+deprecations:
+  - |
+    'stores' and 'default_store' config options have been deprecated for
+    removal. As the replacements are experimental for Rocky release, migration
+    away from these options in production environments is not advised before
+    Stein release.

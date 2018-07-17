@@ -1,0 +1,10 @@
+---
+fixes:
+  - |
+    * Bug 1606268_: Failure to upload to swift when keystone uses "insecure" SSL
+    * Bug 1779455_: cinder backend causes BadRequest due to NULL mountpoint
+    * Bug 1764200_: Glance Cinder backed images & multiple regions
+
+    .. _1606268: https://bugs.launchpad.net/glance-store/+bug/1606268
+    .. _1779455: https://bugs.launchpad.net/glance-store/+bug/1779455
+    .. _1764200: https://bugs.launchpad.net/glance-store/+bug/1764200
