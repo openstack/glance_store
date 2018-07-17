@@ -14,9 +14,7 @@
 #    under the License.
 
 import os
-import subprocess
 import sys
-import warnings
 
 sys.path.insert(0, os.path.abspath('../..'))
 # -- General configuration ----------------------------------------------------
@@ -80,14 +78,6 @@ html_theme = 'openstackdocs'
 htmlhelp_basename = '%sdoc' % project
 
 modindex_common_prefix = ['glance_store.']
-
-git_cmd = ["git", "log", "--pretty=format:'%ad, commit %h'", "--date=local",
-           "-n1"]
-try:
-    html_last_updated_fmt = subprocess.check_output(git_cmd).decode('utf-8')
-except Exception:
-    warnings.warn('Cannot get last updated time from git repository. '
-                  'Not setting "html_last_updated_fmt".')
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass
