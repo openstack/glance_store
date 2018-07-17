@@ -83,9 +83,15 @@ class SwiftConnectionManager(object):
             auth_ref = self.client.session.auth.auth_ref
             # if connection token is going to expire soon (keystone checks
             # is token is going to expire or expired already)
-            if auth_ref.will_expire_soon(
-                self.store.conf.glance_store.swift_store_expire_soon_interval
-            ):
+            if self.store.backend_group:
+                interval = getattr(
+                    self.store.conf, self.store.backend_group
+                ).swift_store_expire_soon_interval
+            else:
+                store_conf = self.store.conf.glance_store
+                interval = store_conf.swift_store_expire_soon_interval
+
+            if auth_ref.will_expire_soon(interval):
                 LOG.info(_LI("Requesting new token for swift connection."))
                 # request new token with session and client provided by store
                 auth_token = self.client.session.get_auth_headers().get(

@@ -45,6 +45,7 @@ class TestConnectionManager(base.StoreBaseTest):
                                          conf=self.conf,
                                          auth_version='3')
 
+        store.backend_group = None
         store.init_client.return_value = self.client
         return store
 

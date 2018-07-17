@@ -284,10 +284,12 @@ class StoreLocation(location.StoreLocation):
     vsphere://server_host/folder/file_path?dcPath=dc_path&dsName=ds_name
     """
 
-    def __init__(self, store_specs, conf):
-        super(StoreLocation, self).__init__(store_specs, conf)
+    def __init__(self, store_specs, conf, backend_group=None):
+        super(StoreLocation, self).__init__(store_specs, conf,
+                                            backend_group=backend_group)
         self.datacenter_path = None
         self.datastore_name = None
+        self.backend_group = backend_group
 
     def process_specs(self):
         self.scheme = self.specs.get('scheme', STORE_SCHEME)
@@ -359,8 +361,8 @@ class Store(glance_store.Store):
     OPTIONS = _VMWARE_OPTS
     WRITE_CHUNKSIZE = units.Mi
 
-    def __init__(self, conf):
-        super(Store, self).__init__(conf)
+    def __init__(self, conf, backend=None):
+        super(Store, self).__init__(conf, backend=backend)
         self.datastores = {}
 
     def reset_session(self):
@@ -375,13 +377,18 @@ class Store(glance_store.Store):
         return (STORE_SCHEME,)
 
     def _sanity_check(self):
-        if self.conf.glance_store.vmware_api_retry_count <= 0:
+        if self.backend_group:
+            store_conf = getattr(self.conf, self.backend_group)
+        else:
+            store_conf = self.conf.glance_store
+
+        if store_conf.vmware_api_retry_count <= 0:
             msg = _('vmware_api_retry_count should be greater than zero')
             LOG.error(msg)
             raise exceptions.BadStoreConfiguration(
                 store_name='vmware_datastore', reason=msg)
 
-        if self.conf.glance_store.vmware_task_poll_interval <= 0:
+        if store_conf.vmware_task_poll_interval <= 0:
             msg = _('vmware_task_poll_interval should be greater than zero')
             LOG.error(msg)
             raise exceptions.BadStoreConfiguration(
@@ -393,10 +400,16 @@ class Store(glance_store.Store):
         self.server_host = self._option_get('vmware_server_host')
         self.server_username = self._option_get('vmware_server_username')
         self.server_password = self._option_get('vmware_server_password')
-        self.api_retry_count = self.conf.glance_store.vmware_api_retry_count
-        self.tpoll_interval = self.conf.glance_store.vmware_task_poll_interval
-        self.ca_file = self.conf.glance_store.vmware_ca_file
-        self.api_insecure = self.conf.glance_store.vmware_insecure
+
+        if self.backend_group:
+            store_conf = getattr(self.conf, self.backend_group)
+        else:
+            store_conf = self.conf.glance_store
+
+        self.api_retry_count = store_conf.vmware_api_retry_count
+        self.tpoll_interval = store_conf.vmware_task_poll_interval
+        self.ca_file = store_conf.vmware_ca_file
+        self.api_insecure = store_conf.vmware_insecure
         if api is None:
             msg = _("Missing dependencies: oslo_vmware")
             raise exceptions.BadStoreConfiguration(
@@ -492,7 +505,13 @@ class Store(glance_store.Store):
     def configure_add(self):
         datastores = self._option_get('vmware_datastores')
         self.datastores = self._build_datastore_weighted_map(datastores)
-        self.store_image_dir = self.conf.glance_store.vmware_store_image_dir
+
+        if self.backend_group:
+            store_conf = getattr(self.conf, self.backend_group)
+        else:
+            store_conf = self.conf.glance_store
+
+        self.store_image_dir = store_conf.vmware_store_image_dir
 
     def select_datastore(self, image_size):
         """Select a datastore with free space larger than image size."""
@@ -513,7 +532,12 @@ class Store(glance_store.Store):
         raise exceptions.StorageFull()
 
     def _option_get(self, param):
-        result = getattr(self.conf.glance_store, param)
+        if self.backend_group:
+            store_conf = getattr(self.conf, self.backend_group)
+        else:
+            store_conf = self.conf.glance_store
+
+        result = getattr(store_conf, param)
         if not result:
             reason = (_("Could not find %(param)s in configuration "
                         "options.") % {'param': param})
@@ -562,7 +586,8 @@ class Store(glance_store.Store):
                              'image_dir': self.store_image_dir,
                              'datacenter_path': ds.datacenter.path,
                              'datastore_name': ds.name,
-                             'image_id': image_id}, self.conf)
+                             'image_id': image_id}, self.conf,
+                            backend_group=self.backend_group)
         # NOTE(arnaud): use a decorator when the config is not tied to self
         cookie = self._build_vim_cookie_header(True)
         headers = dict(headers)
@@ -609,8 +634,12 @@ class Store(glance_store.Store):
             LOG.error(msg)
             raise exceptions.BackendException(msg)
 
+        metadata = {}
+        if self.backend_group:
+            metadata['backend'] = u"%s" % self.backend_group
+
         return (loc.get_uri(), image_file.size,
-                image_file.checksum.hexdigest(), {})
+                image_file.checksum.hexdigest(), metadata)
 
     @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
@@ -760,7 +789,8 @@ class Store(glance_store.Store):
                                               self.conf,
                                               uri=vsphere_url,
                                               image_id=image_id,
-                                              store_specs=store_specs)
+                                              store_specs=store_specs,
+                                              backend=self.backend_group)
 
 
 def new_session(insecure=False, ca_file=None, total_retries=None):

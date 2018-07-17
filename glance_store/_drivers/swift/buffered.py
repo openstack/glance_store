@@ -90,15 +90,21 @@ class BufferedReader(object):
     to ensure there is enough disk space available.
     """
 
-    def __init__(self, fd, checksum, total, verifier=None):
+    def __init__(self, fd, checksum, total, verifier=None, backend_group=None):
         self.fd = fd
         self.total = total
         self.checksum = checksum
         self.verifier = verifier
+        self.backend_group = backend_group
         # maintain a pointer to use to update checksum and verifier
         self.update_position = 0
 
-        buffer_dir = CONF.glance_store.swift_upload_buffer_dir
+        if self.backend_group:
+            buffer_dir = getattr(CONF,
+                                 self.backend_group).swift_upload_buffer_dir
+        else:
+            buffer_dir = CONF.glance_store.swift_upload_buffer_dir
+
         self._tmpfile = tempfile.TemporaryFile(dir=buffer_dir)
 
         self._buffered = False

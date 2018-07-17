@@ -287,7 +287,8 @@ class Store(glance_store.driver.Store):
                                               self.conf,
                                               uri=url,
                                               image_id=image_id,
-                                              store_specs=store_specs)
+                                              store_specs=store_specs,
+                                              backend=self.backend_group)
 
     @staticmethod
     def _check_store_uri(conn, loc):
@@ -317,9 +318,15 @@ class Store(glance_store.driver.Store):
     def _get_response(self, location, verb):
         if not hasattr(self, 'session'):
             self.session = requests.Session()
-        ca_bundle = self.conf.glance_store.https_ca_certificates_file
-        disable_https = self.conf.glance_store.https_insecure
+
+        if self.backend_group:
+            store_conf = getattr(self.conf, self.backend_group)
+        else:
+            store_conf = self.conf.glance_store
+
+        ca_bundle = store_conf.https_ca_certificates_file
+        disable_https = store_conf.https_insecure
         self.session.verify = ca_bundle if ca_bundle else not disable_https
-        self.session.proxies = self.conf.glance_store.http_proxy_information
+        self.session.proxies = store_conf.http_proxy_information
         return self.session.request(verb, location.get_uri(), stream=True,
                                     allow_redirects=False)

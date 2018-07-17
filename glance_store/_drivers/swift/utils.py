@@ -111,30 +111,39 @@ else:
 LOG = logging.getLogger(__name__)
 
 
-def is_multiple_swift_store_accounts_enabled(conf):
-    if conf.glance_store.swift_store_config_file is None:
+def is_multiple_swift_store_accounts_enabled(conf, backend=None):
+    if backend:
+        cfg_file = getattr(conf, backend).swift_store_config_file
+    else:
+        cfg_file = conf.glance_store.swift_store_config_file
+
+    if cfg_file is None:
         return False
     return True
 
 
 class SwiftParams(object):
-    def __init__(self, conf):
+    def __init__(self, conf, backend=None):
         self.conf = conf
-        if is_multiple_swift_store_accounts_enabled(self.conf):
+        self.backend_group = backend
+        if is_multiple_swift_store_accounts_enabled(
+                self.conf, backend=backend):
             self.params = self._load_config()
         else:
             self.params = self._form_default_params()
 
     def _form_default_params(self):
         default = {}
-
+        if self.backend_group:
+            glance_store = getattr(self.conf, self.backend_group)
+        else:
+            glance_store = self.conf.glance_store
         if (
-            self.conf.glance_store.swift_store_user and
-            self.conf.glance_store.swift_store_key and
-            self.conf.glance_store.swift_store_auth_address
+                glance_store.swift_store_user and
+                glance_store.swift_store_key and
+                glance_store.swift_store_auth_address
         ):
 
-            glance_store = self.conf.glance_store
             default['user'] = glance_store.swift_store_user
             default['key'] = glance_store.swift_store_key
             default['auth_address'] = glance_store.swift_store_auth_address
@@ -147,14 +156,18 @@ class SwiftParams(object):
         return {}
 
     def _load_config(self):
-        try:
+        if self.backend_group:
+            scf = getattr(self.conf,
+                          self.backend_group).swift_store_config_file
+        else:
             scf = self.conf.glance_store.swift_store_config_file
+        try:
             conf_file = self.conf.find_file(scf)
             CONFIG.read(conf_file)
         except Exception as e:
             msg = (_("swift config file "
                      "%(conf)s:%(exc)s not found"),
-                   {'conf': self.conf.glance_store.swift_store_config_file,
+                   {'conf': scf,
                     'exc': e})
             LOG.error(msg)
             raise exceptions.BadStoreConfiguration(store_name='swift',
@@ -177,7 +190,12 @@ class SwiftParams(object):
                 try:
                     reference['auth_version'] = CONFIG.get(ref, 'auth_version')
                 except configparser.NoOptionError:
-                    av = self.conf.glance_store.swift_store_auth_version
+                    if self.backend_group:
+                        av = getattr(
+                            self.conf,
+                            self.backend_group).swift_store_auth_version
+                    else:
+                        av = self.conf.glance_store.swift_store_auth_version
                     reference['auth_version'] = av
 
                 account_params[ref] = reference
