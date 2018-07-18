@@ -1,0 +1,15 @@
+---
+deprecations:
+  - |
+    The glance_store function ``store_add_to_backend``, which is a
+    wrapper around each store's ``add()`` method, is deprecated in this
+    release and is subject to removal at the beginning of the Stein
+    development cycle, following the `OpenStack standard deprecation policy
+    <https://governance.openstack.org/reference/tags/assert_follows-standard-deprecation.html>`_.
+
+    The function is replaced by ``store_add_to_backend_with_multihash``,
+    which is a similar wrapper, but which takes an additional argument
+    allowing a caller to specify an secure hashing algorithm.  The
+    hexdigest of this algorithm is returned as one of the multiple
+    values returned by the function.  The function also returns the
+    md5 checksum for backward compatability.
