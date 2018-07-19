@@ -24,7 +24,7 @@ from stevedore import extension
 
 from glance_store import capabilities
 from glance_store import exceptions
-from glance_store.i18n import _, _LW
+from glance_store.i18n import _
 from glance_store import location
 
 
@@ -124,7 +124,7 @@ def _list_driver_opts():
 
 
 def register_store_opts(conf):
-    LOG.debug("Registering options for group %s" % _STORE_CFG_GROUP)
+    LOG.debug("Registering options for group %s", _STORE_CFG_GROUP)
     conf.register_opts(_STORE_OPTS, group=_STORE_CFG_GROUP)
 
     driver_opts = _list_driver_opts()
@@ -134,7 +134,7 @@ def register_store_opts(conf):
             if enabled_backends[backend] not in opt_list:
                 continue
 
-            LOG.debug("Registering options for group %s" % backend)
+            LOG.debug("Registering options for group %s", backend)
             conf.register_opts(driver_opts[opt_list], group=backend)
 
 
@@ -154,7 +154,7 @@ def _load_multi_store(conf, store_entry,
         return mgr.driver
     except RuntimeError as e:
         LOG.warning("Failed to load driver %(driver)s. The "
-                    "driver will be disabled" % dict(driver=str([driver, e])))
+                    "driver will be disabled", dict(driver=str([driver, e])))
 
 
 def _load_multi_stores(conf):
@@ -177,10 +177,7 @@ def _load_multi_stores(conf):
 
 
 def create_multi_stores(conf=CONF):
-    """
-    Registers all store modules and all schemes
-    from the given config.
-    """
+    """Registers all store modules and all schemes from the given config."""
     store_count = 0
     scheme_map = {}
     for (store_entry, store_instance,
@@ -192,9 +189,9 @@ def create_multi_stores(conf=CONF):
             continue
 
         if not schemes:
-            raise exceptions.BackendException('Unable to register store %s. '
-                                              'No schemes associated with it.'
-                                              % store_entry)
+            raise exceptions.BackendException(
+                _('Unable to register store %s. No schemes associated '
+                  'with it.') % store_entry)
         else:
             LOG.debug("Registering store %s with schemes %s",
                       store_entry, schemes)
@@ -228,7 +225,8 @@ def verify_store():
 
 
 def get_store_from_store_identifier(store_identifier):
-    """
+    """Determine backing store from identifier.
+
     Given a store identifier, return the appropriate store object
     for handling that scheme.
     """
@@ -302,9 +300,9 @@ def _check_metadata(store, metadata):
 
 def store_add_to_backend(image_id, data, size, store, context=None,
                          verifier=None):
-    """
-    A wrapper around a call to each stores add() method.  This gives glance
-    a common place to check the output
+    """A wrapper around a call to each stores add() method.
+
+    This gives glance a common place to check the output.
 
     :param image_id:  The image add to which data is added
     :param data: The data to be stored
@@ -393,9 +391,8 @@ def delete(uri, backend, context=None):
         store = get_store_from_store_identifier(backend)
         return store.delete(loc, context=context)
 
-    msg = _LW('Backend is not set to image, searching '
-              'all backends based on location URI.')
-    LOG.warn(msg)
+    LOG.warning('Backend is not set to image, searching all backends based on '
+                'location URI.')
 
     backends = CONF.enabled_backends
     for backend in backends:
@@ -444,9 +441,8 @@ def get(uri, backend, offset=0, chunk_size=None, context=None):
                          chunk_size=chunk_size,
                          context=context)
 
-    msg = _LW('Backend is not set to image, searching '
-              'all backends based on location URI.')
-    LOG.warn(msg)
+    LOG.warning('Backend is not set to image, searching all backends based on '
+                'location URI.')
 
     backends = CONF.enabled_backends
     for backend in backends:
