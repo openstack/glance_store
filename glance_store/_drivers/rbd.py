@@ -52,7 +52,7 @@ LOG = logging.getLogger(__name__)
 _RBD_OPTS = [
     cfg.IntOpt('rbd_store_chunk_size', default=DEFAULT_CHUNKSIZE,
                min=1,
-               help=_("""
+               help="""
 Size, in megabytes, to chunk RADOS images into.
 
 Provide an integer value representing the size in megabytes to chunk
@@ -70,9 +70,9 @@ Possible Values:
 Related options:
     * None
 
-""")),
+"""),
     cfg.StrOpt('rbd_store_pool', default=DEFAULT_POOL,
-               help=_("""
+               help="""
 RADOS pool in which images are stored.
 
 When RBD is used as the storage backend for storing Glance images, the
@@ -90,9 +90,9 @@ Possible Values:
 Related options:
     * None
 
-""")),
+"""),
     cfg.StrOpt('rbd_store_user', default=DEFAULT_USER,
-               help=_("""
+               help="""
 RADOS user to authenticate as.
 
 This configuration option takes in the RADOS user to authenticate as.
@@ -108,9 +108,9 @@ Possible Values:
 Related options:
     * rbd_store_ceph_conf
 
-""")),
+"""),
     cfg.StrOpt('rbd_store_ceph_conf', default=DEFAULT_CONFFILE,
-               help=_("""
+               help="""
 Ceph configuration file path.
 
 This configuration option takes in the path to the Ceph configuration
@@ -126,9 +126,9 @@ Possible Values:
 Related options:
     * rbd_store_user
 
-""")),
+"""),
     cfg.IntOpt('rados_connect_timeout', default=0,
-               help=_("""
+               help="""
 Timeout value for connecting to Ceph cluster.
 
 This configuration option takes in the timeout value in seconds used
@@ -144,7 +144,7 @@ Possible Values:
 Related options:
     * None
 
-"""))
+"""),
 ]
 
 

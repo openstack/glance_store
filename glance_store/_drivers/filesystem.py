@@ -46,7 +46,7 @@ LOG = logging.getLogger(__name__)
 _FILESYSTEM_CONFIGS = [
     cfg.StrOpt('filesystem_store_datadir',
                default='/var/lib/glance/images',
-               help=_("""
+               help="""
 Directory to which the filesystem backend store writes images.
 
 Upon start up, Glance creates the directory if it doesn't already
@@ -69,9 +69,9 @@ Related options:
     * ``filesystem_store_datadirs``
     * ``filesystem_store_file_perm``
 
-""")),
+"""),
     cfg.MultiStrOpt('filesystem_store_datadirs',
-                    help=_("""
+                    help="""
 List of directories and their priorities to which the filesystem
 backend store writes images.
 
@@ -105,9 +105,9 @@ Related options:
     * ``filesystem_store_datadir``
     * ``filesystem_store_file_perm``
 
-""")),
+"""),
     cfg.StrOpt('filesystem_store_metadata_file',
-               help=_("""
+               help="""
 Filesystem store metadata file.
 
 The path to a file which contains the metadata to be returned with
@@ -122,10 +122,10 @@ Possible values:
 Related options:
     * None
 
-""")),
+"""),
     cfg.IntOpt('filesystem_store_file_perm',
                default=0,
-               help=_("""
+               help="""
 File access permissions for the image files.
 
 Set the intended file access permissions for image data. This provides
@@ -148,7 +148,7 @@ Possible values:
 Related options:
     * None
 
-"""))]
+""")]
 
 MULTI_FILESYSTEM_METADATA_SCHEMA = {
     "type": "array",

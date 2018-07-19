@@ -25,7 +25,7 @@ READ_SIZE = 65536
 
 BUFFERING_OPTS = [
     cfg.StrOpt('swift_upload_buffer_dir',
-               help=_("""
+               help="""
 Directory to buffer image segments before upload to Swift.
 
 Provide a string value representing the absolute path to the
@@ -47,7 +47,7 @@ Related options:
     * swift_buffer_on_upload
     * swift_store_large_object_chunk_size
 
-""")),
+"""),
 ]
 CONF = cfg.CONF
 

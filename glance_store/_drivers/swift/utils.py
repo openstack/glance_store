@@ -24,7 +24,7 @@ from glance_store.i18n import _, _LE
 swift_opts = [
     cfg.StrOpt('default_swift_reference',
                default="ref1",
-               help=_("""
+               help="""
 Reference to default Swift account/backing store parameters.
 
 Provide a string value representing a reference to the default set
@@ -40,42 +40,42 @@ Possible values:
 Related options:
     * None
 
-""")),
+"""),
     cfg.StrOpt('swift_store_auth_version', default='2',
-               help=_('Version of the authentication service to use. '
-                      'Valid versions are 2 and 3 for keystone and 1 '
-                      '(deprecated) for swauth and rackspace.'),
+               help='Version of the authentication service to use. '
+                    'Valid versions are 2 and 3 for keystone and 1 '
+                    '(deprecated) for swauth and rackspace.',
                deprecated_for_removal=True,
-               deprecated_reason=_("""
+               deprecated_reason="""
 The option 'auth_version' in the Swift back-end configuration file is
 used instead.
-""")),
+"""),
     cfg.StrOpt('swift_store_auth_address',
-               help=_('The address where the Swift authentication '
-                      'service is listening.'),
+               help='The address where the Swift authentication '
+                    'service is listening.',
                deprecated_for_removal=True,
-               deprecated_reason=_("""
+               deprecated_reason="""
 The option 'auth_address' in the Swift back-end configuration file is
 used instead.
-""")),
+"""),
     cfg.StrOpt('swift_store_user', secret=True,
-               help=_('The user to authenticate against the Swift '
-                      'authentication service.'),
+               help='The user to authenticate against the Swift '
+                    'authentication service.',
                deprecated_for_removal=True,
-               deprecated_reason=_("""
+               deprecated_reason="""
 The option 'user' in the Swift back-end configuration file is set instead.
-""")),
+"""),
     cfg.StrOpt('swift_store_key', secret=True,
-               help=_('Auth key for the user authenticating against the '
-                      'Swift authentication service.'),
+               help='Auth key for the user authenticating against the '
+                    'Swift authentication service.',
                deprecated_for_removal=True,
-               deprecated_reason=_("""
+               deprecated_reason="""
 The option 'key' in the Swift back-end configuration file is used
 to set the authentication key instead.
-""")),
+"""),
     cfg.StrOpt('swift_store_config_file',
                default=None,
-               help=_("""
+               help="""
 Absolute path to the file containing the swift account(s)
 configurations.
 
@@ -96,7 +96,7 @@ Possible values:
 Related options:
     * swift_store_multi_tenant
 
-""")),
+"""),
 ]
 
 _config_defaults = {'user_domain_id': 'default',

@@ -44,7 +44,7 @@ _SHEEPDOG_OPTS = [
     cfg.IntOpt('sheepdog_store_chunk_size',
                min=1,
                default=DEFAULT_CHUNKSIZE,
-               help=_("""
+               help="""
 Chunk size for images to be stored in Sheepdog data store.
 
 Provide an integer value representing the size in mebibyte
@@ -64,10 +64,10 @@ Possible values:
 Related Options:
     * None
 
-""")),
+"""),
     cfg.PortOpt('sheepdog_store_port',
                 default=DEFAULT_PORT,
-                help=_("""
+                help="""
 Port number on which the sheep daemon will listen.
 
 Provide an integer value representing a valid port number on
@@ -86,10 +86,10 @@ Possible values:
 Related Options:
     * sheepdog_store_address
 
-""")),
+"""),
     cfg.HostAddressOpt('sheepdog_store_address',
                        default=DEFAULT_ADDR,
-                       help=_("""
+                       help="""
 Address to bind the Sheepdog daemon to.
 
 Provide a string value representing the address to bind the
@@ -110,7 +110,7 @@ Possible values:
 Related Options:
     * sheepdog_store_port
 
-"""))
+"""),
 ]
 
 

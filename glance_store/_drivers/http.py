@@ -35,7 +35,7 @@ MAX_REDIRECTS = 5
 
 _HTTP_OPTS = [
     cfg.StrOpt('https_ca_certificates_file',
-               help=_("""
+               help="""
 Path to the CA bundle file.
 
 This configuration option enables the operator to use a custom
@@ -50,10 +50,10 @@ Possible values:
 Related options:
     * https_insecure
 
-""")),
+"""),
     cfg.BoolOpt('https_insecure',
                 default=True,
-                help=_("""
+                help="""
 Set verification of the remote server certificate.
 
 This configuration option takes in a boolean value to determine
@@ -72,10 +72,10 @@ Possible values:
 Related options:
     * https_ca_certificates_file
 
-""")),
+"""),
     cfg.DictOpt('http_proxy_information',
                 default={},
-                help=_("""
+                help="""
 The http/https proxy information to be used to connect to the remote
 server.
 
@@ -92,7 +92,7 @@ Possible values:
 Related options:
     * None
 
-"""))]
+""")]
 
 
 class StoreLocation(glance_store.location.StoreLocation):
