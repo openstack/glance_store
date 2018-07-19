@@ -32,7 +32,7 @@ from glance_store import capabilities
 from glance_store.common import utils
 import glance_store.driver
 from glance_store import exceptions
-from glance_store.i18n import _, _LE, _LW, _LI
+from glance_store.i18n import _, _LE, _LI
 import glance_store.location
 
 try:
@@ -435,9 +435,6 @@ class Store(glance_store.driver.Store):
 
     def __init__(self, *args, **kargs):
         super(Store, self).__init__(*args, **kargs)
-        LOG.warning(_LW("Cinder store is considered experimental. "
-                        "Current deployers should be aware that the use "
-                        "of it in production right now may be risky."))
 
     def get_schemes(self):
         return ('cinder',)
