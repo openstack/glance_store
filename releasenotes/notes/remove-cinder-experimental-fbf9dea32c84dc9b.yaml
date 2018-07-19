@@ -1,0 +1,9 @@
+---
+prelude: >
+    From glance_store release 0.26.0 onwards Cinder driver is no longer
+    considered as experimental.
+other:
+  - |
+    During Rocky cycle number of issues still warranting experimental status
+    on Cinder back-end driver was addressed. The team considers the driver
+    stable and production ready from Rocky release onwards (0.26.0).
