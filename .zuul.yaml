@@ -48,6 +48,7 @@
 - job:
     name: glance_store-tox-cinder-tips-base
     parent: tox
+    abstract: true
     description: Abstract job for glance_store vs. cinder
     required-projects:
       - name: openstack/os-brick
@@ -72,6 +73,7 @@
 - job:
     name: glance_store-tox-keystone-tips-base
     parent: tox
+    abstract: true
     description: Abstract job for glance_store vs. keystone
     required-projects:
       - name: openstack/keystoneauth
@@ -96,6 +98,7 @@
 - job:
     name: glance_store-tox-oslo-tips-base
     parent: tox
+    abstract: true
     description: Abstract job for glance_store vs. oslo
     required-projects:
       - name: openstack/oslo.concurrency
@@ -127,6 +130,7 @@
 - job:
     name: glance_store-tox-swift-tips-base
     parent: tox
+    abstract: true
     description: Abstract job for glance_store vs. swift
     required-projects:
       - name: openstack/python-swiftclient
@@ -160,11 +164,19 @@
         - glance_store-dsvm-functional-swift
     periodic:
       jobs:
-        - glance_store-tox-py27-cinder-tips
-        - glance_store-tox-py35-cinder-tips
-        - glance_store-tox-py27-keystone-tips
-        - glance_store-tox-py35-keystone-tips
-        - glance_store-tox-py27-oslo-tips
-        - glance_store-tox-py35-oslo-tips
-        - glance_store-tox-py27-swift-tips
-        - glance_store-tox-py35-swift-tips
+        - glance_store-tox-py27-cinder-tips:
+            branches: master
+        - glance_store-tox-py35-cinder-tips:
+            branches: master
+        - glance_store-tox-py27-keystone-tips:
+            branches: master
+        - glance_store-tox-py35-keystone-tips:
+            branches: master
+        - glance_store-tox-py27-oslo-tips:
+            branches: master
+        - glance_store-tox-py35-oslo-tips:
+            branches: master
+        - glance_store-tox-py27-swift-tips:
+            branches: master
+        - glance_store-tox-py35-swift-tips:
+            branches: master
