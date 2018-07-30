@@ -279,6 +279,16 @@ def add(conf, image_id, data, size, backend, context=None,
                                 verifier)
 
 
+def add_with_multihash(conf, image_id, data, size, backend, hashing_algo,
+                       scheme=None, context=None, verifier=None):
+    if not backend:
+        backend = conf.glance_store.default_backend
+
+    store = get_store_from_store_identifier(backend)
+    return store_add_to_backend_with_multihash(
+        image_id, data, size, hashing_algo, store, context, verifier)
+
+
 def _check_metadata(store, metadata):
     if not isinstance(metadata, dict):
         msg = (_("The storage driver %(driver)s returned invalid "

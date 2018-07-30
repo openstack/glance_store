@@ -532,6 +532,15 @@ def add_to_backend(conf, image_id, data, size, scheme=None, context=None,
                                 verifier)
 
 
+def add_to_backend_with_multihash(conf, image_id, data, size, hashing_algo,
+                                  scheme=None, context=None, verifier=None):
+    if scheme is None:
+        scheme = conf['glance_store']['default_store']
+    store = get_store_from_scheme(scheme)
+    return store_add_to_backend_with_multihash(
+        image_id, data, size, hashing_algo, store, context, verifier)
+
+
 def set_acls(location_uri, public=False, read_tenants=[],
              write_tenants=None, context=None):
 
