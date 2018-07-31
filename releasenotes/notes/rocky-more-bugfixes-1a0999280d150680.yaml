@@ -1,0 +1,11 @@
+---
+fixes:
+  - |
+    * Bug 1784420_: Interface function for multihash not wrapped correctly
+
+      The Rocky release of glance_store contains support for computing
+      secure hash values of stored data, but the function called by
+      Glance to store data was not wrapped correctly, thereby making
+      the computed secure hash value unavailable to Glance.
+
+    .. _1784420: https://bugs.launchpad.net/glance-store/+bug/1784420
