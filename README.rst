@@ -8,8 +8,7 @@ Team and repository tags
           Library:
           "project:official",
           "stable:follows-policy",
-          "vulnerability:managed",
-          "team:diverse-affiliation".
+          "vulnerability:managed".
           Follow the link for an explanation of these tags.
 .. NOTE(rosmaita): the alt text above will have to be updated when
    additional tags are asserted for glance_store.  (The SVG in the
@@ -33,4 +32,4 @@ supported by the core team.
 * License: Apache License, Version 2.0
 * Documentation: https://docs.openstack.org/glance_store/latest/
 * Source: http://git.openstack.org/cgit/openstack/glance_store
-* Bugs: http://bugs.launchpad.net/glance-store
+* Bugs: https://bugs.launchpad.net/glance-store
