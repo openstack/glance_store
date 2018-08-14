@@ -4,6 +4,9 @@
 # Metrics and style
 hacking!=0.13.0,<0.14,>=0.12.0 # Apache-2.0
 
+# Documentation style
+doc8>=0.6.0 # Apache-2.0
+
 # Packaging
 mock>=2.0.0 # BSD
 
