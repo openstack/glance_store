@@ -1,0 +1,21 @@
+- project:
+    templates:
+      - openstack-python-jobs
+      - openstack-python35-jobs
+      - publish-openstack-sphinx-docs
+      - release-notes-jobs
+      - check-requirements
+      - lib-forward-testing
+    check:
+      jobs:
+        - legacy-tempest-dsvm-full-ceph-plugin-src-glance_store:
+            voting: false
+            irrelevant-files:
+              - ^(test-|)requirements.txt$
+              - ^setup.cfg$
+        - legacy-tempest-dsvm-full-sheepdog:
+            voting: false
+            irrelevant-files:
+              - ^(test-|)requirements.txt$
+              - ^setup.cfg$
+
