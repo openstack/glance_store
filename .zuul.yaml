@@ -43,7 +43,7 @@
         s-object: true
         s-proxy: true
       devstack_localrc:
-        ENABLE_IDENTITY_V2: True
+        ENABLE_IDENTITY_V2: true
 
 - job:
     name: glance_store-tox-cinder-tips-base
@@ -148,9 +148,27 @@
       tox_envlist: py35
 
 - project:
+    templates:
+      - openstack-python-jobs
+      - openstack-python35-jobs
+      - publish-openstack-sphinx-docs
+      - release-notes-jobs
+      - check-requirements
+      - lib-forward-testing
     check:
       jobs:
         - openstack-tox-lower-constraints
+        - legacy-tempest-dsvm-full-ceph-plugin-src-glance_store:
+            voting: false
+            irrelevant-files:
+              - ^(test-|)requirements.txt$
+              - ^setup.cfg$
+        - legacy-tempest-dsvm-full-sheepdog:
+            voting: false
+            irrelevant-files:
+              - ^(test-|)requirements.txt$
+              - ^setup.cfg$
+
     gate:
       jobs:
         - openstack-tox-lower-constraints
