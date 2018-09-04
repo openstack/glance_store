@@ -100,9 +100,9 @@ Related options:
 ]
 
 _config_defaults = {'user_domain_id': 'default',
-                    'user_domain_name': None,
+                    'user_domain_name': 'default',
                     'project_domain_id': 'default',
-                    'project_domain_name': None}
+                    'project_domain_name': 'default'}
 
 if sys.version_info >= (3, 2):
     CONFIG = configparser.ConfigParser(defaults=_config_defaults)
