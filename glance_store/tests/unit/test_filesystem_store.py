@@ -43,20 +43,14 @@ class TestStore(base.StoreBaseTest,
     def setUp(self):
         """Establish a clean test environment."""
         super(TestStore, self).setUp()
-        self.orig_chunksize = filesystem.Store.READ_CHUNKSIZE
-        filesystem.Store.READ_CHUNKSIZE = 10
         self.store = filesystem.Store(self.conf)
         self.config(filesystem_store_datadir=self.test_dir,
+                    filesystem_store_chunk_size=10,
                     stores=['glance.store.filesystem.Store'],
                     group="glance_store")
         self.store.configure()
         self.register_store_schemes(self.store, 'file')
         self.hash_algo = 'sha256'
-
-    def tearDown(self):
-        """Clear the test environment."""
-        super(TestStore, self).tearDown()
-        filesystem.ChunkedFile.CHUNKSIZE = self.orig_chunksize
 
     def _create_metadata_json_file(self, metadata):
         expected_image_id = str(uuid.uuid4())
@@ -185,7 +179,10 @@ class TestStore(base.StoreBaseTest,
     def test_add_with_verifier(self):
         """Test that 'verifier.update' is called when verifier is provided."""
         verifier = mock.MagicMock(name='mock_verifier')
-        self.store.chunk_size = units.Ki
+        self.config(filesystem_store_chunk_size=units.Ki,
+                    group='glance_store')
+        self.store.configure()
+
         image_id = str(uuid.uuid4())
         file_size = units.Ki  # 1K
         file_contents = b"*" * file_size
@@ -741,3 +738,14 @@ class TestStore(base.StoreBaseTest,
         mode = os.stat(expected_location[len('file:/'):])[stat.ST_MODE]
         perm = int(str(self.conf.glance_store.filesystem_store_file_perm), 8)
         self.assertEqual(perm, stat.S_IMODE(mode))
+
+    def test_configure_add_chunk_size(self):
+        # This definitely won't be the default
+        chunk_size = units.Gi
+        self.config(filesystem_store_chunk_size=chunk_size,
+                    group="glance_store")
+        self.store.configure_add()
+
+        self.assertEqual(chunk_size, self.store.chunk_size)
+        self.assertEqual(chunk_size, self.store.READ_CHUNKSIZE)
+        self.assertEqual(chunk_size, self.store.WRITE_CHUNKSIZE)

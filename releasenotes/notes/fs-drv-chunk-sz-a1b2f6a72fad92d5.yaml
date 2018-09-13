@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    The filesystem driver is now using a configurable chunk size. Increasing it
+    may avoid bottlenecks.

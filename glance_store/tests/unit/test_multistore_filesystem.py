@@ -70,18 +70,12 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.test_dir = self.useFixture(fixtures.TempDir()).path
         self.addCleanup(self.conf.reset)
 
-        self.orig_chunksize = filesystem.Store.READ_CHUNKSIZE
-        filesystem.Store.READ_CHUNKSIZE = 10
         self.store = filesystem.Store(self.conf, backend='file1')
         self.config(filesystem_store_datadir=self.test_dir,
+                    filesystem_store_chunk_size=10,
                     group="file1")
         self.store.configure()
         self.register_store_backend_schemes(self.store, 'file', 'file1')
-
-    def tearDown(self):
-        """Clear the test environment."""
-        super(TestMultiStore, self).tearDown()
-        filesystem.ChunkedFile.CHUNKSIZE = self.orig_chunksize
 
     def _create_metadata_json_file(self, metadata):
         expected_image_id = str(uuid.uuid4())
