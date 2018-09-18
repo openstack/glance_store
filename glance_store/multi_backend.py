@@ -98,6 +98,21 @@ Related Options:
 _STORE_CFG_GROUP = 'glance_store'
 
 
+def _list_config_opts():
+    # NOTE(abhishekk): This separated approach could list
+    # store options before all driver ones, which easier
+    # to generate sampe config file.
+    driver_opts = _list_driver_opts()
+    sample_opts = [(_STORE_CFG_GROUP, _STORE_OPTS)]
+    for store_entry in driver_opts:
+        # NOTE(abhishekk): Do not include no_conf store
+        if store_entry == "no_conf":
+            continue
+        sample_opts.append((store_entry, driver_opts[store_entry]))
+
+    return sample_opts
+
+
 def _list_driver_opts():
     driver_opts = {}
     mgr = extension.ExtensionManager('glance_store.drivers')
