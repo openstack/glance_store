@@ -149,9 +149,10 @@ class BufferedReader(object):
                 # possible set of errors.
                 raise socket.error(*e.args)
             if len(buf) == 0:
+                if self._tmpfile.tell() == 0:
+                    self.is_zero_size = True
                 self._tmpfile.seek(0)
                 self._buffered = True
-                self.is_zero_size = True
                 break
             self._tmpfile.write(buf)
             to_buffer -= len(buf)
