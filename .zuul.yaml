@@ -184,6 +184,18 @@
         - glance_store-dsvm-functional-swift
     periodic:
       jobs:
+        # NOTE(rosmaita): we only want the "tips" jobs to be run against
+        # master, hence the 'branches' qualifiers below.  Without them, when
+        # a stable branch is cut, the tests would be run against the stable
+        # branch as well, which is pointless because these libraries are
+        # frozen (more or less) in the stable branches.
+        #
+        # The "tips" jobs can be removed from the stable branch .zuul.yaml
+        # files if someone is so inclined, but that would require manual
+        # maintenance, so we do not do it by default.  Another option is
+        # to define these jobs in the openstack-infra/project-config repo.
+        # That would make us less agile in adjusting these tests, so we
+        # aren't doing that either.
         - glance_store-tox-py27-cinder-tips:
             branches: master
         - glance_store-tox-py35-cinder-tips:
