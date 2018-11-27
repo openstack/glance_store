@@ -1631,7 +1631,20 @@ class ChunkReader(object):
         if i > left:
             i = left
 
-        result = self.do_read(i)
+        # Note(rosmaita): under some circumstances in py3, a zero-byte
+        # read results in a non-byte value that then causes a "unicode
+        # objects must be encoded before hashing" error when we do the
+        # hash computations below.  (At least that seems to be what's
+        # happening in testing.)  So just fake a zero-byte read and let
+        # the current execution path continue.
+        # See https://bugs.launchpad.net/glance-store/+bug/1805332
+        # TODO(rosmaita): find what in the execution path is returning
+        # a native string instead of bytes and fix it.
+        if i == 0:
+            result = b''
+        else:
+            result = self.do_read(i)
+
         self.bytes_read += len(result)
         self.checksum.update(result)
         self.os_hash_value.update(result)
