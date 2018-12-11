@@ -89,6 +89,9 @@ class MockRBD(object):
     class InvalidArgument(Exception):
         pass
 
+    class NoSpace(Exception):
+        pass
+
     class Image(object):
 
         def __init__(self, *args, **kwargs):
