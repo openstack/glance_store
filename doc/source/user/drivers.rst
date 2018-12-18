@@ -16,11 +16,11 @@ below the table of supported drivers and maintainers:
      - IRC Nick
    * - File System
      - Glance Team
-     - openstack-dev@lists.openstack.org
+     - openstack-discuss@lists.openstack.org
      - openstack-glance
    * - HTTP
      - Glance Team
-     - openstack-dev@lists.openstack.org
+     - openstack-discuss@lists.openstack.org
      - openstack-glance
    * - RBD
      - Fei Long Wang
