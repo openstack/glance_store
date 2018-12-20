@@ -153,17 +153,17 @@
 
 - project:
     templates:
+      - check-requirements
+      - lib-forward-testing
+      - lib-forward-testing-python3
+      - openstack-lower-constraints-jobs
       - openstack-python-jobs
       - openstack-python35-jobs
       - openstack-python36-jobs
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
-      - check-requirements
-      - lib-forward-testing
-      - lib-forward-testing-python3
     check:
       jobs:
-        - openstack-tox-lower-constraints
         - legacy-tempest-dsvm-full-ceph-plugin-src-glance_store:
             voting: false
             irrelevant-files:
@@ -174,10 +174,6 @@
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
-
-    gate:
-      jobs:
-        - openstack-tox-lower-constraints
     experimental:
       jobs:
         - glance_store-dsvm-functional-filesystem
