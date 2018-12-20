@@ -41,7 +41,7 @@ This option is deprecated against new config option
 ``enabled_backends`` which helps to configure multiple backend stores
 of different schemes.
 
-This option is scheduled for removal in the Stein development
+This option is scheduled for removal in the Train development
 cycle.
 """,
                 help="""
@@ -77,7 +77,7 @@ This option is deprecated against new config option
 ``default_backend`` which acts similar to ``default_store`` config
 option.
 
-This option is scheduled for removal in the Stein development
+This option is scheduled for removal in the Train development
 cycle.
 """,
                help="""

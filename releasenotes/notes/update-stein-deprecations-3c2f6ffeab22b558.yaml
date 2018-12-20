@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    Removal of the ``stores`` and ``default_store`` configuration options,
+    which were deprecated in Rocky, has been postponed until during the
+    Train development cycle.
