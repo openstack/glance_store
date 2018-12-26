@@ -514,6 +514,21 @@ class Store(driver.Store):
                         if loc.snapshot:
                             image.create_snap(loc.snapshot)
                             image.protect_snap(loc.snapshot)
+                except rbd.NoSpace:
+                    log_msg = (_LE("Failed to store image %(img_name)s "
+                                   "insufficient space available") %
+                               {'img_name': image_name})
+                    LOG.error(log_msg)
+
+                    # Delete image if one was created
+                    try:
+                        target_pool = loc.pool or self.pool
+                        self._delete_image(target_pool, loc.image,
+                                           loc.snapshot)
+                    except exceptions.NotFound:
+                        pass
+
+                    raise exceptions.StorageFull(message=log_msg)
                 except Exception as exc:
                     log_msg = (_LE("Failed to store image %(img_name)s "
                                    "Store Exception %(store_exc)s") %
