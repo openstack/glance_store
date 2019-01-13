@@ -1,15 +1,16 @@
 # Andi Chandler <andi@gowling.com>, 2016. #zanata
 # Andi Chandler <andi@gowling.com>, 2017. #zanata
 # Andi Chandler <andi@gowling.com>, 2018. #zanata
+# Andi Chandler <andi@gowling.com>, 2019. #zanata
 msgid ""
 msgstr ""
 "Project-Id-Version: glance_store\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-09-17 19:38+0000\n"
+"POT-Creation-Date: 2019-01-08 16:26+0000\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"PO-Revision-Date: 2018-08-28 02:06+0000\n"
+"PO-Revision-Date: 2019-01-12 01:15+0000\n"
 "Last-Translator: Andi Chandler <andi@gowling.com>\n"
 "Language-Team: English (United Kingdom)\n"
 "Language: en_GB\n"
@@ -59,6 +60,9 @@ msgstr "0.26.0"
 
 msgid "0.26.1"
 msgstr "0.26.1"
+
+msgid "0.27.0-3"
+msgstr "0.27.0-3"
 
 msgid ""
 "A `BufferedReader`_ has been added to the Swift store driver in order to "
@@ -299,6 +303,15 @@ msgstr ""
 
 msgid "Queens Series Release Notes"
 msgstr "Queens Series Release Notes"
+
+msgid ""
+"Removal of the ``stores`` and ``default_store`` configuration options, which "
+"were deprecated in Rocky, has been postponed until during the Train "
+"development cycle."
+msgstr ""
+"Removal of the ``stores`` and ``default_store`` configuration options, which "
+"were deprecated in Rocky, has been postponed until during the Train "
+"development cycle."
 
 msgid ""
 "Return list of store drivers in sorted order for generating configs. More "
