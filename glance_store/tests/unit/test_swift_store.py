@@ -1400,8 +1400,8 @@ class TestStoreAuthV3(TestStoreAuthV1):
             auth_url=loc.store_location.swift_url + '/',
             username=username, password="key",
             project_name=tenant,
-            project_domain_id='default', project_domain_name=None,
-            user_domain_id='default', user_domain_name=None,)
+            project_domain_id='default', project_domain_name='default',
+            user_domain_id='default', user_domain_name='default',)
         mock_session.Session.assert_called_once_with(
             auth=mock_identity.V3Password(), verify=True)
         mock_client.Client.assert_called_once_with(
