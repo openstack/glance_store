@@ -436,7 +436,7 @@ class Store(glance_store.driver.Store):
                 (datadir_path,
                  priority) = self._get_datadir_path_and_priority(datadir)
                 priority_paths = self.priority_data_map.setdefault(
-                    int(priority), [])
+                    priority, [])
                 self._check_directory_paths(datadir_path, directory_paths,
                                             priority_paths)
                 directory_paths.add(datadir_path)
@@ -490,8 +490,9 @@ class Store(glance_store.driver.Store):
         parts = [part.strip() for part in datadir.rsplit(":", 1)]
         datadir_path = parts[0]
         if len(parts) == 2 and parts[1]:
-            priority = parts[1]
-            if not priority.isdigit():
+            try:
+                priority = int(parts[1])
+            except ValueError:
                 msg = (_("Invalid priority value %(priority)s in "
                          "filesystem configuration") % {'priority': priority})
                 LOG.exception(msg)

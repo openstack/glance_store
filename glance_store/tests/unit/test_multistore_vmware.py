@@ -391,7 +391,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         parts = self.store._parse_datastore_info_and_weight(datastore)
         self.assertEqual('a', parts[0])
         self.assertEqual('b', parts[1])
-        self.assertEqual('100', parts[2])
+        self.assertEqual(100, parts[2])
 
     def test_parse_datastore_info_and_weight_default_weight(self):
         datastore = 'a:b'

@@ -463,8 +463,9 @@ class Store(glance_store.Store):
             raise exceptions.BadStoreConfiguration(
                 store_name='vmware_datastore', reason=msg)
         if len(parts) == 3 and parts[2]:
-            weight = parts[2]
-            if not weight.isdigit():
+            try:
+                weight = int(parts[2])
+            except ValueError:
                 msg = (_('Invalid weight value %(weight)s in '
                          'vmware_datastores configuration') %
                        {'weight': weight})
@@ -501,7 +502,7 @@ class Store(glance_store.Store):
                 LOG.error(msg)
                 raise exceptions.BadStoreConfiguration(
                     store_name='vmware_datastore', reason=msg)
-            ds_map.setdefault(int(weight), []).append(ds_obj)
+            ds_map.setdefault(weight, []).append(ds_obj)
         return ds_map
 
     def configure_add(self):
