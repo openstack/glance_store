@@ -241,7 +241,7 @@ class ImageIterator(object):
                             data = image.read(size - bytes_left, length)
                             bytes_left -= len(data)
                             yield data
-                        raise StopIteration()
+                        return
         except rbd.ImageNotFound:
             raise exceptions.NotFound(
                 _('RBD image %s does not exist') % self.name)

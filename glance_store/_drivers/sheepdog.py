@@ -256,7 +256,7 @@ class ImageIterator(object):
             data = image.read(total - left, length)
             left -= len(data)
             yield data
-        raise StopIteration()
+        return
 
 
 class Store(glance_store.driver.Store):
