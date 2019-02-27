@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    Added keyword argument to ``register_store_opts`` and
+    ``create_multi_stores`` calls to configure reserved stores by the consuming
+    service. This feature will allow a mix of operator-configured stores via
+    enabled_backends configuration option set in the [glance_store] section
+    of the consuming service's configuration file, and stores that are
+    reserved for use by the consuming service.

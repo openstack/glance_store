@@ -46,6 +46,7 @@ Related Options:
 ]
 
 _STORE_CFG_GROUP = 'glance_store'
+_RESERVED_STORES = {}
 
 
 def _list_config_opts():
@@ -88,12 +89,15 @@ def _list_driver_opts():
     return driver_opts
 
 
-def register_store_opts(conf):
+def register_store_opts(conf, reserved_stores=None):
     LOG.debug("Registering options for group %s", _STORE_CFG_GROUP)
     conf.register_opts(_STORE_OPTS, group=_STORE_CFG_GROUP)
 
     driver_opts = _list_driver_opts()
     enabled_backends = conf.enabled_backends
+    if reserved_stores:
+        enabled_backends.update(reserved_stores)
+
     for backend in enabled_backends:
         for opt_list in driver_opts:
             if enabled_backends[backend] not in opt_list:
@@ -122,8 +126,12 @@ def _load_multi_store(conf, store_entry,
                     "driver will be disabled", dict(driver=str([driver, e])))
 
 
-def _load_multi_stores(conf):
+def _load_multi_stores(conf, reserved_stores=None):
     enabled_backends = conf.enabled_backends
+    if reserved_stores:
+        enabled_backends.update(reserved_stores)
+        _RESERVED_STORES.update(reserved_stores)
+
     for backend, store_entry in enabled_backends.items():
         try:
             # FIXME(flaper87): Don't hide BadStoreConfiguration
@@ -141,12 +149,13 @@ def _load_multi_stores(conf):
             continue
 
 
-def create_multi_stores(conf=CONF):
+def create_multi_stores(conf=CONF, reserved_stores=None):
     """Registers all store modules and all schemes from the given config."""
     store_count = 0
     scheme_map = {}
     for (store_entry, store_instance,
-         store_identifier) in _load_multi_stores(conf):
+         store_identifier) in _load_multi_stores(
+            conf, reserved_stores=reserved_stores):
         try:
             schemes = store_instance.get_schemes()
             store_instance.configure(re_raise_bsc=False)
@@ -197,6 +206,8 @@ def get_store_from_store_identifier(store_identifier):
     """
     scheme_map = {}
     enabled_backends = CONF.enabled_backends
+    enabled_backends.update(_RESERVED_STORES)
+
     try:
         scheme = enabled_backends[store_identifier]
     except KeyError:
