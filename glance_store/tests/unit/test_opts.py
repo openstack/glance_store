@@ -85,6 +85,7 @@ class OptsTestCase(base.StoreBaseTest):
             'cinder_volume_type',
             'default_swift_reference',
             'https_insecure',
+            'filesystem_store_chunk_size',
             'filesystem_store_datadir',
             'filesystem_store_datadirs',
             'filesystem_store_file_perm',
