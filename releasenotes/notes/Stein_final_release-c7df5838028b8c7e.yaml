@@ -1,0 +1,28 @@
+---
+prelude:
+  This was a quiet development cycle for the ``glance_store`` library.
+  One new feature was added to the Filesystem store driver.  Several bugs
+  were fixed and some code changes were committed to increase stability.
+features:
+  - |
+    A chunk size config option was added to the filesystem driver to allow
+    some performance tweaking. The former hardcoded 64 KB is the current
+    default value.
+deprecations:
+  - |
+    Removal of ``stores`` and ``default_store`` has been postponed until
+    Train cycle to allow time to move multiple backends stores from being
+    EXPERIMENTAL due to some unresolved issues with the feature.
+fixes:
+  - |
+    * Bug 1785641_: Fix Defaults for ConfigParser
+    * Bug 1808456_: Catch rdb NoSpace Exception
+    * Bug 1813092_: Fix some types in the FS and VMware drivers
+    * Bug 1815335_: Do not raise StopIteration
+    * Bug 1816721_: Fix python3 compatibility of rbd get_fsid
+
+    .. _1785641: https://code.launchpad.net/bugs/1785641
+    .. _1808456: https://code.launchpad.net/bugs/1808456
+    .. _1813092: https://code.launchpad.net/bugs/1813092
+    .. _1815335: https://code.launchpad.net/bugs/1815335
+    .. _1816721: https://code.launchpad.net/bugs/1816721
