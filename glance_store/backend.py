@@ -235,7 +235,7 @@ class Indexable(object):
 
         :param i: a slice-to-the-end
         """
-        start = i.start if isinstance(i, slice) else i
+        start = (i.start or 0) if isinstance(i, slice) else i
         if start < self.cursor:
             return self.chunk[(start - self.cursor):]
 
