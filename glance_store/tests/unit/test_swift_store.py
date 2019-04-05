@@ -49,6 +49,7 @@ CONF = cfg.CONF
 
 FAKE_UUID = lambda: str(uuid.uuid4())
 FAKE_UUID2 = lambda: str(uuid.uuid4())
+FAKE_UUID3 = lambda: str(uuid.uuid4())
 
 
 Store = swift.Store
@@ -83,10 +84,15 @@ class SwiftTests(object):
                 'etag': 'c2e5db72bd7fd153f53ede5da5a06de3'
             },
             'glance/%s' % FAKE_UUID2: {'x-static-large-object': 'true', },
+            'glance/%s' % FAKE_UUID3: {
+                'content-length': 0,
+                'etag': "doesn't really matter",
+            },
         }
         fixture_objects = {
             'glance/%s' % FAKE_UUID: six.BytesIO(b"*" * FIVE_KB),
             'glance/%s' % FAKE_UUID2: six.BytesIO(b"*" * FIVE_KB),
+            'glance/%s' % FAKE_UUID3: six.BytesIO(),
         }
 
         def fake_head_container(url, token, container, **kwargs):
@@ -294,6 +300,30 @@ class SwiftTests(object):
         for chunk in image_swift:
             data += chunk
         self.assertEqual(expected_data, data)
+
+    def test_get_using_slice(self):
+        """Test a "normal" retrieval of an image in chunks."""
+        uri = "swift://%s:key@auth_address/glance/%s" % (
+            self.swift_store_user, FAKE_UUID)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        (image_swift, image_size) = self.store.get(loc)
+        self.assertEqual(5120, image_size)
+
+        expected_data = b"*" * FIVE_KB
+        self.assertEqual(expected_data, image_swift[:])
+
+        expected_data = b"*" * (FIVE_KB - 100)
+        self.assertEqual(expected_data, image_swift[100:])
+
+    def test_get_empty_using_slice(self):
+        """Test a "normal" retrieval of a blank image."""
+        uri = "swift://%s:key@auth_address/glance/%s" % (
+            self.swift_store_user, FAKE_UUID3)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        (image_swift, image_size) = self.store.get(loc)
+        self.assertEqual(0, image_size)
+
+        self.assertEqual(b'', image_swift[0:])
 
     def test_get_with_retry(self):
         """

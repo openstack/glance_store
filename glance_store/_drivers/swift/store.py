@@ -861,7 +861,7 @@ class BaseStore(driver.Store):
                     try:
                         return next(self.wrapped)
                     except StopIteration:
-                        return ''
+                        return b''
 
             length = int(resp_headers.get('content-length', 0))
             if allow_retry:
