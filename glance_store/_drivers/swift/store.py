@@ -1030,11 +1030,12 @@ class BaseStore(driver.Store):
                     if image_size == 0:
                         image_size = combined_chunks_size
 
-                    # Now we write the object manifest and return the
-                    # manifest's etag...
+                    # Now we write the object manifest in X-Object-Manifest
+                    # header as defined for Dynamic Large Objects (DLO) Mode.
+                    # This request does not include ETag as PUT request has not
+                    # actual content that we need to verify.
                     manifest = "%s/%s-" % (location.container, location.obj)
-                    headers = {'ETag': hashlib.md5(b"").hexdigest(),
-                               'X-Object-Manifest': manifest}
+                    headers = {'X-Object-Manifest': manifest}
 
                     # The ETag returned for the manifest is actually the
                     # MD5 hash of the concatenated checksums of the strings
