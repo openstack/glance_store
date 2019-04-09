@@ -112,8 +112,9 @@ class SwiftTests(object):
             fixture_key = "%s/%s" % (container, name)
             if fixture_key not in fixture_headers:
                 if kwargs.get('headers'):
-                    etag = kwargs['headers']['ETag']
                     manifest = kwargs.get('headers').get('X-Object-Manifest')
+                    etag = kwargs.get('headers') \
+                                 .get('ETag', hashlib.md5(b'').hexdigest())
                     fixture_headers[fixture_key] = {
                         'manifest': True,
                         'etag': etag,
