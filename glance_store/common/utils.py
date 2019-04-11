@@ -135,7 +135,7 @@ class CooperativeReader(object):
         try:
             return next(self.iterator)
         except StopIteration:
-            return ''
+            return b''
 
     def __iter__(self):
         return cooperative_iter(self.fd.__iter__())
