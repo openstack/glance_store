@@ -31,5 +31,5 @@ supported by the core team.
 
 * License: Apache License, Version 2.0
 * Documentation: https://docs.openstack.org/glance_store/latest/
-* Source: http://git.openstack.org/cgit/openstack/glance_store
+* Source: https://opendev.org/openstack/glance_store/
 * Bugs: https://bugs.launchpad.net/glance-store

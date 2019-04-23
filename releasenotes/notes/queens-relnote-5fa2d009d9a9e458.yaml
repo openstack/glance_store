@@ -35,7 +35,7 @@ features:
 
     For more information, see the `Buffered Reader for Swift Driver`_ spec.
 
-    .. _BufferedReader: http://git.openstack.org/cgit/openstack/glance_store/commit/?id=2e0024c85ca2ddf380014e44213be4fb876f680e
+    .. _BufferedReader: https://opendev.org/openstack/glance_store/commit/2e0024c85ca2ddf380014e44213be4fb876f680e
     .. _Buffered Reader for Swift Driver: http://specs.openstack.org/openstack/glance-specs/specs/mitaka/approved/buffered-reader-for-swift-driver.html
 fixes:
   - |

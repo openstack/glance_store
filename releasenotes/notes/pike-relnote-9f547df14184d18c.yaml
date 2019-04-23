@@ -30,16 +30,16 @@ other:
     The following improvements were made during the Pike release cycle.
 
     * `Fixed string formatting in log message
-      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=802c5a785444ba9ea5888c7cd131d004ec2a19ad>`_
+      <https://opendev.org/openstack/glance_store/commit/802c5a785444ba9ea5888c7cd131d004ec2a19ad>`_
     * `Correct error msg variable that could be unassigned
-      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=ccc9696e3f071383cd05d88ba2488f5a5ee98120>`_
+      <https://opendev.org/openstack/glance_store/commit/ccc9696e3f071383cd05d88ba2488f5a5ee98120>`_
     * `Use HostAddressOpt for store opts that accept IP and hostnames
-      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=d6f3c4e2d921d8a6db8be79e4a81e393334cfa4c>`_
+      <https://opendev.org/openstack/glance_store/commit/d6f3c4e2d921d8a6db8be79e4a81e393334cfa4c>`_
     * `Replace six.iteritems() with .items()
-      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=edc19a290b05a12f39f3059b11e2b978a9362052>`_
+      <https://opendev.org/openstack/glance_store/commit/edc19a290b05a12f39f3059b11e2b978a9362052>`_
     * `Add python 3.5 in classifier and envlist
-      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=963e2a0fd1c173556a2c40915ad26db28d8375a6>`_
+      <https://opendev.org/openstack/glance_store/commit/963e2a0fd1c173556a2c40915ad26db28d8375a6>`_
     * `Initialize privsep root_helper command
-      <https://git.openstack.org/cgit/openstack/glance_store/commit/?id=d16dff9a08d1104540182f3aa36758dc89603fc0>`_
+      <https://opendev.org/openstack/glance_store/commit/d16dff9a08d1104540182f3aa36758dc89603fc0>`_
     * `Documentation was reorganized according to the new standard layout
       <http://specs.openstack.org/openstack/docs-specs/specs/pike/os-manuals-migration.html>`_
