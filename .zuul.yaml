@@ -63,12 +63,12 @@
       tox_envlist: py27
 
 - job:
-    name: glance_store-tox-py35-cinder-tips
+    name: glance_store-tox-py36-cinder-tips
     parent: glance_store-tox-cinder-tips-base
     description: |
-      glance_store py35 unit tests vs. cinder masters
+      glance_store py36 unit tests vs. cinder masters
     vars:
-      tox_envlist: py35
+      tox_envlist: py36
 
 - job:
     name: glance_store-tox-keystone-tips-base
@@ -88,12 +88,12 @@
       tox_envlist: py27
 
 - job:
-    name: glance_store-tox-py35-keystone-tips
+    name: glance_store-tox-py36-keystone-tips
     parent: glance_store-tox-keystone-tips-base
     description: |
-      glance_store py35 unit tests vs. keystone masters
+      glance_store py36 unit tests vs. keystone masters
     vars:
-      tox_envlist: py35
+      tox_envlist: py36
 
 - job:
     name: glance_store-tox-oslo-tips-base
@@ -120,12 +120,12 @@
       tox_envlist: py27
 
 - job:
-    name: glance_store-tox-py35-oslo-tips
+    name: glance_store-tox-py36-oslo-tips
     parent: glance_store-tox-oslo-tips-base
     description: |
-      glance_store py35 unit tests vs. oslo masters
+      glance_store py36 unit tests vs. oslo masters
     vars:
-      tox_envlist: py35
+      tox_envlist: py36
 
 - job:
     name: glance_store-tox-swift-tips-base
@@ -144,12 +144,12 @@
       tox_envlist: py27
 
 - job:
-    name: glance_store-tox-py35-swift-tips
+    name: glance_store-tox-py36-swift-tips
     parent: glance_store-tox-swift-tips-base
     description: |
-      glance_store py35 unit tests vs. swift masters
+      glance_store py36 unit tests vs. swift masters
     vars:
-      tox_envlist: py35
+      tox_envlist: py36
 
 - project:
     templates:
@@ -195,17 +195,17 @@
         # aren't doing that either.
         - glance_store-tox-py27-cinder-tips:
             branches: master
-        - glance_store-tox-py35-cinder-tips:
+        - glance_store-tox-py36-cinder-tips:
             branches: master
         - glance_store-tox-py27-keystone-tips:
             branches: master
-        - glance_store-tox-py35-keystone-tips:
+        - glance_store-tox-py36-keystone-tips:
             branches: master
         - glance_store-tox-py27-oslo-tips:
             branches: master
-        - glance_store-tox-py35-oslo-tips:
+        - glance_store-tox-py36-oslo-tips:
             branches: master
         - glance_store-tox-py27-swift-tips:
             branches: master
-        - glance_store-tox-py35-swift-tips:
+        - glance_store-tox-py36-swift-tips:
             branches: master
