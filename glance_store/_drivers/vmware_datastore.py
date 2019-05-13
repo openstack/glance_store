@@ -644,7 +644,7 @@ class Store(glance_store.Store):
 
         metadata = {}
         if self.backend_group:
-            metadata['backend'] = u"%s" % self.backend_group
+            metadata['store'] = u"%s" % self.backend_group
 
         return (loc.get_uri(),
                 image_file.size,

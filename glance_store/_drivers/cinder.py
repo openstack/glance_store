@@ -769,7 +769,7 @@ class Store(glance_store.driver.Store):
 
         image_metadata = {}
         if self.backend_group:
-            image_metadata['backend'] = u"%s" % self.backend_group
+            image_metadata['store'] = u"%s" % self.backend_group
 
         return ('cinder://%s' % volume.id,
                 bytes_written,
