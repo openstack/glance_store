@@ -115,8 +115,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
                     vmware_store_image_dir='/openstack_glance_1')
         # Ensure stores + locations cleared
         location.SCHEME_TO_CLS_BACKEND_MAP = {}
-
         store.create_multi_stores(self.conf)
+
         self.addCleanup(setattr, location, 'SCHEME_TO_CLS_BACKEND_MAP',
                         dict())
         self.addCleanup(self.conf.reset)
@@ -130,6 +130,10 @@ class TestMultiStore(base.MultiStoreBaseTest,
 
     def _mock_http_connection(self):
         return mock.patch('six.moves.http_client.HTTPConnection')
+
+    def test_location_url_prefix_is_set(self):
+        expected_url_prefix = "vsphere://127.0.0.1/openstack_glance"
+        self.assertEqual(expected_url_prefix, self.store.url_prefix)
 
     @mock.patch('oslo_vmware.api.VMwareAPISession')
     def test_get(self, mock_api_session):

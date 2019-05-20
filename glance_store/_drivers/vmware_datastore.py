@@ -515,6 +515,19 @@ class Store(glance_store.Store):
             store_conf = self.conf.glance_store
 
         self.store_image_dir = store_conf.vmware_store_image_dir
+        if self.backend_group:
+            self._set_url_prefix()
+
+    def _set_url_prefix(self):
+        path = os.path.join(DS_URL_PREFIX,
+                            self.store_image_dir)
+
+        if netutils.is_valid_ipv6(self.server_host):
+            self._url_prefix = '%s://[%s]%s' % (self.scheme,
+                                                self.server_host, path)
+        else:
+            self._url_prefix = '%s://%s%s' % (self.scheme,
+                                              self.server_host, path)
 
     def select_datastore(self, image_size):
         """Select a datastore with free space larger than image size."""

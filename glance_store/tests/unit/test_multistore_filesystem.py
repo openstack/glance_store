@@ -50,21 +50,21 @@ class TestMultiStore(base.MultiStoreBaseTest,
     def setUp(self):
         """Establish a clean test environment."""
         super(TestMultiStore, self).setUp()
-        enabled_backends = {
+        self.enabled_backends = {
             "file1": "file",
             "file2": "file",
         }
         self.conf = self._CONF
         self.conf(args=[])
         self.conf.register_opt(cfg.DictOpt('enabled_backends'))
-        self.config(enabled_backends=enabled_backends)
+        self.config(enabled_backends=self.enabled_backends)
         store.register_store_opts(self.conf)
         self.config(default_backend='file1', group='glance_store')
 
         # Ensure stores + locations cleared
         location.SCHEME_TO_CLS_BACKEND_MAP = {}
-
         store.create_multi_stores(self.conf)
+
         self.addCleanup(setattr, location, 'SCHEME_TO_CLS_BACKEND_MAP',
                         dict())
         self.test_dir = self.useFixture(fixtures.TempDir()).path
@@ -95,6 +95,10 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.store.FILESYSTEM_STORE_METADATA = in_metadata
         return self.store.add(expected_image_id, image_file,
                               expected_file_size)
+
+    def test_location_url_prefix_is_set(self):
+        expected_url_prefix = "file://%s" % self.test_dir
+        self.assertEqual(expected_url_prefix, self.store.url_prefix)
 
     def test_get(self):
         """Test a "normal" retrieval of an image in chunks."""

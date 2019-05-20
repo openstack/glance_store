@@ -270,6 +270,10 @@ class Store(glance_store.driver.Store):
     def get_schemes(self):
         return ('sheepdog',)
 
+    def _set_url_prefix(self):
+        self._url_prefix = "%s://%s:%s:" % (
+            'sheepdog', self.addr, self.port)
+
     def configure_add(self):
         """
         Configure the Store to use the stored configuration options
@@ -303,6 +307,9 @@ class Store(glance_store.driver.Store):
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name='sheepdog',
                                                    reason=reason)
+
+        if self.backend_group:
+            self._set_url_prefix()
 
     @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):

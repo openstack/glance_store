@@ -67,8 +67,8 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
 
         # Ensure stores + locations cleared
         location.SCHEME_TO_CLS_BACKEND_MAP = {}
-
         store.create_multi_stores(self.conf)
+
         self.addCleanup(setattr, location, 'SCHEME_TO_CLS_BACKEND_MAP',
                         dict())
         self.test_dir = self.useFixture(fixtures.TempDir()).path
@@ -88,6 +88,9 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                                   user='fake_user',
                                   auth_token='fake_token',
                                   tenant='fake_tenant')
+
+    def test_location_url_prefix_is_set(self):
+        self.assertEqual("cinder://", self.store.url_prefix)
 
     def test_get_cinderclient(self):
         cc = cinder.get_cinderclient(self.conf, self.context,

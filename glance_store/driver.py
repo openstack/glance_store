@@ -61,6 +61,7 @@ class Store(capabilities.StoreCapability):
         self.conf = conf
         self.backend_group = backend
         self.store_location_class = None
+        self._url_prefix = None
 
         try:
             if self.OPTIONS is not None:
@@ -74,6 +75,10 @@ class Store(capabilities.StoreCapability):
                 self.conf.register_opts(self.OPTIONS, group=group)
         except cfg.DuplicateOptError:
             pass
+
+    @property
+    def url_prefix(self):
+        return self._url_prefix
 
     def configure(self, re_raise_bsc=False):
         """

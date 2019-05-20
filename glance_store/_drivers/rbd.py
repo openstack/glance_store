@@ -319,6 +319,23 @@ class Store(driver.Store):
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name='rbd',
                                                    reason=reason)
+        if self.backend_group:
+            self._set_url_prefix()
+
+    def _set_url_prefix(self):
+        fsid = None
+        with self.get_connection(conffile=self.conf_file,
+                                 rados_id=self.user) as conn:
+            if hasattr(conn, 'get_fsid'):
+                fsid = encodeutils.safe_decode(conn.get_fsid())
+
+        if fsid and self.pool:
+            # ensure nothing contains / or any other url-unsafe character
+            safe_fsid = urllib.parse.quote(fsid, '')
+            safe_pool = urllib.parse.quote(self.pool, '')
+            self._url_prefix = "rbd://%s/%s/" % (safe_fsid, safe_pool)
+        else:
+            self._url_prefix = "rbd://"
 
     @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):

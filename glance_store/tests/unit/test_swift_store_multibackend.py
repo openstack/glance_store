@@ -964,6 +964,12 @@ class SwiftTests(object):
         self.assertEqual(expected_swift_contents, new_image_contents)
         self.assertEqual(expected_swift_size, new_image_swift_size)
 
+    def test_location_url_prefix_is_set(self):
+        self.store = Store(self.conf, backend="swift1")
+        self.store.configure()
+        expected_url_prefix = "swift+config://ref1/glance/"
+        self.assertEqual(expected_url_prefix, self.store.url_prefix)
+
     def test_add_already_existing(self):
         """
         Tests that adding an image with an existing identifier
@@ -1245,17 +1251,19 @@ class SwiftTests(object):
 
     def test_init_client_multi_tenant(self):
         """Test that keystone client was initialized correctly"""
-        self._init_client(verify=True, swift_store_multi_tenant=True,
-                          swift_store_config_file=None)
+        with mock.patch.object(swift.MultiTenantStore, '_set_url_prefix'):
+            self._init_client(verify=True, swift_store_multi_tenant=True,
+                              swift_store_config_file=None)
 
     def test_init_client_multi_tenant_insecure(self):
         """
         Test that keystone client was initialized correctly with no
         certificate verification.
         """
-        self._init_client(verify=False, swift_store_multi_tenant=True,
-                          swift_store_auth_insecure=True,
-                          swift_store_config_file=None)
+        with mock.patch.object(swift.MultiTenantStore, '_set_url_prefix'):
+            self._init_client(verify=False, swift_store_multi_tenant=True,
+                              swift_store_auth_insecure=True,
+                              swift_store_config_file=None)
 
     @mock.patch("glance_store._drivers.swift.store.ks_identity")
     @mock.patch("glance_store._drivers.swift.store.ks_session")
