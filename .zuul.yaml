@@ -167,12 +167,6 @@
             irrelevant-files:
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
-        - legacy-tempest-dsvm-full-sheepdog:
-            voting: false
-            irrelevant-files:
-              - ^(test-|)requirements.txt$
-              - ^setup.cfg$
-
     gate:
       jobs:
         - openstack-tox-lower-constraints
