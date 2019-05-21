@@ -175,9 +175,6 @@
               - ^setup.cfg$
               - ^tox.ini$
               - ^\.zuul\.yaml$
-        - legacy-tempest-dsvm-full-sheepdog:
-            voting: false
-            irrelevant-files: *tempest-irrelevant-files
     experimental:
       jobs:
         - glance_store-dsvm-functional-filesystem
