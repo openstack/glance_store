@@ -167,14 +167,18 @@
       jobs:
         - legacy-tempest-dsvm-full-ceph-plugin-src-glance_store:
             voting: false
-            irrelevant-files:
+            irrelevant-files: &tempest-irrelevant-files
+              - ^doc/.*$
+              - ^releasenotes/.*$
+              - ^.*\.rst$
               - ^(test-|)requirements.txt$
+              - ^lower-constraints.txt$
               - ^setup.cfg$
+              - ^tox.ini$
+              - ^\.zuul\.yaml$
         - legacy-tempest-dsvm-full-sheepdog:
             voting: false
-            irrelevant-files:
-              - ^(test-|)requirements.txt$
-              - ^setup.cfg$
+            irrelevant-files: *tempest-irrelevant-files
     experimental:
       jobs:
         - glance_store-dsvm-functional-filesystem
