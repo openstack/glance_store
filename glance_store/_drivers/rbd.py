@@ -113,12 +113,19 @@ Related options:
                help="""
 Ceph configuration file path.
 
-This configuration option takes in the path to the Ceph configuration
+This configuration option specifies the path to the Ceph configuration
 file to be used. If the value for this option is not set by the user
-or is set to None, librados will locate the default configuration file
-which is located at /etc/ceph/ceph.conf. If using Cephx
-authentication, this file should include a reference to the right
-keyring in a client.<USER> section
+or is set to the empty string, librados will read the standard ceph.conf
+file by searching the default Ceph configuration file locations in
+sequential order.  See the Ceph documentation for details.
+
+NOTE: If using Cephx authentication, this file should include a reference
+to the right keyring in a client.<USER> section
+
+NOTE 2: If you leave this option empty (the default), the actual Ceph
+configuration file used may change depending on what version of librados
+is being used.  If it is important for you to know exactly which configuration
+file is in effect, you may specify that file here using this option.
 
 Possible Values:
     * A valid path to a configuration file
