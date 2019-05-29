@@ -43,7 +43,6 @@ except ImportError:
     rbd = None
 
 DEFAULT_POOL = 'images'
-DEFAULT_CONFFILE = '/etc/ceph/ceph.conf'
 DEFAULT_USER = None    # let librados decide based on the Ceph conf file
 DEFAULT_CHUNKSIZE = 8  # in MiB
 DEFAULT_SNAPNAME = 'snap'
@@ -110,7 +109,7 @@ Related options:
     * rbd_store_ceph_conf
 
 """),
-    cfg.StrOpt('rbd_store_ceph_conf', default=DEFAULT_CONFFILE,
+    cfg.StrOpt('rbd_store_ceph_conf', default='',
                help="""
 Ceph configuration file path.
 
