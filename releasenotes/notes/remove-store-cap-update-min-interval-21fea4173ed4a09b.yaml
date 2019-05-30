@@ -1,0 +1,6 @@
+---
+upgrade:
+  - The ``store_capabilities_update_min_interval`` configuration option,
+    deprecated since the Rocky release, has been removed.  The option
+    configured a capability that was not implemented by any glance_store
+    drivers.  Thus its removal will have no impact on any deployments.
