@@ -70,7 +70,6 @@ class OptsTestCase(base.StoreBaseTest):
         expected_opt_names = [
             'default_store',
             'stores',
-            'store_capabilities_update_min_interval',
             'cinder_api_insecure',
             'cinder_ca_certificates_file',
             'cinder_catalog_info',

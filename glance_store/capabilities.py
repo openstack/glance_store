@@ -17,10 +17,8 @@
 
 import logging
 import threading
-import time
 
 import enum
-from eventlet import tpool
 from oslo_utils import reflection
 
 from glance_store import exceptions
@@ -141,56 +139,9 @@ class StoreCapability(object):
         self._capabilities &= ~caps
 
 
-def _schedule_capabilities_update(store):
-    def _update_capabilities(store, context):
-        with context['lock']:
-            if context['updating']:
-                return
-            context['updating'] = True
-            try:
-                store.update_capabilities()
-            except Exception:
-                pass
-            finally:
-                context['updating'] = False
-                # NOTE(zhiyan): Update 'latest_update' field
-                # in anyway even an exception raised, to
-                # prevent call problematic routine cyclically.
-                context['latest_update'] = int(time.time())
-
-    global _STORE_CAPABILITES_UPDATE_SCHEDULING_BOOK
-    book = _STORE_CAPABILITES_UPDATE_SCHEDULING_BOOK
-    if store not in book:
-        with _STORE_CAPABILITES_UPDATE_SCHEDULING_LOCK:
-            if store not in book:
-                book[store] = {'latest_update': int(time.time()),
-                               'lock': threading.Lock(),
-                               'updating': False}
-    else:
-        context = book[store]
-        # NOTE(zhiyan): We don't need to lock 'latest_update'
-        # field for check since time increased one-way only.
-        sec = (int(time.time()) - context['latest_update'] -
-               store.conf.glance_store.store_capabilities_update_min_interval)
-        if sec >= 0:
-            if not context['updating']:
-                # NOTE(zhiyan): Using a real thread pool instead
-                # of green pool due to store capabilities updating
-                # probably calls some inevitably blocking code for
-                # IO operation on remote or local storage.
-                # Eventlet allows operator to uses environment var
-                # EVENTLET_THREADPOOL_SIZE to desired pool size.
-                tpool.execute(_update_capabilities, store, context)
-
-
 def check(store_op_fun):
 
     def op_checker(store, *args, **kwargs):
-        # NOTE(zhiyan): Trigger the hook of updating store
-        # dynamic capabilities based on current store status.
-        if store.conf.glance_store.store_capabilities_update_min_interval > 0:
-            _schedule_capabilities_update(store)
-
         get_capabilities = [
             BitMasks.READ_ACCESS,
             BitMasks.READ_OFFSET if kwargs.get('offset') else BitMasks.NONE,
