@@ -1222,6 +1222,9 @@ class BaseStore(driver.Store):
         msg = _("There is no Connection Manager implemented for %s class.")
         raise NotImplementedError(msg % self.__class__.__name__)
 
+    def _set_url_prefix(self, context=None):
+        raise NotImplementedError()
+
 
 class SingleTenantStore(BaseStore):
     EXAMPLE_URL = "swift://<USER>:<KEY>@<AUTH_ADDRESS>/<CONTAINER>/<FILE>"
@@ -1280,6 +1283,50 @@ class SingleTenantStore(BaseStore):
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="swift",
                                                    reason=reason)
+        if self.backend_group:
+            self._set_url_prefix()
+
+    def _get_credstring(self):
+        if self.user and self.key:
+            return '%s:%s' % (urllib.parse.quote(self.user),
+                              urllib.parse.quote(self.key))
+        return ''
+
+    def _set_url_prefix(self, context=None):
+        auth_or_store_url = self.auth_address
+        if auth_or_store_url.startswith('http://'):
+            auth_or_store_url = auth_or_store_url[len('http://'):]
+        elif auth_or_store_url.startswith('https://'):
+            auth_or_store_url = auth_or_store_url[len('https://'):]
+
+        credstring = self._get_credstring()
+        auth_or_store_url = auth_or_store_url.strip('/')
+        container = self.container.strip('/')
+
+        if sutils.is_multiple_swift_store_accounts_enabled(
+                self.conf, backend=self.backend_group):
+            include_creds = False
+        else:
+            include_creds = True
+
+        if not include_creds:
+            store = getattr(self.conf,
+                            self.backend_group).default_swift_reference
+
+            self._url_prefix = '%s://%s/%s/' % (
+                'swift+config', store, container)
+            return
+
+        if self.scheme == 'swift+config':
+            if self.ssl_enabled:
+                self.scheme = 'swift+https'
+            else:
+                self.scheme = 'swift+http'
+        if credstring != '':
+            credstring = "%s@" % credstring
+
+        self._url_prefix = '%s://%s%s/%s/' % (
+            self.scheme, credstring, auth_or_store_url, container)
 
     def create_location(self, image_id, context=None):
         container_name = self.get_container_name(image_id, self.container)
@@ -1502,6 +1549,11 @@ class MultiTenantStore(BaseStore):
         return StoreLocation(specs, self.conf,
                              backend_group=self.backend_group)
 
+    def _set_url_prefix(self, context=None):
+        ep = self._get_endpoint(context)
+        self._url_prefix = "%s://%s:%s_" % (
+            self.scheme, ep, self.container)
+
     def get_connection(self, location, context=None):
         return swiftclient.Connection(
             preauthurl=location.swift_url,
@@ -1535,6 +1587,9 @@ class MultiTenantStore(BaseStore):
         project_domain_id = default_swift_reference.get('project_domain_id')
         project_domain_name = default_swift_reference.get(
             'project_domain_name')
+
+        if self.backend_group:
+            self._set_url_prefix(context=context)
 
         # create client for multitenant user(trustor)
         trustor_auth = ks_identity.V3Token(auth_url=auth_address,

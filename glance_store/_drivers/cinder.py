@@ -435,9 +435,14 @@ class Store(glance_store.driver.Store):
 
     def __init__(self, *args, **kargs):
         super(Store, self).__init__(*args, **kargs)
+        if self.backend_group:
+            self._set_url_prefix()
 
     def get_schemes(self):
         return ('cinder',)
+
+    def _set_url_prefix(self):
+        self._url_prefix = "cinder://"
 
     def _check_context(self, context, require_tenant=False):
         user_overriden = is_user_overriden(self.conf,

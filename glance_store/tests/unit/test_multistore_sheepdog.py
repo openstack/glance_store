@@ -59,8 +59,8 @@ class TestSheepdogMultiStore(base.MultiStoreBaseTest,
 
         # Ensure stores + locations cleared
         location.SCHEME_TO_CLS_BACKEND_MAP = {}
-
         store.create_multi_stores(self.conf)
+
         self.addCleanup(setattr, location, 'SCHEME_TO_CLS_BACKEND_MAP',
                         dict())
         self.addCleanup(self.conf.reset)
@@ -70,6 +70,10 @@ class TestSheepdogMultiStore(base.MultiStoreBaseTest,
         self.store_specs = {'image': '6bd59e6e-c410-11e5-ab67-0a73f1fda51b',
                             'addr': '127.0.0.1',
                             'port': 7000}
+
+    def test_location_url_prefix_is_set(self):
+        expected_url_prefix = "sheepdog://127.0.0.1:7000:"
+        self.assertEqual(expected_url_prefix, self.store.url_prefix)
 
     @mock.patch.object(sheepdog.SheepdogImage, 'write')
     @mock.patch.object(sheepdog.SheepdogImage, 'create')

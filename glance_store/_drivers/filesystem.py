@@ -460,9 +460,15 @@ class Store(glance_store.driver.Store):
                                         reverse=True)
 
         self._create_image_directories(directory_paths)
+        if self.backend_group:
+            self._set_url_prefix()
 
         if meta_file:
             self._validate_metadata(meta_file)
+
+    def _set_url_prefix(self):
+        path = self._find_best_datadir(0)
+        self._url_prefix = "%s://%s" % ('file', path)
 
     def _check_directory_paths(self, datadir_path, directory_paths,
                                priority_paths):

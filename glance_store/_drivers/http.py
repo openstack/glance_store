@@ -191,6 +191,16 @@ class Store(glance_store.driver.Store):
                      capabilities.BitMasks.DRIVER_REUSABLE)
     OPTIONS = _HTTP_OPTS
 
+    def __init__(self, *args, **kargs):
+        super(Store, self).__init__(*args, **kargs)
+        if self.backend_group:
+            self._set_url_prefix()
+
+    def _set_url_prefix(self):
+        # NOTE(abhishekk): HTTP store url either starts with http
+        # or https, so default _url_prefix is set to http.
+        self._url_prefix = "http"
+
     @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
         """

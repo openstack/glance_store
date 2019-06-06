@@ -190,7 +190,9 @@ class TestMultiStore(base.MultiStoreBaseTest,
         # Ensure stores + locations cleared
         g_location.SCHEME_TO_CLS_BACKEND_MAP = {}
 
-        store.create_multi_stores(self.conf)
+        with mock.patch.object(rbd_store.Store, '_set_url_prefix'):
+            store.create_multi_stores(self.conf)
+
         self.addCleanup(setattr, g_location, 'SCHEME_TO_CLS_BACKEND_MAP',
                         dict())
         self.addCleanup(self.conf.reset)
@@ -211,6 +213,10 @@ class TestMultiStore(base.MultiStoreBaseTest,
         # Provide enough data to get more than one chunk iteration.
         self.data_len = 3 * units.Ki
         self.data_iter = six.BytesIO(b'*' * self.data_len)
+
+    def test_location_url_prefix_is_set(self):
+        expected_url_prefix = "rbd://"
+        self.assertEqual(expected_url_prefix, self.store.url_prefix)
 
     def test_add_w_image_size_zero(self):
         """Assert that correct size is returned even though 0 was provided."""
