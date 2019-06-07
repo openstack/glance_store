@@ -1060,7 +1060,7 @@ class BaseStore(driver.Store):
 
                 metadata = {}
                 if self.backend_group:
-                    metadata['store'] = u"%s" % self.backend_group
+                    metadata['backend'] = u"%s" % self.backend_group
 
                 return (location.get_uri(credentials_included=include_creds),
                         image_size, obj_etag, os_hash_value.hexdigest(),

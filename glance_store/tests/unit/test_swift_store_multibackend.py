@@ -407,7 +407,7 @@ class SwiftTests(object):
         loc, size, checksum, metadata = self.store.add(
             expected_image_id, image_swift, expected_swift_size)
 
-        self.assertEqual("swift1", metadata["store"])
+        self.assertEqual("swift1", metadata["backend"])
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_swift_size, size)
         self.assertEqual(expected_checksum, checksum)
@@ -446,7 +446,7 @@ class SwiftTests(object):
         location, size, checksum, arg = self.store.add(expected_image_id,
                                                        image_swift,
                                                        expected_swift_size)
-        self.assertEqual("swift1", arg['store'])
+        self.assertEqual("swift1", arg['backend'])
         self.assertEqual(expected_location, location)
 
     @mock.patch('glance_store._drivers.swift.utils'
@@ -492,7 +492,7 @@ class SwiftTests(object):
                                                   expected_swift_size,
                                                   context=ctxt)
 
-        self.assertEqual("swift1", metadata['store'])
+        self.assertEqual("swift1", metadata['backend'])
         # ensure that image add uses user's context
         self.assertEqual(expected_location, loc)
 
@@ -535,7 +535,7 @@ class SwiftTests(object):
                                                            image_swift,
                                                            expected_swift_size)
 
-            self.assertEqual("swift1", metadata['store'])
+            self.assertEqual("swift1", metadata['backend'])
             self.assertEqual(expected_location, loc)
             self.assertEqual(expected_swift_size, size)
             self.assertEqual(expected_checksum, checksum)
@@ -615,7 +615,7 @@ class SwiftTests(object):
                                                        image_swift,
                                                        expected_swift_size)
 
-        self.assertEqual("swift1", metadata['store'])
+        self.assertEqual("swift1", metadata['backend'])
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_swift_size, size)
         self.assertEqual(expected_checksum, checksum)
@@ -664,7 +664,7 @@ class SwiftTests(object):
                                                        image_swift,
                                                        expected_swift_size)
 
-        self.assertEqual("swift1", metadata['store'])
+        self.assertEqual("swift1", metadata['backend'])
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_swift_size, size)
         self.assertEqual(expected_checksum, checksum)
@@ -849,7 +849,7 @@ class SwiftTests(object):
                                                        expected_swift_size,
                                                        context=ctxt)
 
-        self.assertEqual("swift1", metadata['store'])
+        self.assertEqual("swift1", metadata['backend'])
         self.assertEqual(expected_location, location)
 
     @mock.patch('glance_store._drivers.swift.utils'
@@ -887,7 +887,7 @@ class SwiftTests(object):
             self.store.large_object_chunk_size = orig_temp_size
             self.store.large_object_size = orig_max_size
 
-        self.assertEqual("swift1", metadata['store'])
+        self.assertEqual("swift1", metadata['backend'])
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_swift_size, size)
         self.assertEqual(expected_checksum, checksum)
@@ -948,7 +948,7 @@ class SwiftTests(object):
             self.store.large_object_size = orig_max_size
             MAX_SWIFT_OBJECT_SIZE = orig_max_swift_object_size
 
-        self.assertEqual("swift1", metadata['store'])
+        self.assertEqual("swift1", metadata['backend'])
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_swift_size, size)
         self.assertEqual(expected_checksum, checksum)

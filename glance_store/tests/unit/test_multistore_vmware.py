@@ -196,7 +196,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                     expected_image_id, image, expected_size)
                 _, kwargs = HttpConn.call_args
                 self.assertEqual(expected_headers, kwargs['headers'])
-                self.assertEqual("vmware1", metadata["store"])
+                self.assertEqual("vmware1", metadata["backend"])
 
         self.assertEqual(utils.sort_url_by_qs_keys(expected_location),
                          utils.sort_url_by_qs_keys(location))
@@ -231,7 +231,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                 HttpConn.return_value = utils.fake_response()
                 location, size, checksum, metadata = self.store.add(
                     expected_image_id, image, 0)
-                self.assertEqual("vmware1", metadata["store"])
+                self.assertEqual("vmware1", metadata["backend"])
 
         self.assertEqual(utils.sort_url_by_qs_keys(expected_location),
                          utils.sort_url_by_qs_keys(location))
@@ -251,7 +251,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
             HttpConn.return_value = utils.fake_response()
             location, size, checksum, multihash, metadata = self.store.add(
                 image_id, image, size, self.hash_algo, verifier=verifier)
-            self.assertEqual("vmware1", metadata["store"])
+            self.assertEqual("vmware1", metadata["backend"])
 
         fake_reader.assert_called_with(image, self.hash_algo, verifier)
 
@@ -268,7 +268,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
             HttpConn.return_value = utils.fake_response()
             location, size, checksum, multihash, metadata = self.store.add(
                 image_id, image, 0, self.hash_algo, verifier=verifier)
-            self.assertEqual("vmware1", metadata["store"])
+            self.assertEqual("vmware1", metadata["backend"])
 
         fake_reader.assert_called_with(image, self.hash_algo, verifier)
 

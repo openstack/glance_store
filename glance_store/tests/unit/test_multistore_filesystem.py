@@ -110,7 +110,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         loc, size, checksum, metadata = self.store.add(
             image_id, image_file, len(file_contents))
         # Check metadata contains 'file1' as a backend
-        self.assertEqual(u"file1", metadata['store'])
+        self.assertEqual(u"file1", metadata['backend'])
 
         # Now read it back...
         uri = "file:///%s/%s" % (self.test_dir, image_id)
@@ -140,7 +140,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                                                        image_file,
                                                        len(file_contents))
         # Check metadata contains 'file1' as a backend
-        self.assertEqual(u"file1", metadata['store'])
+        self.assertEqual(u"file1", metadata['backend'])
 
         # Now read it back...
         uri = "file:///%s/%s" % (self.test_dir, image_id)
@@ -201,7 +201,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_file_size, size)
         self.assertEqual(expected_checksum, checksum)
-        self.assertEqual(u"file1", metadata['store'])
+        self.assertEqual(u"file1", metadata['backend'])
 
         uri = "file:///%s/%s" % (self.test_dir, expected_image_id)
         loc = location.get_location_from_uri_and_backend(
@@ -241,7 +241,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_file_size, size)
         self.assertEqual(expected_checksum, checksum)
-        self.assertEqual(u"file2", metadata['store'])
+        self.assertEqual(u"file2", metadata['backend'])
 
         uri = "file:///%s/%s" % (self.test_dir, expected_image_id)
         loc = location.get_location_from_uri_and_backend(
@@ -261,20 +261,20 @@ class TestMultiStore(base.MultiStoreBaseTest,
         in_metadata = [{'id': 'abcdefg',
                        'mountpoint': '/xyz/images'}]
         location, size, checksum, metadata = self._store_image(in_metadata)
-        self.assertEqual({'store': u'file1'}, metadata)
+        self.assertEqual({'backend': u'file1'}, metadata)
 
     def test_add_check_metadata_list_with_invalid_mountpoint_locations(self):
         in_metadata = [{'id': 'abcdefg', 'mountpoint': '/xyz/images'},
                        {'id': 'xyz1234', 'mountpoint': '/pqr/images'}]
         location, size, checksum, metadata = self._store_image(in_metadata)
-        self.assertEqual({'store': u'file1'}, metadata)
+        self.assertEqual({'backend': u'file1'}, metadata)
 
     def test_add_check_metadata_list_with_valid_mountpoint_locations(self):
         in_metadata = [{'id': 'abcdefg', 'mountpoint': '/tmp'},
                        {'id': 'xyz1234', 'mountpoint': '/xyz'}]
         location, size, checksum, metadata = self._store_image(in_metadata)
         self.assertEqual(in_metadata[0], metadata)
-        self.assertEqual(u"file1", metadata["store"])
+        self.assertEqual(u"file1", metadata["backend"])
 
     def test_add_check_metadata_bad_nosuch_file(self):
         expected_image_id = str(uuid.uuid4())
@@ -291,7 +291,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                                                             image_file,
                                                             expected_file_size)
 
-        self.assertEqual({'store': u'file1'}, metadata)
+        self.assertEqual({'backend': u'file1'}, metadata)
 
     def test_add_already_existing(self):
         """
@@ -307,7 +307,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         location, size, checksum, metadata = self.store.add(image_id,
                                                             image_file,
                                                             file_size)
-        self.assertEqual(u"file1", metadata["store"])
+        self.assertEqual(u"file1", metadata["backend"])
 
         image_file = six.BytesIO(b"nevergonnamakeit")
         self.assertRaises(exceptions.Duplicate,
@@ -392,7 +392,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         loc, size, checksum, metadata = self.store.add(image_id,
                                                        image_file,
                                                        file_size)
-        self.assertEqual(u"file1", metadata["store"])
+        self.assertEqual(u"file1", metadata["backend"])
 
         # Now check that we can delete it
         uri = "file:///%s/%s" % (self.test_dir, image_id)
@@ -421,7 +421,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         loc, size, checksum, metadata = self.store.add(image_id,
                                                        image_file,
                                                        file_size)
-        self.assertEqual(u"file1", metadata["store"])
+        self.assertEqual(u"file1", metadata["backend"])
 
         uri = "file:///%s/%s" % (self.test_dir, image_id)
         loc = location.get_location_from_uri_and_backend(uri, "file1",
@@ -591,7 +591,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         loc, size, checksum, metadata = self.store.add(expected_image_id,
                                                        image_file,
                                                        expected_file_size)
-        self.assertEqual(u"file1", metadata["store"])
+        self.assertEqual(u"file1", metadata["backend"])
 
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_file_size, size)
@@ -638,7 +638,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         loc, size, checksum, metadata = self.store.add(expected_image_id,
                                                        image_file,
                                                        expected_file_size)
-        self.assertEqual(u"file1", metadata["store"])
+        self.assertEqual(u"file1", metadata["backend"])
 
         self.assertEqual(expected_location, loc)
         self.assertEqual(expected_file_size, size)
@@ -749,7 +749,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         location, size, checksum, metadata = self.store.add(expected_image_id,
                                                             image_file,
                                                             expected_file_size)
-        self.assertEqual(u"file1", metadata["store"])
+        self.assertEqual(u"file1", metadata["backend"])
 
         self.assertEqual(expected_location, location)
         self.assertEqual(expected_file_size, size)
@@ -793,7 +793,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         location, size, checksum, metadata = self.store.add(expected_image_id,
                                                             image_file,
                                                             expected_file_size)
-        self.assertEqual(u"file1", metadata["store"])
+        self.assertEqual(u"file1", metadata["backend"])
 
         self.assertEqual(expected_location, location)
         self.assertEqual(expected_file_size, size)

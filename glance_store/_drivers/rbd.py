@@ -588,7 +588,7 @@ class Store(driver.Store):
         # Add store backend information to location metadata
         metadata = {}
         if self.backend_group:
-            metadata['store'] = u"%s" % self.backend_group
+            metadata['backend'] = u"%s" % self.backend_group
 
         return (loc.get_uri(),
                 image_size,

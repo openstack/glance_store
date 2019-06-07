@@ -348,7 +348,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                           'glance_image_id': expected_image_id,
                           'image_size': str(expected_size)},
                 volume_type='some_type')
-            self.assertEqual(backend, metadata["store"])
+            self.assertEqual(backend, metadata["backend"])
 
     def test_cinder_add(self):
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
