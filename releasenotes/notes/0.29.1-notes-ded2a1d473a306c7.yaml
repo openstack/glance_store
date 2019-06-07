@@ -1,0 +1,17 @@
+---
+critical:
+  - |
+    glance_store 0.29.0 was released with backwards incompatible changes.
+    There was no corresponding releasenote to mention this. 0.29.1 has
+    reverted said change which will be included to 1.0.0 release later
+    on the cycle.
+fixes:
+  - |
+    Following bugs were fixed and included after 0.28.0 release:
+    * Bug 1824533_: Do not include ETag when puting manifest in chunked uploads
+    * Bug 1818915_: Python3: Fix return type on CooperativeReader.read
+    * Bug 1805332_: Prevent unicode object error from zero-byte read
+
+    .. _1824533: https://code.launchpad.net/bugs/1824533
+    .. _1818915: https://code.launchpad.net/bugs/1818915
+    .. _1805332: https://code.launchpad.net/bugs/1805332
