@@ -83,7 +83,7 @@ class TestSheepdogMultiStore(base.MultiStoreBaseTest,
         mock_exist.return_value = False
 
         (uri, size, checksum, loc) = self.store.add('fake_image_id', data, 2)
-        self.assertEqual("sheepdog1", loc["backend"])
+        self.assertEqual("sheepdog1", loc["store"])
 
         mock_exist.assert_called_once_with()
         mock_create.assert_called_once_with(2)
@@ -101,7 +101,7 @@ class TestSheepdogMultiStore(base.MultiStoreBaseTest,
         mock_exist.return_value = False
 
         (uri, size, checksum, loc) = self.store.add('fake_image_id', data, 2)
-        self.assertEqual("sheepdog2", loc["backend"])
+        self.assertEqual("sheepdog2", loc["store"])
 
         mock_exist.assert_called_once_with()
         mock_create.assert_called_once_with(2)
@@ -216,6 +216,6 @@ class TestSheepdogMultiStore(base.MultiStoreBaseTest,
             cmd.side_effect = _fake_run_command
             (uri, size, checksum, loc) = self.store.add(
                 image_id, image_file, file_size, verifier=verifier)
-            self.assertEqual("sheepdog1", loc["backend"])
+            self.assertEqual("sheepdog1", loc["store"])
 
         verifier.update.assert_called_with(file_contents)

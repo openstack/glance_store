@@ -414,7 +414,7 @@ class Store(glance_store.driver.Store):
 
         metadata = {}
         if self.backend_group:
-            metadata['backend'] = u"%s" % self.backend_group
+            metadata['store'] = u"%s" % self.backend_group
 
         return (location.get_uri(),
                 offset,
