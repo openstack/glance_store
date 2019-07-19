@@ -11,34 +11,46 @@ below the table of supported drivers and maintainers:
    :header-rows: 1
 
    * - Driver
+     - Status
      - Maintainer
      - Email
      - IRC Nick
    * - File System
+     - Supported
      - Glance Team
      - openstack-discuss@lists.openstack.org
      - openstack-glance
    * - HTTP
+     - Supported
      - Glance Team
      - openstack-discuss@lists.openstack.org
      - openstack-glance
    * - RBD
+     - Supported
      - Fei Long Wang
      - flwang@catalyst.net.nz
      - flwang
    * - Cinder
+     - Supported
      - Tomoki Sekiyama
      - tomoki.sekiyama@gmail.com
      -
    * - Swift
+     - Supported
      - Matthew Oliver
      - matt@oliver.net.au
      - mattoliverau
    * - VMware
+     - Supported
      - Sabari Murugesan
      - smurugesan@vmware.com
      - sabari
    * - Sheepdog
+     - DEPRECATED
      - YAMADA Hideki
      - yamada.hideki@lab.ntt.co.jp
      - yamada-h
+
+..  warning::
+    The Sheepdog driver is subject to removal early in the 'U'
+    development cycle.

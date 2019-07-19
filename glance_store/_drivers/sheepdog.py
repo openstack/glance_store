@@ -44,6 +44,13 @@ _SHEEPDOG_OPTS = [
     cfg.IntOpt('sheepdog_store_chunk_size',
                min=1,
                default=DEFAULT_CHUNKSIZE,
+               deprecated_for_removal=True,
+               deprecated_since='Train',
+               deprecated_reason="""
+The Sheepdog project is no longer actively maintained.  The
+Sheepdog driver is scheduled for removal in the 'U' development
+cycle.
+""",
                help="""
 Chunk size for images to be stored in Sheepdog data store.
 
@@ -67,6 +74,13 @@ Related Options:
 """),
     cfg.PortOpt('sheepdog_store_port',
                 default=DEFAULT_PORT,
+                deprecated_for_removal=True,
+                deprecated_since='Train',
+                deprecated_reason="""
+The Sheepdog project is no longer actively maintained.  The
+Sheepdog driver is scheduled for removal in the 'U' development
+cycle.
+""",
                 help="""
 Port number on which the sheep daemon will listen.
 
@@ -89,6 +103,13 @@ Related Options:
 """),
     cfg.HostAddressOpt('sheepdog_store_address',
                        default=DEFAULT_ADDR,
+                       deprecated_for_removal=True,
+                       deprecated_since='Train',
+                       deprecated_reason="""
+The Sheepdog project is no longer actively maintained.  The
+Sheepdog driver is scheduled for removal in the 'U' development
+cycle.
+""",
                        help="""
 Address to bind the Sheepdog daemon to.
 
@@ -122,6 +143,8 @@ class SheepdogImage(object):
         self.port = port
         self.name = name
         self.chunk_size = chunk_size
+        LOG.warning("The Sheepdog driver is deprecated and will be removed "
+                    "in the 'U' release.")
 
     def _run_command(self, command, data, *params):
         cmd = ['collie', 'vdi']

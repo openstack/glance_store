@@ -1,0 +1,12 @@
+---
+deprecations:
+  - |
+    The Sheepdog driver is deprecated in this release and is subject to
+    removal at the beginning of the 'U' development cycle, following the
+    `OpenStack standard deprecation policy
+    <https://governance.openstack.org/reference/tags/assert_follows-standard-deprecation.html>`_.
+
+    The driver is being removed because `Sheepdog is not maintained upstream
+    <http://lists.wpkg.org/pipermail/sheepdog/2019-March/068451.html>`_.
+    Additionally, the Sheepdog driver is no longer tested in the OpenStack
+    gate.
