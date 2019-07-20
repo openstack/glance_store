@@ -1,0 +1,48 @@
+---
+prelude: >
+    The Glance Project Team is excited to announce the version 1.0.0
+    release of the glance_store library.
+
+    This release marks the finalization of changes introduced on an
+    experimental basis in previous releases beginning with 0.25.0 to
+    support the Glance `Multi-store backend support
+    <http://specs.openstack.org/openstack/glance-specs/specs/rocky/implemented/glance/multi-store.html>`_
+    feature.
+
+features:
+  - |
+    Multiple backend stores may be configured using the
+    ``glance_store.multi_backend`` module.  See the documentation of the
+    ``create_multi_stores`` function in the `glance_store Reference Guide
+    <https://docs.openstack.org/glance_store/latest/reference/api/modules.html>`_
+    for details.
+
+deprecations:
+  - |
+    The 'stores' and 'default_store' configuration options have been
+    deprecated for removal since the OpenStack Rocky release.  They are
+    subject to removal early in the 'U' development cycle.  When these
+    options are removed, the ``glance_store.backend`` module, that depends
+    on them, will be removed as well.
+
+upgrade:
+  - |
+    Consuming services should begin the transition away from the
+    ``glance_store.backend`` module and instead use the
+    ``glance_store.multi_backend`` module.  The ``backend`` module is
+    expected to be removed during the 'U' development cycle.
+
+issues:
+  - |
+    The responses from some functions in the ``glance_store.multi_backend``
+    module, which was EXPERIMENTAL until this release, have changed.
+    In particular, the ``glance_store.driver.Store.add`` function which
+    returns a tuple whose last element is a dictionary of storage system
+    specific information, no longer contains a 'backend' key.  Instead,
+    this key is named 'store'.  This change extends to any convenience
+    functions that wrap ``Store.add``.
+
+    Consumers relying upon the EXPERIMENTAL behavior should not upgrade
+    past version 0.29.1.  Now that the ``multi_backend`` module is fully
+    supported in release 1.0.0, it will not undergo any more
+    backward-incompatible changes.

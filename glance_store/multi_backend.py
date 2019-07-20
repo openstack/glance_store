@@ -34,10 +34,18 @@ LOG = logging.getLogger(__name__)
 _STORE_OPTS = [
     cfg.StrOpt('default_backend',
                help=_("""
-The default scheme to use for storing images.
+The store identifier for the default backend in which data will be
+stored.
 
-Provide a string value representing the default scheme to use for
-storing images. If not set, Glance API service will fail to start.
+The value must be defined as one of the keys in the dict defined
+by the ``enabled_backends`` configuration option in the DEFAULT
+configuration group.
+
+If a value is not defined for this option:
+
+* the consuming service may refuse to start
+* store_add calls that do not specify a specific backend will
+  raise a ``glance_store.exceptions.UnknownScheme`` exception
 
 Related Options:
     * enabled_backends
@@ -150,7 +158,88 @@ def _load_multi_stores(conf, reserved_stores=None):
 
 
 def create_multi_stores(conf=CONF, reserved_stores=None):
-    """Registers all store modules and all schemes from the given config."""
+    """
+    Registers all store modules and all schemes from the given configuration
+    object.
+
+    :param conf: A oslo_config (or compatible) object
+    :param reserved_stores: A list of stores for the consuming service's
+                            internal use.  The list must be the same
+                            format as the ``enabled_backends`` configuration
+                            setting.  The default value is None
+    :return: The number of stores configured
+    :raises: ``glance_store.exceptions.BackendException``
+
+    *Configuring Multiple Backends*
+
+    The backends to be configured are expected to be found in the
+    ``enabled_backends`` configuration variable in the DEFAULT group
+    of the object.  The format for the variable is a dictionary of
+    key:value pairs where the key is an arbitrary store identifier
+    and the value is the store type identifier for the store.
+
+    The type identifiers must be defined in the  ``[entry points]``
+    section of the glance_store ``setup.cfg`` file as values for
+    the ``glance_store.drivers`` configuration.  (See the default
+    ``setup.cfg`` file for an example.)  The store type identifiers
+    for the currently supported drivers are already defined in the file.
+
+    Thus an example value for ``enabled_backends`` is::
+
+        {'store_one': 'http', 'store_two': 'file', 'store_three': 'rbd'}
+
+    The ``reserved_stores`` parameter, if included, must have the same
+    format.  There is no difference between the ``enabled_backends`` and
+    ``reserved_stores`` from the glance_store point of view: the reserved
+    stores are a convenience for the consuming service, which may wish
+    to handle the two sets of stores differently.
+
+    *The Default Store*
+
+    If you wish to set a default store, its store identifier should be
+    defined as the value of the ``default_backend`` configuration option
+    in the ``glance_store`` group of the ``conf`` parameter.  The store
+    identifier, or course, should be specified as one of the keys in the
+    ``enabled_backends`` dict.  It is recommended that a default store
+    be set.
+
+    *Configuring Individual Backends*
+
+    To configure each store mentioned in the ``enabled_backends``
+    configuration option, you must define an option group with the
+    same name as the store identifier.  The options defined for that
+    backend will depend upon the store type; consult the documentation
+    for the appropriate backend driver to determine what these are.
+
+    For example, given the ``enabled_backends`` example above, you
+    would put the following in the configuration file that loads the
+    ``conf`` object::
+
+        [DEFAULT]
+        enabled_backends = store_one:rbd,store_two:file,store_three:http
+
+        [store_one]
+        store_description = "A human-readable string aimed at end users"
+        rbd_store_chunk_size = 8
+        rbd_store_pool = images
+        rbd_store_user = admin
+        rbd_store_ceph_conf = /etc/ceph/ceph.conf
+
+        [store_two]
+        store_description = "Human-readable description of this store"
+        filesystem_store_datadir = /opt/stack/data/glance/store_two
+
+        [store_three]
+        store_description = "A read-only store"
+        https_ca_certificates_file = /opt/stack/certs/gs.cert
+
+        [glance_store]
+        default_backend = store_two
+
+    The ``store_description`` options may be used by a consuming service.
+    As recommended above, this file also defines a default backend.
+    """
+
     store_count = 0
     scheme_map = {}
     for (store_entry, store_instance,
