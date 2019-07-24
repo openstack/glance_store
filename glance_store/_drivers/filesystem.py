@@ -764,7 +764,7 @@ class Store(glance_store.driver.Store):
 
         # Add store backend information to location metadata
         if self.backend_group:
-            metadata['backend'] = u"%s" % self.backend_group
+            metadata['store'] = u"%s" % self.backend_group
 
         return ('file://%s' % filepath,
                 bytes_written,

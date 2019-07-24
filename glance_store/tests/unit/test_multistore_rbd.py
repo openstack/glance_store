@@ -228,7 +228,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                 self.assertTrue(resize.called)
                 self.assertTrue(write.called)
                 self.assertEqual(ret[1], self.data_len)
-                self.assertEqual("ceph1", ret[3]['backend'])
+                self.assertEqual("ceph1", ret[3]['store'])
 
     def test_add_w_image_size_zero_to_different_backend(self):
         """Assert that correct size is returned even though 0 was provided."""
@@ -252,7 +252,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                 self.assertTrue(resize.called)
                 self.assertTrue(write.called)
                 self.assertEqual(ret[1], self.data_len)
-                self.assertEqual("ceph2", ret[3]['backend'])
+                self.assertEqual("ceph2", ret[3]['store'])
 
     @mock.patch.object(MockRBD.Image, '__enter__')
     @mock.patch.object(rbd_store.Store, '_create_image')
