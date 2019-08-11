@@ -105,9 +105,33 @@ _config_defaults = {'user_domain_id': 'default',
                     'project_domain_name': 'default'}
 
 if sys.version_info >= (3, 2):
-    CONFIG = configparser.ConfigParser(defaults=_config_defaults)
+    parser_class = configparser.ConfigParser
 else:
-    CONFIG = configparser.SafeConfigParser(defaults=_config_defaults)
+    parser_class = configparser.SafeConfigParser
+
+
+class SwiftConfigParser(parser_class):
+
+    def get(self, *args, **kwargs):
+        value = super(parser_class, self).get(*args, **kwargs)
+        return self._process_quotes(value)
+
+    @staticmethod
+    def _process_quotes(value):
+        if value:
+            if value[0] in "\"'":
+                if len(value) == 1 or value[-1] != value[0]:
+                    raise ValueError('Non-closed quote: %s' %
+                                     value)
+                value = value[1:-1]
+        return value
+
+
+if sys.version_info >= (3,):
+    CONFIG = SwiftConfigParser(defaults=_config_defaults)
+else:
+    CONFIG = parser_class(defaults=_config_defaults)
+
 LOG = logging.getLogger(__name__)
 
 
