@@ -33,12 +33,12 @@ directory on the glance node where image segments will be
 buffered briefly before they are uploaded to swift.
 
 NOTES:
-* This is required only when the configuration option
-  ``swift_buffer_on_upload`` is set to True.
-* This directory should be provisioned keeping in mind the
-  ``swift_store_large_object_chunk_size`` and the maximum
-  number of images that could be uploaded simultaneously by
-  a given glance node.
+    * This is required only when the configuration option
+      ``swift_buffer_on_upload`` is set to True.
+    * This directory should be provisioned keeping in mind the
+      ``swift_store_large_object_chunk_size`` and the maximum
+      number of images that could be uploaded simultaneously by
+      a given glance node.
 
 Possible values:
     * String value representing an absolute directory path
