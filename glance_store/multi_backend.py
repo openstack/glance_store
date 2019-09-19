@@ -13,11 +13,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
 import hashlib
 import logging
 
 from oslo_config import cfg
 from oslo_utils import encodeutils
+from oslo_utils import units
 import six
 from stevedore import driver
 from stevedore import extension
@@ -52,6 +54,28 @@ Related Options:
 
 """)),
 ]
+
+FS_CONF_DATADIR_HELP = """
+Directory of which the reserved store {} uses.
+
+Possible values:
+    * A valid path to a directory
+
+Refer to [glance_store]/filesystem store config opts for more details.
+"""
+
+FS_CONF_CHUNKSIZE_HELP = """
+Chunk size, in bytes to be used by reserved store {}.
+
+The chunk size used when reading or writing image files. Raising this value
+may improve the throughput but it may also slightly increase the memory usage
+when handling a large number of requests.
+
+Possible Values:
+    * Any positive integer value
+
+"""
+
 
 _STORE_CFG_GROUP = 'glance_store'
 _RESERVED_STORES = {}
@@ -101,14 +125,32 @@ def register_store_opts(conf, reserved_stores=None):
     LOG.debug("Registering options for group %s", _STORE_CFG_GROUP)
     conf.register_opts(_STORE_OPTS, group=_STORE_CFG_GROUP)
 
-    driver_opts = _list_driver_opts()
-    enabled_backends = conf.enabled_backends
+    configured_backends = copy.deepcopy(conf.enabled_backends)
     if reserved_stores:
-        enabled_backends.update(reserved_stores)
+        conf.enabled_backends.update(reserved_stores)
+        for key in reserved_stores.keys():
+            fs_conf_template = [
+                cfg.StrOpt('filesystem_store_datadir',
+                           default='/var/lib/glance/{}'.format(key),
+                           help=FS_CONF_DATADIR_HELP.format(key)),
+                cfg.MultiStrOpt('filesystem_store_datadirs',
+                                help="""Not used"""),
+                cfg.StrOpt('filesystem_store_metadata_file',
+                           help="""Not used"""),
+                cfg.IntOpt('filesystem_store_file_perm',
+                           default=0,
+                           help="""Not used"""),
+                cfg.IntOpt('filesystem_store_chunk_size',
+                           default=64 * units.Ki,
+                           min=1,
+                           help=FS_CONF_CHUNKSIZE_HELP.format(key))]
+            LOG.debug("Registering options for reserved store: {}".format(key))
+            conf.register_opts(fs_conf_template, group=key)
 
-    for backend in enabled_backends:
+    driver_opts = _list_driver_opts()
+    for backend in configured_backends:
         for opt_list in driver_opts:
-            if enabled_backends[backend] not in opt_list:
+            if configured_backends[backend] not in opt_list:
                 continue
 
             LOG.debug("Registering options for group %s", backend)
