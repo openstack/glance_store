@@ -1,0 +1,15 @@
+---
+other:
+  - |
+    In this version, refactor was made how registering of filesystem
+    configuration options for reserved stores works. Consumer just
+    need to pass the key:value pair where key represents the name of the
+    reserved store and value represents the actual store driver, to the
+    glance_store.
+issues:
+  - |
+    At the moment use of reserved stores is only limited to filesystem store
+    driver. Also default ``filesystem_store_datadir`` path for these stores
+    is set to ``/var/lib/glance/<store_name>``, so with if you are using
+    devstack for the deployment, you need to make sure you have appropriate
+    permissions to create these reserved stores directories.
