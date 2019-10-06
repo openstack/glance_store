@@ -33,3 +33,4 @@ supported by the core team.
 * Documentation: https://docs.openstack.org/glance_store/latest/
 * Source: https://opendev.org/openstack/glance_store/
 * Bugs: https://bugs.launchpad.net/glance-store
+* Release notes: https://docs.openstack.org/releasenotes/glance_store/index.html
