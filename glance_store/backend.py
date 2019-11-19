@@ -57,7 +57,6 @@ Possible values:
         * http
         * swift
         * rbd
-        * sheepdog
         * cinder
         * vmware
 
@@ -69,7 +68,7 @@ Related Options:
                default='file',
                choices=('file', 'filesystem', 'http', 'https', 'swift',
                         'swift+http', 'swift+https', 'swift+config', 'rbd',
-                        'sheepdog', 'cinder', 'vsphere'),
+                        'cinder', 'vsphere'),
                deprecated_for_removal=True,
                deprecated_since='Rocky',
                deprecated_reason="""
@@ -101,7 +100,6 @@ Possible values:
     * swift+https
     * swift+config
     * rbd
-    * sheepdog
     * cinder
     * vsphere
 
