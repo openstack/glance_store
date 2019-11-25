@@ -59,6 +59,7 @@ Possible values:
         * rbd
         * cinder
         * vmware
+        * s3
 
 Related Options:
     * default_store
@@ -68,7 +69,7 @@ Related Options:
                default='file',
                choices=('file', 'filesystem', 'http', 'https', 'swift',
                         'swift+http', 'swift+https', 'swift+config', 'rbd',
-                        'cinder', 'vsphere'),
+                        'cinder', 'vsphere', 's3'),
                deprecated_for_removal=True,
                deprecated_since='Rocky',
                deprecated_reason="""
@@ -102,6 +103,7 @@ Possible values:
     * rbd
     * cinder
     * vsphere
+    * s3
 
 Related Options:
     * stores

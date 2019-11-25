@@ -69,6 +69,8 @@ def get_location_from_uri(uri, conf=CONF):
         swift+http://user:account:pass@authurl.com/container/obj-id
         file:///var/lib/glance/images/1
         cinder://volume-id
+        s3://accesskey:secretkey@s3.amazonaws.com/bucket/key-id
+        s3+https://accesskey:secretkey@s3.amazonaws.com/bucket/key-id
     """
     pieces = urllib.parse.urlparse(uri)
     if pieces.scheme not in SCHEME_TO_CLS_MAP.keys():
@@ -97,6 +99,8 @@ def get_location_from_uri_and_backend(uri, backend, conf=CONF):
         swift+http://user:account:pass@authurl.com/container/obj-id
         file:///var/lib/glance/images/1
         cinder://volume-id
+        s3://accesskey:secretkey@s3.amazonaws.com/bucket/key-id
+        s3+https://accesskey:secretkey@s3.amazonaws.com/bucket/key-id
     """
 
     pieces = urllib.parse.urlparse(uri)
