@@ -12,6 +12,7 @@
     vars:
       devstack_localrc:
         LIBS_FROM_GIT: glance_store
+        USE_PYTHON3: True
       devstack_services:
         # turn off ceilometer
         ceilometer-acentral: false
@@ -55,14 +56,6 @@
       - name: openstack/python-cinderclient
 
 - job:
-    name: glance_store-tox-py27-cinder-tips
-    parent: glance_store-tox-cinder-tips-base
-    description: |
-      glance_store py27 unit tests vs. cinder masters
-    vars:
-      tox_envlist: py27
-
-- job:
     name: glance_store-tox-py36-cinder-tips
     parent: glance_store-tox-cinder-tips-base
     description: |
@@ -78,14 +71,6 @@
     required-projects:
       - name: openstack/keystoneauth
       - name: openstack/python-keystoneclient
-
-- job:
-    name: glance_store-tox-py27-keystone-tips
-    parent: glance_store-tox-keystone-tips-base
-    description: |
-      glance_store py27 unit tests vs. keystone masters
-    vars:
-      tox_envlist: py27
 
 - job:
     name: glance_store-tox-py36-keystone-tips
@@ -112,14 +97,6 @@
       - name: openstack/stevedore
 
 - job:
-    name: glance_store-tox-py27-oslo-tips
-    parent: glance_store-tox-oslo-tips-base
-    description: |
-      glance_store py27 unit tests vs. oslo masters
-    vars:
-      tox_envlist: py27
-
-- job:
     name: glance_store-tox-py36-oslo-tips
     parent: glance_store-tox-oslo-tips-base
     description: |
@@ -136,14 +113,6 @@
       - name: openstack/python-swiftclient
 
 - job:
-    name: glance_store-tox-py27-swift-tips
-    parent: glance_store-tox-swift-tips-base
-    description: |
-      glance_store py27 unit tests vs. swift masters
-    vars:
-      tox_envlist: py27
-
-- job:
     name: glance_store-tox-py36-swift-tips
     parent: glance_store-tox-swift-tips-base
     description: |
@@ -157,8 +126,7 @@
       - lib-forward-testing
       - lib-forward-testing-python3
       - openstack-lower-constraints-jobs
-      - openstack-python-jobs
-      - openstack-python3-train-jobs
+      - openstack-python3-ussuri-jobs
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
     check:
@@ -192,19 +160,11 @@
         # to define these jobs in the openstack/project-config repo.
         # That would make us less agile in adjusting these tests, so we
         # aren't doing that either.
-        - glance_store-tox-py27-cinder-tips:
-            branches: master
         - glance_store-tox-py36-cinder-tips:
-            branches: master
-        - glance_store-tox-py27-keystone-tips:
             branches: master
         - glance_store-tox-py36-keystone-tips:
             branches: master
-        - glance_store-tox-py27-oslo-tips:
-            branches: master
         - glance_store-tox-py36-oslo-tips:
-            branches: master
-        - glance_store-tox-py27-swift-tips:
             branches: master
         - glance_store-tox-py36-swift-tips:
             branches: master
