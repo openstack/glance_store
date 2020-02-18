@@ -137,7 +137,7 @@ class BufferedReader(object):
     def _buffer(self):
         to_buffer = self.total
         LOG.debug("Buffering %s bytes of image segment" % to_buffer)
-
+        buffer_read_count = 0
         while not self._buffered:
             read_size = min(to_buffer, READ_SIZE)
             try:
@@ -156,6 +156,9 @@ class BufferedReader(object):
                 break
             self._tmpfile.write(buf)
             to_buffer -= len(buf)
+            buffer_read_count = buffer_read_count + 1
+        if buffer_read_count == 0:
+            self.is_zero_size = True
 
     # NOTE(belliott) seek and tell get used by python-swiftclient to "reset"
     # if there is a put_object error
