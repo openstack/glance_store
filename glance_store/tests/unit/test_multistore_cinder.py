@@ -165,7 +165,9 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                           volume_available, 'available', 'in-use')
         fake_manager.get.assert_called_with('fake-id')
 
-    def _test_open_cinder_volume(self, open_mode, attach_mode, error):
+    def _test_open_cinder_volume(self, open_mode, attach_mode, error,
+                                 multipath_supported=False,
+                                 enforce_multipath=False):
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available')
         fake_volumes = FakeObject(get=lambda id: fake_volume,
                                   detach=mock.Mock())
@@ -199,22 +201,26 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                                   side_effect=fake_chown), \
                 mock.patch.object(cinder, 'get_root_helper',
                                   return_value=root_helper), \
-                mock.patch.object(connector, 'get_connector_properties'), \
                 mock.patch.object(connector.InitiatorConnector, 'factory',
                                   side_effect=fake_factory):
 
-            if error:
-                self.assertRaises(error, do_open)
-            else:
-                do_open()
+            with mock.patch.object(connector,
+                                   'get_connector_properties') as mock_conn:
+                if error:
+                    self.assertRaises(error, do_open)
+                else:
+                    do_open()
 
-            fake_connector.connect_volume.assert_called_once_with(mock.ANY)
-            fake_connector.disconnect_volume.assert_called_once_with(
-                mock.ANY, fake_devinfo)
-            fake_volume.attach.assert_called_once_with(
-                None, 'glance_store', attach_mode,
-                host_name=socket.gethostname())
-            fake_volumes.detach.assert_called_once_with(fake_volume)
+                mock_conn.assert_called_once_with(
+                    root_helper, socket.gethostname(), multipath_supported,
+                    enforce_multipath)
+                fake_connector.connect_volume.assert_called_once_with(mock.ANY)
+                fake_connector.disconnect_volume.assert_called_once_with(
+                    mock.ANY, fake_devinfo)
+                fake_volume.attach.assert_called_once_with(
+                    None, 'glance_store', attach_mode,
+                    host_name=socket.gethostname())
+                fake_volumes.detach.assert_called_once_with(fake_volume)
 
     def test_open_cinder_volume_rw(self):
         self._test_open_cinder_volume('wb', 'rw', None)
@@ -224,6 +230,19 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
 
     def test_open_cinder_volume_error(self):
         self._test_open_cinder_volume('wb', 'rw', IOError)
+
+    def test_open_cinder_volume_multipath_disabled(self):
+        self.config(cinder_use_multipath=False, group='cinder1')
+        self._test_open_cinder_volume('wb', 'rw', None,
+                                      multipath_supported=False)
+
+    def test_open_cinder_volume_enforce_multipath(self):
+
+        self.config(cinder_use_multipath=True, group='cinder1')
+        self.config(cinder_enforce_multipath=True, group='cinder1')
+        self._test_open_cinder_volume('wb', 'rw', None,
+                                      multipath_supported=True,
+                                      enforce_multipath=True)
 
     def test_cinder_configure_add(self):
         self.assertRaises(exceptions.BadStoreConfiguration,

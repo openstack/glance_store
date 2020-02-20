@@ -82,6 +82,8 @@ class OptsTestCase(base.StoreBaseTest):
             'cinder_store_password',
             'cinder_store_project_name',
             'cinder_volume_type',
+            'cinder_use_multipath',
+            'cinder_enforce_multipath',
             'default_swift_reference',
             'https_insecure',
             'filesystem_store_chunk_size',
