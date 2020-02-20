@@ -305,6 +305,34 @@ Related options:
     * None
 
 """),
+    cfg.BoolOpt('cinder_enforce_multipath',
+                default=False,
+                help="""
+If this is set to True, attachment of volumes for image transfer will
+be aborted when multipathd is not running. Otherwise, it will fallback
+to single path.
+
+Possible values:
+    * True or False
+
+Related options:
+    * cinder_use_multipath
+
+"""),
+    cfg.BoolOpt('cinder_use_multipath',
+                default=False,
+                help="""
+Flag to identify mutipath is supported or not in the deployment.
+
+Set it to False if multipath is not supported.
+
+Possible values:
+    * True or False
+
+Related options:
+    * cinder_enforce_multipath
+
+"""),
 ]
 
 
@@ -498,8 +526,17 @@ class Store(glance_store.driver.Store):
         root_helper = get_root_helper(backend=self.backend_group)
         priv_context.init(root_helper=shlex.split(root_helper))
         host = socket.gethostname()
-        properties = connector.get_connector_properties(root_helper, host,
-                                                        False, False)
+        if self.backend_group:
+            use_multipath = getattr(
+                self.conf, self.backend_group).cinder_use_multipath
+            enforce_multipath = getattr(
+                self.conf, self.backend_group).cinder_enforce_multipath
+        else:
+            use_multipath = self.conf.glance_store.cinder_use_multipath
+            enforce_multipath = self.conf.glance_store.cinder_enforce_multipath
+
+        properties = connector.get_connector_properties(
+            root_helper, host, use_multipath, enforce_multipath)
 
         try:
             volume.reserve(volume)
