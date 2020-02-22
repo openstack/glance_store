@@ -168,6 +168,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
     def _test_open_cinder_volume(self, open_mode, attach_mode, error,
                                  multipath_supported=False,
                                  enforce_multipath=False):
+        self.config(cinder_mount_point_base=None, group='cinder1')
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available')
         fake_volumes = FakeObject(get=lambda id: fake_volume,
                                   detach=mock.Mock())
