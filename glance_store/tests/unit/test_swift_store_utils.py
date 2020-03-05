@@ -85,3 +85,37 @@ class TestSwiftParams(base.StoreBaseTest):
         self.assertEqual('http://example.com',
                          swift_params['ref2']['auth_address']
                          )
+
+    def test_swift_store_config_validates_quotes_removal(self):
+        swift_params = sutils.SwiftParams(self.conf).params
+        self.assertEqual('user3',
+                         swift_params['ref3']['user']
+                         )
+        self.assertEqual('key3',
+                         swift_params['ref3']['key']
+                         )
+        self.assertEqual('http://example.com',
+                         swift_params['ref3']['auth_address']
+                         )
+
+
+class TestSwiftConfigParser(base.StoreBaseTest):
+
+    def setUp(self):
+        super(TestSwiftConfigParser, self).setUp()
+        self.method = sutils.SwiftConfigParser._process_quotes
+
+    def test_quotes_processor(self):
+        self.assertEqual('user', self.method('user'))
+        self.assertEqual('user', self.method('"user"'))
+        self.assertEqual("user", self.method("'user'"))
+        self.assertEqual("user'", self.method("user'"))
+        self.assertEqual('user"', self.method('user"'))
+
+    def test_quotes_processor_negative(self):
+        negative_values = [
+            '\'user"', '"user\'', '\'user', '"user\'',
+            "'user", '"user', '"', "'",
+        ]
+        for value in negative_values:
+            self.assertRaises(ValueError, self.method, value)
