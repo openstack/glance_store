@@ -2239,3 +2239,37 @@ class TestBufferedReader(base.StoreBaseTest):
         # file objects are not required to have a 'close' attribute
         if getattr(self.reader._tmpfile, 'closed'):
             self.assertTrue(self.reader._tmpfile.closed)
+
+    def test_read_all_data(self):
+        """
+        Replicate what goes on in the Swift driver with the
+        repeated creation of the BufferedReader object
+        """
+        CHUNKSIZE = 100
+        data = b'*' * units.Ki
+        expected_checksum = hashlib.md5(data).hexdigest()
+        expected_multihash = hashlib.sha256(data).hexdigest()
+        data_file = tempfile.NamedTemporaryFile()
+        data_file.write(data)
+        data_file.flush()
+        infile = open(data_file.name, 'rb')
+        bytes_read = 0
+        checksum = hashlib.md5()
+        os_hash_value = hashlib.sha256()
+        while True:
+            cr = buffered.BufferedReader(infile, checksum, os_hash_value,
+                                         CHUNKSIZE)
+            chunk = cr.read(CHUNKSIZE)
+            if len(chunk) == 0:
+                self.assertEqual(True, cr.is_zero_size)
+                break
+            else:
+                self.assertEqual(False, cr.is_zero_size)
+            bytes_read += len(chunk)
+        self.assertEqual(units.Ki, bytes_read)
+        self.assertEqual(expected_checksum,
+                         cr.checksum.hexdigest())
+        self.assertEqual(expected_multihash,
+                         cr.os_hash_value.hexdigest())
+        data_file.close()
+        infile.close()
