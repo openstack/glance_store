@@ -93,8 +93,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         self.assertEqual("cinder://", self.store.url_prefix)
 
     def test_get_cinderclient(self):
-        cc = cinder.get_cinderclient(self.conf, self.context,
-                                     backend="cinder1")
+        cc = self.store.get_cinderclient(self.context)
         self.assertEqual('fake_token', cc.client.auth_token)
         self.assertEqual('http://foo/public_url', cc.client.management_url)
 
@@ -103,8 +102,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         self.config(cinder_store_password='test_password', group="cinder1")
         self.config(cinder_store_project_name='test_project', group="cinder1")
         self.config(cinder_store_auth_address='test_address', group="cinder1")
-        cc = cinder.get_cinderclient(self.conf, self.context,
-                                     backend="cinder1")
+        cc = self.store.get_cinderclient(self.context)
         self.assertIsNone(cc.client.auth_token)
         self.assertEqual('test_address', cc.client.management_url)
 
@@ -115,9 +113,9 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         with mock.patch.object(os, 'stat', return_value=fake_stat()), \
                 mock.patch.object(os, 'getuid', return_value=2), \
                 mock.patch.object(processutils, 'execute') as mock_execute, \
-                mock.patch.object(cinder, 'get_root_helper',
+                mock.patch.object(cinder.Store, 'get_root_helper',
                                   return_value='sudo'):
-            with cinder.temporary_chown('test'):
+            with self.store.temporary_chown('test'):
                 pass
             expected_calls = [mock.call('chown', 2, 'test', run_as_root=True,
                                         root_helper='sudo'),
@@ -197,9 +195,9 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         with mock.patch.object(cinder.Store,
                                '_wait_volume_status',
                                return_value=fake_volume), \
-                mock.patch.object(cinder, 'temporary_chown',
+                mock.patch.object(cinder.Store, 'temporary_chown',
                                   side_effect=fake_chown), \
-                mock.patch.object(cinder, 'get_root_helper',
+                mock.patch.object(cinder.Store, 'get_root_helper',
                                   return_value=root_helper), \
                 mock.patch.object(connector.InitiatorConnector, 'factory',
                                   side_effect=fake_factory):
@@ -271,7 +269,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
             self.assertEqual('rb', mode)
             yield volume_file
 
-        with mock.patch.object(cinder, 'get_cinderclient') as mock_cc, \
+        with mock.patch.object(cinder.Store, 'get_cinderclient') as mock_cc, \
                 mock.patch.object(self.store, '_open_cinder_volume',
                                   side_effect=fake_open):
             mock_cc.return_value = FakeObject(client=fake_client,
@@ -299,7 +297,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         fake_volume = FakeObject(size=5, metadata={})
         fake_volumes = {fake_volume_uuid: fake_volume}
 
-        with mock.patch.object(cinder, 'get_cinderclient') as mocked_cc:
+        with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
             mocked_cc.return_value = FakeObject(client=fake_client,
                                                 volumes=fake_volumes)
 
@@ -318,7 +316,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                                  metadata={'image_size': expected_image_size})
         fake_volumes = {fake_volume_uuid: fake_volume}
 
-        with mock.patch.object(cinder, 'get_cinderclient') as mocked_cc:
+        with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
             mocked_cc.return_value = FakeObject(client=fake_client,
                                                 volumes=fake_volumes)
 
@@ -347,7 +345,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
             self.assertEqual('wb', mode)
             yield volume_file
 
-        with mock.patch.object(cinder, 'get_cinderclient') as mock_cc, \
+        with mock.patch.object(cinder.Store, 'get_cinderclient') as mock_cc, \
                 mock.patch.object(self.store, '_open_cinder_volume',
                                   side_effect=fake_open):
             mock_cc.return_value = FakeObject(client=fake_client,
@@ -403,7 +401,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         fake_volume = FakeObject(delete=mock.Mock())
         fake_volumes = {fake_volume_uuid: fake_volume}
 
-        with mock.patch.object(cinder, 'get_cinderclient') as mocked_cc:
+        with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
             mocked_cc.return_value = FakeObject(client=fake_client,
                                                 volumes=fake_volumes)
 

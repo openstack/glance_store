@@ -37,7 +37,7 @@ import glance_store.location
 
 try:
     from cinderclient import exceptions as cinder_exception
-    from cinderclient.v2 import client as cinderclient
+    from cinderclient.v3 import client as cinderclient
     from os_brick.initiator import connector
     from oslo_privsep import priv_context
 except ImportError:
@@ -336,80 +336,6 @@ Related options:
 ]
 
 
-def get_root_helper(backend=None):
-    if backend:
-        rootwrap = getattr(CONF, backend).rootwrap_config
-    else:
-        rootwrap = CONF.glance_store.rootwrap_config
-
-    return 'sudo glance-rootwrap %s' % rootwrap
-
-
-def is_user_overriden(conf, backend=None):
-    if backend:
-        store_conf = getattr(conf, backend)
-    else:
-        store_conf = conf.glance_store
-
-    return all([store_conf.get('cinder_store_' + key)
-                for key in ['user_name', 'password',
-                            'project_name', 'auth_address']])
-
-
-def get_cinderclient(conf, context=None, backend=None):
-    if backend:
-        glance_store = getattr(conf, backend)
-    else:
-        glance_store = conf.glance_store
-
-    user_overriden = is_user_overriden(conf, backend=backend)
-    if user_overriden:
-        username = glance_store.cinder_store_user_name
-        password = glance_store.cinder_store_password
-        project = glance_store.cinder_store_project_name
-        url = glance_store.cinder_store_auth_address
-    else:
-        username = context.user
-        password = context.auth_token
-        project = context.tenant
-
-        if glance_store.cinder_endpoint_template:
-            url = glance_store.cinder_endpoint_template % context.to_dict()
-        else:
-            info = glance_store.cinder_catalog_info
-            service_type, service_name, interface = info.split(':')
-            try:
-                catalog = keystone_sc.ServiceCatalogV2(context.service_catalog)
-                url = catalog.url_for(
-                    region_name=glance_store.cinder_os_region_name,
-                    service_type=service_type,
-                    service_name=service_name,
-                    interface=interface)
-            except keystone_exc.EndpointNotFound:
-                reason = _("Failed to find Cinder from a service catalog.")
-                raise exceptions.BadStoreConfiguration(store_name="cinder",
-                                                       reason=reason)
-
-    c = cinderclient.Client(username,
-                            password,
-                            project,
-                            auth_url=url,
-                            region_name=glance_store.cinder_os_region_name,
-                            insecure=glance_store.cinder_api_insecure,
-                            retries=glance_store.cinder_http_retries,
-                            cacert=glance_store.cinder_ca_certificates_file)
-
-    LOG.debug('Cinderclient connection created for user %(user)s using URL: '
-              '%(url)s.', {'user': username, 'url': url})
-
-    # noauth extracts user_id:project_id from auth_token
-    if not user_overriden:
-        c.client.auth_token = context.auth_token or '%s:%s' % (username,
-                                                               project)
-    c.client.management_url = url
-    return c
-
-
 class StoreLocation(glance_store.location.StoreLocation):
 
     """Class describing a Cinder URI."""
@@ -433,24 +359,6 @@ class StoreLocation(glance_store.location.StoreLocation):
             raise exceptions.BadStoreUri(message=reason)
 
 
-@contextlib.contextmanager
-def temporary_chown(path, backend=None):
-    owner_uid = os.getuid()
-    orig_uid = os.stat(path).st_uid
-
-    if orig_uid != owner_uid:
-        processutils.execute('chown', owner_uid, path,
-                             run_as_root=True,
-                             root_helper=get_root_helper(backend=backend))
-    try:
-        yield
-    finally:
-        if orig_uid != owner_uid:
-            processutils.execute('chown', orig_uid, path,
-                                 run_as_root=True,
-                                 root_helper=get_root_helper(backend=backend))
-
-
 class Store(glance_store.driver.Store):
 
     """Cinder backend store adapter."""
@@ -466,6 +374,96 @@ class Store(glance_store.driver.Store):
         if self.backend_group:
             self._set_url_prefix()
 
+    def get_root_helper(self):
+        if self.backend_group:
+            rootwrap = getattr(CONF, self.backend_group).rootwrap_config
+        else:
+            rootwrap = CONF.glance_store.rootwrap_config
+
+        return 'sudo glance-rootwrap %s' % rootwrap
+
+    def is_user_overriden(self):
+        if self.backend_group:
+            store_conf = getattr(self.conf, self.backend_group)
+        else:
+            store_conf = self.conf.glance_store
+
+        return all([store_conf.get('cinder_store_' + key)
+                    for key in ['user_name', 'password',
+                                'project_name', 'auth_address']])
+
+    def get_cinderclient(self, context=None):
+        if self.backend_group:
+            glance_store = getattr(self.conf, self.backend_group)
+        else:
+            glance_store = self.conf.glance_store
+
+        user_overriden = self.is_user_overriden()
+        if user_overriden:
+            username = glance_store.cinder_store_user_name
+            password = glance_store.cinder_store_password
+            project = glance_store.cinder_store_project_name
+            url = glance_store.cinder_store_auth_address
+        else:
+            username = context.user
+            password = context.auth_token
+            project = context.tenant
+
+            if glance_store.cinder_endpoint_template:
+                url = glance_store.cinder_endpoint_template % context.to_dict()
+            else:
+                info = glance_store.cinder_catalog_info
+                service_type, service_name, interface = info.split(':')
+                try:
+                    catalog = keystone_sc.ServiceCatalogV2(
+                        context.service_catalog)
+                    url = catalog.url_for(
+                        region_name=glance_store.cinder_os_region_name,
+                        service_type=service_type,
+                        service_name=service_name,
+                        interface=interface)
+                except keystone_exc.EndpointNotFound:
+                    reason = _("Failed to find Cinder from a service catalog.")
+                    raise exceptions.BadStoreConfiguration(store_name="cinder",
+                                                           reason=reason)
+
+        c = cinderclient.Client(
+            username, password, project, auth_url=url,
+            region_name=glance_store.cinder_os_region_name,
+            insecure=glance_store.cinder_api_insecure,
+            retries=glance_store.cinder_http_retries,
+            cacert=glance_store.cinder_ca_certificates_file)
+
+        LOG.debug(
+            'Cinderclient connection created for user %(user)s using URL: '
+            '%(url)s.', {'user': username, 'url': url})
+
+        # noauth extracts user_id:project_id from auth_token
+        if not user_overriden:
+            c.client.auth_token = context.auth_token or '%s:%s' % (username,
+                                                                   project)
+        c.client.management_url = url
+        return c
+
+    @contextlib.contextmanager
+    def temporary_chown(self, path):
+        owner_uid = os.getuid()
+        orig_uid = os.stat(path).st_uid
+
+        if orig_uid != owner_uid:
+            processutils.execute(
+                'chown', owner_uid, path,
+                run_as_root=True,
+                root_helper=self.get_root_helper())
+        try:
+            yield
+        finally:
+            if orig_uid != owner_uid:
+                processutils.execute(
+                    'chown', orig_uid, path,
+                    run_as_root=True,
+                    root_helper=self.get_root_helper())
+
     def get_schemes(self):
         return ('cinder',)
 
@@ -473,8 +471,7 @@ class Store(glance_store.driver.Store):
         self._url_prefix = "cinder://"
 
     def _check_context(self, context, require_tenant=False):
-        user_overriden = is_user_overriden(self.conf,
-                                           backend=self.backend_group)
+        user_overriden = self.is_user_overriden()
         if user_overriden and not require_tenant:
             return
         if context is None:
@@ -523,7 +520,7 @@ class Store(glance_store.driver.Store):
     def _open_cinder_volume(self, client, volume, mode):
         attach_mode = 'rw' if mode == 'wb' else 'ro'
         device = None
-        root_helper = get_root_helper(backend=self.backend_group)
+        root_helper = self.get_root_helper()
         priv_context.init(root_helper=shlex.split(root_helper))
         host = socket.gethostname()
         if self.backend_group:
@@ -558,9 +555,9 @@ class Store(glance_store.driver.Store):
                not conn.do_local_attach):
                 yield device['path']
             else:
-                with temporary_chown(device['path'],
-                                     backend=self.backend_group), \
-                        open(device['path'], mode) as f:
+                with self.temporary_chown(
+                        device['path'], backend=self.backend_group
+                ), open(device['path'], mode) as f:
                     yield f
         except Exception:
             LOG.exception(_LE('Exception while accessing to cinder volume '
@@ -637,8 +634,7 @@ class Store(glance_store.driver.Store):
         loc = location.store_location
         self._check_context(context)
         try:
-            client = get_cinderclient(self.conf, context,
-                                      backend=self.backend_group)
+            client = self.get_cinderclient(context)
             volume = client.volumes.get(loc.volume_id)
             size = int(volume.metadata.get('image_size',
                                            volume.size * units.Gi))
@@ -672,9 +668,7 @@ class Store(glance_store.driver.Store):
 
         try:
             self._check_context(context)
-            volume = get_cinderclient(
-                self.conf, context,
-                backend=self.backend_group).volumes.get(loc.volume_id)
+            volume = self.get_cinderclient(context).volumes.get(loc.volume_id)
             return int(volume.metadata.get('image_size',
                                            volume.size * units.Gi))
         except cinder_exception.NotFound:
@@ -708,8 +702,7 @@ class Store(glance_store.driver.Store):
         """
 
         self._check_context(context, require_tenant=True)
-        client = get_cinderclient(self.conf, context,
-                                  backend=self.backend_group)
+        client = self.get_cinderclient(context)
         os_hash_value = hashlib.new(str(hashing_algo))
         checksum = hashlib.md5()
         bytes_written = 0
@@ -834,9 +827,7 @@ class Store(glance_store.driver.Store):
         loc = location.store_location
         self._check_context(context)
         try:
-            volume = get_cinderclient(
-                self.conf, context,
-                backend=self.backend_group).volumes.get(loc.volume_id)
+            volume = self.get_cinderclient(context).volumes.get(loc.volume_id)
             volume.delete()
         except cinder_exception.NotFound:
             raise exceptions.NotFound(image=loc.volume_id)
