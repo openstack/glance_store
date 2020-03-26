@@ -1260,6 +1260,12 @@ class SwiftTests(object):
         self._init_client(verify=True, swift_store_multi_tenant=True,
                           swift_store_config_file=None)
 
+    def test_init_client_multi_tenant_swift_cacert(self):
+        """Test that keystone client was initialized with swift cacert"""
+        self._init_client(verify='/foo/bar', swift_store_multi_tenant=True,
+                          swift_store_config_file=None,
+                          swift_store_cacert='/foo/bar')
+
     def test_init_client_multi_tenant_insecure(self):
         """
         Test that keystone client was initialized correctly with no

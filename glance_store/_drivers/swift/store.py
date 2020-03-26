@@ -806,6 +806,10 @@ class BaseStore(driver.Store):
         self.insecure = glance_conf.swift_store_auth_insecure
         self.ssl_compression = glance_conf.swift_store_ssl_compression
         self.cacert = glance_conf.swift_store_cacert
+        if self.insecure:
+            self.ks_verify = False
+        else:
+            self.ks_verify = self.cacert or True
         if swiftclient is None:
             msg = _("Missing dependency python_swiftclient.")
             raise exceptions.BadStoreConfiguration(store_name="swift",
@@ -1454,7 +1458,7 @@ class SingleTenantStore(BaseStore):
             project_domain_id=self.project_domain_id,
             project_domain_name=self.project_domain_name)
 
-        sess = ks_session.Session(auth=password, verify=not self.insecure)
+        sess = ks_session.Session(auth=password, verify=self.ks_verify)
         return ks_client.Client(session=sess)
 
     def get_manager(self, store_location, context=None, allow_reauth=False):
@@ -1596,7 +1600,7 @@ class MultiTenantStore(BaseStore):
                                            token=context.auth_token,
                                            project_id=context.tenant)
         trustor_sess = ks_session.Session(auth=trustor_auth,
-                                          verify=not self.insecure)
+                                          verify=self.ks_verify)
         trustor_client = ks_client.Client(session=trustor_sess)
         auth_ref = trustor_client.session.auth.get_auth_ref(trustor_sess)
         roles = [t['name'] for t in auth_ref['roles']]
@@ -1613,7 +1617,7 @@ class MultiTenantStore(BaseStore):
             project_domain_id=project_domain_id,
             project_domain_name=project_domain_name)
         trustee_sess = ks_session.Session(auth=password,
-                                          verify=not self.insecure)
+                                          verify=self.ks_verify)
         trustee_client = ks_client.Client(session=trustee_sess)
 
         # request glance user id - we will use it as trustee user
@@ -1640,7 +1644,7 @@ class MultiTenantStore(BaseStore):
         # now we can authenticate against KS
         # as trustee of user who provided token
         client_sess = ks_session.Session(auth=client_password,
-                                         verify=not self.insecure)
+                                         verify=self.ks_verify)
         return ks_client.Client(session=client_sess)
 
     def get_manager(self, store_location, context=None, allow_reauth=False):

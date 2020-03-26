@@ -1,0 +1,11 @@
+---
+fixes:
+  - |
+    Swift backend now can use custom CA bundle to verify SSL connection to
+    Keystone without adding this bundle to global system ones.
+    For this it re-uses the CA bundle specified as ``swift_store_cacert``
+    config option, so this bundle must verify both certificates of Swift and
+    Keysotne API endpoints.
+
+    For more details see
+    [`bug 1820817 <https://bugs.launchpad.net/glance-store/+bug/1820817>`_].
