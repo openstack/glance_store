@@ -1,0 +1,31 @@
+---
+fixes:
+  - |
+    Following bugs were fixed and included after 1.0.1 release:
+
+    * Bug 1820817_: Swift backend can not use custom CA bundle to verify
+      server SSL certs when those are not added to global system certs
+    * Bug 1866966_: define mount_point for ``*fs`` drivers in glance cinder store
+    * Bug 1863691_: When Image size greater than the chunk size and the glance
+      buffered upload for swift is enabled, glance just put 0 bytes
+    * Bug 1839778_: Python3 swift config quotes removal
+    * Bug 1863983_: Image upload is failing with
+      NoFibreChannelVolumeDeviceFound after configuring Cinder(HP3Par FC
+      storage) as glance backend
+
+    .. _1820817: https://bugs.launchpad.net/glance-store/+bug/1820817
+    .. _1866966: https://bugs.launchpad.net/glance-store/+bug/1866966
+    .. _1863691: https://bugs.launchpad.net/fuel/+bug/1863691
+    .. _1839778: https://bugs.launchpad.net/glance-store/+bug/1839778
+    .. _1863983: https://bugs.launchpad.net/glance-store/+bug/1863983
+
+
+other:
+  - |
+    The following improvements were made during the Ussuri release cycle:
+
+    * Partial refactoring of cinder driver of glance store to use cinderclient
+      version 3 and some methods have been moved to class level rather than
+      use them as module level.
+    * Droped support for python 2.7 and testing for the same.
+    * Drop support for tempest-full
