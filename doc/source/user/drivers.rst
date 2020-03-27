@@ -45,3 +45,8 @@ below the table of supported drivers and maintainers:
      - Sabari Murugesan
      - smurugesan@vmware.com
      - sabari
+   * - S3
+     - Supported
+     - Naohiro Sameshima
+     - naohiro.sameshima@global.ntt
+     - nao-shark
