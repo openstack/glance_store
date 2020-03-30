@@ -333,6 +333,15 @@ Related options:
     * cinder_enforce_multipath
 
 """),
+    cfg.StrOpt('cinder_mount_point_base',
+               default='/var/lib/glance/mnt',
+               help="""
+Directory where the NFS volume is mounted on the glance node.
+
+Possible values:
+
+* A string representing absolute path of mount point.
+"""),
 ]
 
 
@@ -531,9 +540,12 @@ class Store(glance_store.driver.Store):
                 self.conf, self.backend_group).cinder_use_multipath
             enforce_multipath = getattr(
                 self.conf, self.backend_group).cinder_enforce_multipath
+            mount_point_base = getattr(
+                self.conf, self.backend_group).cinder_mount_point_base
         else:
             use_multipath = self.conf.glance_store.cinder_use_multipath
             enforce_multipath = self.conf.glance_store.cinder_enforce_multipath
+            mount_point_base = self.conf.glance_store.cinder_mount_point_base
 
         properties = connector.get_connector_properties(
             root_helper, host, use_multipath, enforce_multipath)
@@ -548,6 +560,9 @@ class Store(glance_store.driver.Store):
 
         try:
             connection_info = volume.initialize_connection(volume, properties)
+            if connection_info['driver_volume_type'] == 'nfs':
+                connection_info['mount_point_base'] = os.path.join(
+                    mount_point_base, 'nfs')
             conn = connector.InitiatorConnector.factory(
                 connection_info['driver_volume_type'], root_helper,
                 conn=connection_info)

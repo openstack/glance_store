@@ -75,6 +75,7 @@ class OptsTestCase(base.StoreBaseTest):
             'cinder_catalog_info',
             'cinder_endpoint_template',
             'cinder_http_retries',
+            'cinder_mount_point_base',
             'cinder_os_region_name',
             'cinder_state_transition_timeout',
             'cinder_store_auth_address',
