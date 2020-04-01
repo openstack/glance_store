@@ -88,3 +88,11 @@ latex_documents = [
      '%s Documentation' % project,
      'OpenStack Foundation', 'manual'),
 ]
+
+# The autodoc module imports every module to check for import
+# errors. Since the fs_mount module is self initializing, it
+# requires configurations that aren't loaded till that time.
+# It would never happen in a real scenario as it is only imported
+# from cinder store after the config are loaded but to handle doc
+# failures, we mock it here.
+autodoc_mock_imports = ['glance_store.common.fs_mount']
