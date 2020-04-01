@@ -21,6 +21,8 @@ System-level utilities and helper functions.
 import logging
 import uuid
 
+from oslo_concurrency import lockutils
+
 try:
     from eventlet import sleep
 except ImportError:
@@ -30,6 +32,8 @@ from glance_store.i18n import _
 
 
 LOG = logging.getLogger(__name__)
+
+synchronized = lockutils.synchronized_with_prefix('glance_store-')
 
 
 def is_uuid_like(val):

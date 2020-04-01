@@ -181,3 +181,8 @@ class HasSnapshot(GlanceStoreException):
 class InUseByStore(GlanceStoreException):
     message = _("The image cannot be deleted because it is in use through "
                 "the backend store outside of Glance.")
+
+
+class HostNotInitialized(GlanceStoreException):
+    message = _("The glance cinder store host %(host)s which will used to "
+                "perform nfs mount/umount operations isn't initialized.")
