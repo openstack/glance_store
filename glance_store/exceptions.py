@@ -51,7 +51,7 @@ class GlanceStoreException(Exception):
             if kwargs:
                 message = message % kwargs
         except Exception:
-                pass
+            pass
         self.msg = message
         super(GlanceStoreException, self).__init__(message)
 

@@ -768,6 +768,7 @@ def Store(conf, backend=None):
         return MultiTenantStore(conf, backend=backend)
     return SingleTenantStore(conf, backend=backend)
 
+
 Store.OPTIONS = _SWIFT_OPTS + sutils.swift_opts + buffered.BUFFERING_OPTS
 
 
@@ -1122,7 +1123,7 @@ class BaseStore(driver.Store):
                     try:
                         connection.delete_object(obj_container,
                                                  segment['name'])
-                    except swiftclient.ClientException as e:
+                    except swiftclient.ClientException:
                         msg = _('Unable to delete segment %(segment_name)s')
                         msg = msg % {'segment_name': segment['name']}
                         LOG.exception(msg)

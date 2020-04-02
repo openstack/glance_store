@@ -223,6 +223,6 @@ class SwiftParams(object):
                     reference['auth_version'] = av
 
                 account_params[ref] = reference
-            except (ValueError, SyntaxError, configparser.NoOptionError) as e:
+            except (ValueError, SyntaxError, configparser.NoOptionError):
                 LOG.exception(_LE("Invalid format of swift store config cfg"))
         return account_params

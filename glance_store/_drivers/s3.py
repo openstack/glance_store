@@ -926,7 +926,7 @@ def get_s3_location(s3_host):
         's3-sa-east-1.amazonaws.com': 'sa-east-1'
     }
     # strip off scheme and port if present
-    key = re.sub('^(https?://)?(?P<host>[^:]+[^/])(:[0-9]+)?/?$',
-                 '\g<host>',
+    key = re.sub(r'^(https?://)?(?P<host>[^:]+[^/])(:[0-9]+)?/?$',
+                 r'\g<host>',
                  s3_host)
     return locations.get(key, '')

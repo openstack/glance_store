@@ -46,8 +46,8 @@ from glance_store.tests.unit import test_store_capabilities
 
 CONF = cfg.CONF
 
-FAKE_UUID = lambda: str(uuid.uuid4())
-FAKE_UUID2 = lambda: str(uuid.uuid4())
+FAKE_UUID = lambda: str(uuid.uuid4())  # noqa: E731
+FAKE_UUID2 = lambda: str(uuid.uuid4())  # noqa: E731
 
 Store = swift.Store
 FIVE_KB = 5 * units.Ki
