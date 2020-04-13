@@ -2,15 +2,16 @@
 # Andi Chandler <andi@gowling.com>, 2017. #zanata
 # Andi Chandler <andi@gowling.com>, 2018. #zanata
 # Andi Chandler <andi@gowling.com>, 2019. #zanata
+# Andi Chandler <andi@gowling.com>, 2020. #zanata
 msgid ""
 msgstr ""
 "Project-Id-Version: glance_store\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-12-19 00:11+0000\n"
+"POT-Creation-Date: 2020-04-13 08:23+0000\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"PO-Revision-Date: 2019-12-22 08:16+0000\n"
+"PO-Revision-Date: 2020-04-07 08:13+0000\n"
 "Last-Translator: Andi Chandler <andi@gowling.com>\n"
 "Language-Team: English (United Kingdom)\n"
 "Language: en_GB\n"
@@ -73,11 +74,14 @@ msgstr "0.29.1"
 msgid "1.0.0"
 msgstr "1.0.0"
 
-msgid "1.0.0-8"
-msgstr "1.0.0-8"
-
 msgid "1.0.1"
 msgstr "1.0.1"
+
+msgid "1.1.0"
+msgstr "1.1.0"
+
+msgid "2.0.0"
+msgstr "2.0.0"
 
 msgid ""
 "A `BufferedReader`_ has been added to the Swift store driver in order to "
@@ -240,6 +244,35 @@ msgstr "Bug 1815335_: Do not raise StopIteration"
 msgid "Bug 1816721_: Fix python3 compatibility of rbd get_fsid"
 msgstr "Bug 1816721_: Fix python3 compatibility of rbd get_fsid"
 
+msgid ""
+"Bug 1820817_: Swift backend can not use custom CA bundle to verify server "
+"SSL certs when those are not added to global system certs"
+msgstr ""
+"Bug 1820817_: Swift backend can not use custom CA bundle to verify server "
+"SSL certs when those are not added to global system certs"
+
+msgid "Bug 1839778_: Python3 swift config quotes removal"
+msgstr "Bug 1839778_: Python3 swift config quotes removal"
+
+msgid ""
+"Bug 1863691_: When Image size greater than the chunk size and the glance "
+"buffered upload for swift is enabled, glance just put 0 bytes"
+msgstr ""
+"Bug 1863691_: When Image size greater than the chunk size and the glance "
+"buffered upload for swift is enabled, glance just put 0 bytes"
+
+msgid ""
+"Bug 1863983_: Image upload is failing with NoFibreChannelVolumeDeviceFound "
+"after configuring Cinder(HP3Par FC storage) as glance backend"
+msgstr ""
+"Bug 1863983_: Image upload is failing with NoFibreChannelVolumeDeviceFound "
+"after configuring Cinder(HP3Par FC storage) as Glance backend"
+
+msgid ""
+"Bug 1866966_: define mount_point for ``*fs`` drivers in glance cinder store"
+msgstr ""
+"Bug 1866966_: define mount_point for ``*fs`` drivers in glance cinder store"
+
 msgid "Bug Fixes"
 msgstr "Bug Fixes"
 
@@ -272,6 +305,12 @@ msgstr "Current Series Release Notes"
 msgid "Deprecation Notes"
 msgstr "Deprecation Notes"
 
+msgid "Drop support for tempest-full"
+msgstr "Drop support for tempest-full"
+
+msgid "Droped support for python 2.7 and testing for the same."
+msgstr "Dropped support for Python 2.7 and testing for the same."
+
 msgid ""
 "During Rocky cycle number of issues still warranting experimental status on "
 "Cinder back-end driver was addressed. The team considers the driver stable "
@@ -294,6 +333,16 @@ msgstr ""
 "Do not include ETag when puting manifest in chunked uploads * Bug 1818915_: "
 "Python3: Fix return type on CooperativeReader.read * Bug 1805332_: Prevent "
 "unicode object error from zero-byte read"
+
+msgid "Following bugs were fixed and included after 1.0.1 release:"
+msgstr "Following bugs were fixed and included after 1.0.1 release:"
+
+msgid ""
+"For more details see [`bug 1820817 <https://bugs.launchpad.net/glance-store/"
+"+bug/1820817>`_]."
+msgstr ""
+"For more details see [`bug 1820817 <https://bugs.launchpad.net/glance-store/"
+"+bug/1820817>`_]."
 
 msgid "For more information, see the `Buffered Reader for Swift Driver`_ spec."
 msgstr ""
@@ -330,6 +379,15 @@ msgstr ""
 "``swift_store_config_file`` are now mutually exclusive and cannot be "
 "configured together. If you intend to use multi-tenant store, please make "
 "sure that you have not set a swift configuration file."
+
+msgid ""
+"Implemented S3 driver to use Amazon S3 or S3 compatible storage as Glance "
+"backend. This is a revival of the S3 driver supported up to Mitaka, with the "
+"addition of a multiple store support."
+msgstr ""
+"Implemented S3 driver to use Amazon S3 or S3 compatible storage as Glance "
+"backend. This is a revival of the S3 driver supported up to Mitaka, with the "
+"addition of a multiple store support."
 
 msgid ""
 "Implemented image uploading, downloading and deletion for cinder store. It "
@@ -405,6 +463,15 @@ msgstr ""
 "moved from etc/ to etc/glance/ in order to be consistent with where other "
 "projects place these files."
 
+msgid ""
+"Partial refactoring of cinder driver of glance store to use cinderclient "
+"version 3 and some methods have been moved to class level rather than use "
+"them as module level."
+msgstr ""
+"Partial refactoring of Cinder driver of Glance store to use cinderclient "
+"version 3 and some methods have been moved to class level rather than use "
+"them as module level."
+
 msgid "Pike Series Release Notes"
 msgstr "Pike Series Release Notes"
 
@@ -428,6 +495,15 @@ msgstr ""
 "which do not verify the connection. By switching to using requests library "
 "the VMware storage backend now verifies HTTPS connection to vCenter server "
 "and thus addresses the vulnerabilities described in OSSN-0033."
+
+msgid ""
+"Python 2.7 support has been dropped. Last release of glance_store to support "
+"py2.7 is OpenStack Train. The minimum version of Python now supported by "
+"glance_store is Python 3.6."
+msgstr ""
+"Python 2.7 support has been dropped. Last release of glance_store to support "
+"py2.7 is OpenStack Train. The minimum version of Python now supported by "
+"glance_store is Python 3.6."
 
 msgid "Queens Series Release Notes"
 msgstr "Queens Series Release Notes"
@@ -491,6 +567,19 @@ msgstr "Start using reno to manage release notes."
 
 msgid "Stein Series Release Notes"
 msgstr "Stein Series Release Notes"
+
+msgid ""
+"Swift backend now can use custom CA bundle to verify SSL connection to "
+"Keystone without adding this bundle to global system ones. For this it re-"
+"uses the CA bundle specified as ``swift_store_cacert`` config option, so "
+"this bundle must verify both certificates of Swift and Keysotne API "
+"endpoints."
+msgstr ""
+"Swift backend now can use custom CA bundle to verify SSL connection to "
+"Keystone without adding this bundle to global system ones. For this it re-"
+"uses the CA bundle specified as ``swift_store_cacert`` config option, so "
+"this bundle must verify both certificates of Swift and Keystone API "
+"endpoints."
 
 msgid ""
 "The 'stores' and 'default_store' configuration options have been deprecated "
@@ -608,6 +697,9 @@ msgstr "The following bugs were fixed during the Pike release cycle."
 
 msgid "The following improvements were made during the Pike release cycle."
 msgstr "The following improvements were made during the Pike release cycle."
+
+msgid "The following improvements were made during the Ussuri release cycle:"
+msgstr "The following improvements were made during the Ussuri release cycle:"
 
 msgid ""
 "The following list of exceptions have been deprecated since 0.10.0 release "
@@ -808,6 +900,9 @@ msgstr ""
 
 msgid "Upgrade Notes"
 msgstr "Upgrade Notes"
+
+msgid "Ussuri Series Release Notes"
+msgstr "Ussuri Series Release Notes"
 
 msgid ""
 "`Add python 3.5 in classifier and envlist <https://git.openstack.org/cgit/"
