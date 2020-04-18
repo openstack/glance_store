@@ -16,8 +16,9 @@
 import contextlib
 import errno
 import hashlib
-import mock
 import os
+from unittest import mock
+
 import six
 import socket
 import tempfile

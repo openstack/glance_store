@@ -15,7 +15,7 @@
 
 """Tests the backend store API's"""
 
-import mock
+from unittest import mock
 
 from glance_store import backend
 from glance_store import exceptions

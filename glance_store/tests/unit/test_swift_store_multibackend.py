@@ -16,9 +16,10 @@
 """Tests the Swift backend store"""
 
 import copy
+from unittest import mock
+
 import fixtures
 import hashlib
-import mock
 import tempfile
 import uuid
 

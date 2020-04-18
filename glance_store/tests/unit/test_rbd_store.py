@@ -14,7 +14,8 @@
 #    under the License.
 
 import hashlib
-import mock
+from unittest import mock
+
 from oslo_utils import units
 import six
 

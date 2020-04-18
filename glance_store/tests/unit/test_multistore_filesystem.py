@@ -18,9 +18,9 @@
 import errno
 import hashlib
 import json
-import mock
 import os
 import stat
+from unittest import mock
 import uuid
 
 import fixtures

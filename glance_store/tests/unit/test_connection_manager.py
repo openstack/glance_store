@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import mock
+from unittest import mock
 
 from glance_store._drivers.swift import connection_manager
 from glance_store._drivers.swift import store as swift_store

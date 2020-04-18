@@ -16,13 +16,13 @@
 """Tests the S3 backend store"""
 
 import hashlib
+from unittest import mock
 import uuid
 
 import boto3
 import botocore
 from botocore import exceptions as boto_exceptions
 from botocore import stub
-import mock
 from oslo_utils import units
 import six
 

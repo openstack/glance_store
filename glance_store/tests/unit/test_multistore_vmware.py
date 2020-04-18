@@ -16,9 +16,9 @@
 """Tests the Multiple VMware Datastore backend store"""
 
 import hashlib
+from unittest import mock
 import uuid
 
-import mock
 from oslo_config import cfg
 from oslo_utils import units
 from oslo_vmware import api
