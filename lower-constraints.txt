@@ -37,7 +37,7 @@ msgpack==0.5.6
 netaddr==0.7.19
 netifaces==0.10.6
 openstackdocstheme==1.18.1
-os-brick==2.2.0
+os-brick==2.6.0
 os-client-config==1.29.0
 oslo.concurrency==3.26.0
 oslo.config==5.2.0
@@ -56,7 +56,7 @@ prettytable==0.7.2
 Pygments==2.2.0
 pyparsing==2.2.0
 pyperclip==1.6.0
-python-cinderclient==3.3.0
+python-cinderclient==4.1.0
 python-keystoneclient==3.8.0
 python-mimeparse==1.6.0
 python-subunit==1.0.0
