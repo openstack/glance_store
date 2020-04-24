@@ -271,10 +271,16 @@ class Store(driver.Store):
 
         try:
             client.connect(timeout=self.connect_timeout)
-        except rados.Error:
-            msg = _LE("Error connecting to ceph cluster.")
-            LOG.exception(msg)
-            raise exceptions.BackendException()
+        except (rados.Error, rados.ObjectNotFound) as e:
+            if self.backend_group and len(self.conf.enabled_backends) > 1:
+                reason = _("Error in store configuration: %s") % e
+                LOG.debug(reason)
+                raise exceptions.BadStoreConfiguration(
+                    store_name=self.backend_group, reason=reason)
+            else:
+                msg = _LE("Error connecting to ceph cluster.")
+                LOG.exception(msg)
+                raise exceptions.BackendException()
         try:
             yield client
         finally:
