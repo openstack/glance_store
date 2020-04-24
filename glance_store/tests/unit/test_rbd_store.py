@@ -35,6 +35,9 @@ class MockRados(object):
     class Error(Exception):
         pass
 
+    class ObjectNotFound(Exception):
+        pass
+
     class ioctx(object):
         def __init__(self, *args, **kwargs):
             pass
@@ -451,6 +454,7 @@ class TestStore(base.StoreBaseTest,
     @mock.patch.object(MockRados.Rados, 'connect', side_effect=MockRados.Error)
     def test_rados_connect_error(self, _):
         rbd_store.rados.Error = MockRados.Error
+        rbd_store.rados.ObjectNotFound = MockRados.ObjectNotFound
 
         def test():
             with self.store.get_connection('conffile', 'rados_id'):
