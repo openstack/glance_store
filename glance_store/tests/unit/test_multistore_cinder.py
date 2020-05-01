@@ -21,6 +21,7 @@ from unittest import mock
 
 import six
 import socket
+import sys
 import tempfile
 import time
 import uuid
@@ -32,11 +33,13 @@ from oslo_config import cfg
 from oslo_utils import units
 
 import glance_store as store
-from glance_store._drivers import cinder
 from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
 from glance_store.tests.unit import test_store_capabilities as test_cap
+
+sys.modules['glance_store.common.fs_mount'] = mock.Mock()
+from glance_store._drivers import cinder # noqa
 
 
 class FakeObject(object):

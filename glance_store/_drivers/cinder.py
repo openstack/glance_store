@@ -15,6 +15,7 @@
 import contextlib
 import errno
 import hashlib
+import importlib
 import logging
 import math
 import os
@@ -382,6 +383,9 @@ class Store(glance_store.driver.Store):
         super(Store, self).__init__(*args, **kargs)
         if self.backend_group:
             self._set_url_prefix()
+        # We are importing it here to let the config options load
+        # before we use them in the fs_mount file
+        self.mount = importlib.import_module('glance_store.common.fs_mount')
 
     def get_root_helper(self):
         if self.backend_group:
@@ -525,6 +529,22 @@ class Store(glance_store.driver.Store):
             raise exceptions.BackendException(msg)
         return volume
 
+    def get_hash_str(self, base_str):
+        """Returns string that represents SHA256 hash of base_str (in hex format).
+
+        If base_str is a Unicode string, encode it to UTF-8.
+        """
+        if isinstance(base_str, str):
+            base_str = base_str.encode('utf-8')
+        return hashlib.sha256(base_str).hexdigest()
+
+    def _get_mount_path(self, share, mount_point_base):
+        """Returns the mount path prefix using the mount point base and share.
+
+        :returns: The mount path prefix.
+        """
+        return os.path.join(mount_point_base, self.get_hash_str(share))
+
     @contextlib.contextmanager
     def _open_cinder_volume(self, client, volume, mode):
         attach_mode = 'rw' if mode == 'wb' else 'ro'
@@ -557,13 +577,26 @@ class Store(glance_store.driver.Store):
 
         try:
             connection_info = volume.initialize_connection(volume, properties)
-            if connection_info['driver_volume_type'] == 'nfs':
-                connection_info['mount_point_base'] = os.path.join(
-                    mount_point_base, 'nfs')
             conn = connector.InitiatorConnector.factory(
                 connection_info['driver_volume_type'], root_helper,
                 conn=connection_info)
-            device = conn.connect_volume(connection_info['data'])
+            if connection_info['driver_volume_type'] == 'nfs':
+                @utils.synchronized(connection_info['data']['export'])
+                def connect_volume_nfs():
+                    data = connection_info['data']
+                    export = data['export']
+                    vol_name = data['name']
+                    mountpoint = self._get_mount_path(
+                        export,
+                        os.path.join(mount_point_base, 'nfs'))
+                    options = data['options']
+                    self.mount.mount(
+                        'nfs', export, vol_name, mountpoint, host,
+                        root_helper, options)
+                    return {'path': os.path.join(mountpoint, vol_name)}
+                device = connect_volume_nfs()
+            else:
+                device = conn.connect_volume(connection_info['data'])
             volume.attach(None, 'glance_store', attach_mode, host_name=host)
             volume = self._wait_volume_status(volume, 'attaching', 'in-use')
             if (connection_info['driver_volume_type'] == 'rbd' and
@@ -571,8 +604,7 @@ class Store(glance_store.driver.Store):
                 yield device['path']
             else:
                 with self.temporary_chown(
-                        device['path'], backend=self.backend_group
-                ), open(device['path'], mode) as f:
+                        device['path']), open(device['path'], mode) as f:
                     yield f
         except Exception:
             LOG.exception(_LE('Exception while accessing to cinder volume '
@@ -586,7 +618,15 @@ class Store(glance_store.driver.Store):
 
             if device:
                 try:
-                    conn.disconnect_volume(connection_info['data'], device)
+                    if connection_info['driver_volume_type'] == 'nfs':
+                        @utils.synchronized(connection_info['data']['export'])
+                        def disconnect_volume_nfs():
+                            path, vol_name = device['path'].rsplit('/', 1)
+                            self.mount.umount(vol_name, path, host,
+                                              root_helper)
+                        disconnect_volume_nfs()
+                    else:
+                        conn.disconnect_volume(connection_info['data'], device)
                 except Exception:
                     LOG.exception(_LE('Failed to disconnect volume '
                                       '%(volume_id)s.'),

@@ -10,3 +10,7 @@ disk_chown: RegExpFilter, chown, root, chown, \d+, /dev/(?!.*/\.\.).*
 # This line ties the superuser privs with the config files, context name,
 # and (implicitly) the actual python code invoked.
 privsep-rootwrap: RegExpFilter, privsep-helper, root, privsep-helper, --config-file, /etc/(?!\.\.).*, --privsep_context, os_brick.privileged.default, --privsep_sock_path, /tmp/.*
+
+chown: CommandFilter, chown, root
+mount: CommandFilter, mount, root
+umount: CommandFilter, umount, root
