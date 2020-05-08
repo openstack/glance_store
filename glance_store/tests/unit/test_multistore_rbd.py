@@ -36,6 +36,9 @@ class MockRados(object):
     class Error(Exception):
         pass
 
+    class ObjectNotFound(Exception):
+        pass
+
     class ioctx(object):
         def __init__(self, *args, **kwargs):
             pass
@@ -443,11 +446,12 @@ class TestMultiStore(base.MultiStoreBaseTest,
     @mock.patch.object(MockRados.Rados, 'connect', side_effect=MockRados.Error)
     def test_rados_connect_error(self, _):
         rbd_store.rados.Error = MockRados.Error
+        rbd_store.rados.ObjectNotFound = MockRados.ObjectNotFound
 
         def test():
             with self.store.get_connection('conffile', 'rados_id'):
                 pass
-        self.assertRaises(exceptions.BackendException, test)
+        self.assertRaises(exceptions.BadStoreConfiguration, test)
 
     def test_create_image_conf_features(self):
         # Tests that we use non-0 features from ceph.conf and cast to int.
