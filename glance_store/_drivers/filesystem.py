@@ -165,7 +165,29 @@ Possible Values:
 Related options:
     * None
 
-""")]
+"""),
+    cfg.BoolOpt('filesystem_thin_provisioning',
+                default=False,
+                help="""
+Enable or not thin provisioning in this backend.
+
+This configuration option enable the feature of not really write null byte
+sequences on the filesystem, the holes who can appear will automatically
+be interpreted by the filesystem as null bytes, and do not really consume
+your storage.
+Enabling this feature will also speed up image upload and save network trafic
+in addition to save space in the backend, as null bytes sequences are not
+sent over the network.
+
+Possible Values:
+    * True
+    * False
+
+Related options:
+    * None
+
+"""),
+]
 
 MULTI_FILESYSTEM_METADATA_SCHEMA = {
     "type": "array",
@@ -408,6 +430,8 @@ class Store(glance_store.driver.Store):
         fstore_perm = store_conf.filesystem_store_file_perm
         meta_file = store_conf.filesystem_store_metadata_file
 
+        self.thin_provisioning = store_conf.\
+            filesystem_thin_provisioning
         self.chunk_size = store_conf.filesystem_store_chunk_size
         self.READ_CHUNKSIZE = self.chunk_size
         self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
@@ -725,7 +749,11 @@ class Store(glance_store.driver.Store):
                     checksum.update(buf)
                     if verifier:
                         verifier.update(buf)
-                    f.write(buf)
+                    if self.thin_provisioning and not any(buf):
+                        f.truncate(bytes_written)
+                        f.seek(0, os.SEEK_END)
+                    else:
+                        f.write(buf)
         except IOError as e:
             if e.errno != errno.EACCES:
                 self._delete_partial(filepath, image_id)

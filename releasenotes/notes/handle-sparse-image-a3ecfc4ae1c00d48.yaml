@@ -1,0 +1,15 @@
+---
+features:
+  - |
+    Add new configuration option ``rbd_thin_provisioning`` and
+    ``filesystem_thin_provisioning`` to rbd and filesystem
+    store to enable or not sparse upload, default are False.
+
+    A sparse file means that we do not actually write null byte sequences
+    but only the data itself at a given offset, the "holes" which can
+    appear will automatically be interpreted by the storage backend as
+    null bytes, and do not really consume your storage.
+
+    Enabling this feature will also speed up image upload and save
+    network traffic in addition to save space in the backend, as null
+    bytes sequences are not sent over the network.

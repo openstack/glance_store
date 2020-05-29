@@ -247,6 +247,9 @@ class TestStore(base.StoreBaseTest,
         self.data_iter = six.BytesIO(b'*' * self.data_len)
         self.hash_algo = 'sha256'
 
+    def test_thin_provisioning_is_disabled_by_default(self):
+        self.assertEqual(self.store.thin_provisioning, False)
+
     def test_add_w_image_size_zero(self):
         """Assert that correct size is returned even though 0 was provided."""
         self.store.chunk_size = units.Ki
@@ -355,6 +358,80 @@ class TestStore(base.StoreBaseTest,
         with mock.patch.object(rbd_store.rbd.Image, 'write'):
             loc, size, checksum, multihash, _ = self.store.add(
                 image_id, image_file, file_size, self.hash_algo)
+
+        self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
+
+    def test_add_thick_provisioning_with_holes_in_file(self):
+        """
+        Tests that a file which contains null bytes chunks is fully
+        written to rbd backend in a thick provisioning configuration.
+        """
+        chunk_size = units.Mi
+        content = b"*" * chunk_size + b"\x00" * chunk_size + b"*" * chunk_size
+        self._do_test_thin_provisioning(content, 3 * chunk_size, 3, False)
+
+    def test_add_thin_provisioning_with_holes_in_file(self):
+        """
+        Tests that a file which contains null bytes chunks is sparsified
+        in rbd backend with a thin provisioning configuration.
+        """
+        chunk_size = units.Mi
+        content = b"*" * chunk_size + b"\x00" * chunk_size + b"*" * chunk_size
+        self._do_test_thin_provisioning(content, 3 * chunk_size, 2, True)
+
+    def test_add_thick_provisioning_without_holes_in_file(self):
+        """
+        Tests that a file which not contain null bytes chunks is fully
+        written to rbd backend in a thick provisioning configuration.
+        """
+        chunk_size = units.Mi
+        content = b"*" * 3 * chunk_size
+        self._do_test_thin_provisioning(content, 3 * chunk_size, 3, False)
+
+    def test_add_thin_provisioning_without_holes_in_file(self):
+        """
+        Tests that a file which not contain null bytes chunks is fully
+        written to rbd backend in a thin provisioning configuration.
+        """
+        chunk_size = units.Mi
+        content = b"*" * 3 * chunk_size
+        self._do_test_thin_provisioning(content, 3 * chunk_size, 3, True)
+
+    def test_add_thick_provisioning_with_partial_holes_in_file(self):
+        """
+        Tests that a file which contains null bytes not aligned with
+        chunk size is fully written with a thick provisioning configuration.
+        """
+        chunk_size = units.Mi
+        my_chunk = int(chunk_size * 1.5)
+        content = b"*" * my_chunk + b"\x00" * my_chunk + b"*" * my_chunk
+        self._do_test_thin_provisioning(content, 3 * my_chunk, 5, False)
+
+    def test_add_thin_provisioning_with_partial_holes_in_file(self):
+        """
+        Tests that a file which contains null bytes not aligned with
+        chunk size is sparsified with a thin provisioning configuration.
+        """
+        chunk_size = units.Mi
+        my_chunk = int(chunk_size * 1.5)
+        content = b"*" * my_chunk + b"\x00" * my_chunk + b"*" * my_chunk
+        self._do_test_thin_provisioning(content, 3 * my_chunk, 4, True)
+
+    def _do_test_thin_provisioning(self, content, size, write, thin):
+        self.config(rbd_store_chunk_size=1,
+                    rbd_thin_provisioning=thin)
+        self.store.configure()
+
+        image_id = 'fake_image_id'
+        image_file = six.BytesIO(content)
+        expected_checksum = hashlib.md5(content).hexdigest()
+        expected_multihash = hashlib.sha256(content).hexdigest()
+
+        with mock.patch.object(rbd_store.rbd.Image, 'write') as mock_write:
+            loc, size, checksum, multihash, _ = self.store.add(
+                image_id, image_file, size, self.hash_algo)
+            self.assertEqual(mock_write.call_count, write)
 
         self.assertEqual(expected_checksum, checksum)
         self.assertEqual(expected_multihash, multihash)

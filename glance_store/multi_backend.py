@@ -143,7 +143,10 @@ def register_store_opts(conf, reserved_stores=None):
                 cfg.IntOpt('filesystem_store_chunk_size',
                            default=64 * units.Ki,
                            min=1,
-                           help=FS_CONF_CHUNKSIZE_HELP.format(key))]
+                           help=FS_CONF_CHUNKSIZE_HELP.format(key)),
+                cfg.BoolOpt('filesystem_thin_provisioning',
+                            default=False,
+                            help="""Not used""")]
             LOG.debug("Registering options for reserved store: {}".format(key))
             conf.register_opts(fs_conf_template, group=key)
 

@@ -151,6 +151,26 @@ Related options:
     * None
 
 """),
+    cfg.BoolOpt('rbd_thin_provisioning',
+                default=False,
+                help="""
+Enable or not thin provisioning in this backend.
+
+This configuration option enable the feature of not really write null byte
+sequences on the RBD backend, the holes who can appear will automatically
+be interpreted by Ceph as null bytes, and do not really consume your storage.
+Enabling this feature will also speed up image upload and save network trafic
+in addition to save space in the backend, as null bytes sequences are not
+sent over the network.
+
+Possible Values:
+    * True
+    * False
+
+Related options:
+    * None
+
+"""),
 ]
 
 
@@ -302,13 +322,19 @@ class Store(driver.Store):
                                     self.backend_group).rbd_store_ceph_conf
                 connect_timeout = getattr(
                     self.conf, self.backend_group).rados_connect_timeout
+                thin_provisioning = getattr(self.conf,
+                                            self.backend_group).\
+                    rbd_thin_provisioning
             else:
                 chunk = self.conf.glance_store.rbd_store_chunk_size
                 pool = self.conf.glance_store.rbd_store_pool
                 user = self.conf.glance_store.rbd_store_user
                 conf_file = self.conf.glance_store.rbd_store_ceph_conf
                 connect_timeout = self.conf.glance_store.rados_connect_timeout
+                thin_provisioning = \
+                    self.conf.glance_store.rbd_thin_provisioning
 
+            self.thin_provisioning = thin_provisioning
             self.chunk_size = chunk * units.Mi
             self.READ_CHUNKSIZE = self.chunk_size
             self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
@@ -555,10 +581,10 @@ class Store(driver.Store):
                                                               image_size,
                                                               bytes_written,
                                                               chunk_length)
-                            LOG.debug(_("writing chunk at offset %s") %
-                                      (offset))
-                            offset += image.write(chunk, offset)
                             bytes_written += chunk_length
+                            if not (self.thin_provisioning and not any(chunk)):
+                                image.write(chunk, offset)
+                            offset += chunk_length
                             os_hash_value.update(chunk)
                             checksum.update(chunk)
                             if verifier:

@@ -143,8 +143,13 @@ class TestStore(base.StoreBaseTest,
                           self.store.get,
                           loc)
 
-    def test_add(self):
+    def _do_test_add(self, enable_thin_provisoning):
         """Test that we can add an image via the filesystem backend."""
+        self.config(filesystem_store_chunk_size=units.Ki,
+                    filesystem_thin_provisioning=enable_thin_provisoning,
+                    group='glance_store')
+        self.store.configure()
+
         filesystem.ChunkedFile.CHUNKSIZE = units.Ki
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
@@ -175,6 +180,86 @@ class TestStore(base.StoreBaseTest,
 
         self.assertEqual(expected_file_contents, new_image_contents)
         self.assertEqual(expected_file_size, new_image_file_size)
+
+    def test_thin_provisioning_is_disabled_by_default(self):
+        self.assertEqual(self.store.thin_provisioning, False)
+
+    def test_add_with_thick_provisioning(self):
+        self._do_test_add(enable_thin_provisoning=False)
+
+    def test_add_with_thin_provisioning(self):
+        self._do_test_add(enable_thin_provisoning=True)
+
+    def test_add_thick_provisioning_with_holes_in_file(self):
+        """
+        Tests that a file which contains null bytes chunks is fully
+        written with a thick provisioning configuration.
+        """
+        chunk_size = units.Ki  # 1K
+        content = b"*" * chunk_size + b"\x00" * chunk_size + b"*" * chunk_size
+        self._do_test_thin_provisioning(content, 3 * chunk_size, 0, 3, False)
+
+    def test_add_thin_provisioning_with_holes_in_file(self):
+        """
+        Tests that a file which contains null bytes chunks is sparsified
+        with a thin provisioning configuration.
+        """
+        chunk_size = units.Ki  # 1K
+        content = b"*" * chunk_size + b"\x00" * chunk_size + b"*" * chunk_size
+        self._do_test_thin_provisioning(content, 3 * chunk_size, 1, 2, True)
+
+    def test_add_thick_provisioning_without_holes_in_file(self):
+        """
+        Tests that a file which not contain null bytes chunks is fully
+        written with a thick provisioning configuration.
+        """
+        chunk_size = units.Ki  # 1K
+        content = b"*" * 3 * chunk_size
+        self._do_test_thin_provisioning(content, 3 * chunk_size, 0, 3, False)
+
+    def test_add_thin_provisioning_without_holes_in_file(self):
+        """
+        Tests that a file which not contain null bytes chunks is fully
+        written with a thin provisioning configuration.
+        """
+        chunk_size = units.Ki  # 1K
+        content = b"*" * 3 * chunk_size
+        self._do_test_thin_provisioning(content, 3 * chunk_size, 0, 3, True)
+
+    def test_add_thick_provisioning_with_partial_holes_in_file(self):
+        """
+        Tests that a file which contains null bytes not aligned with
+        chunk size is fully written with a thick provisioning configuration.
+        """
+        chunk_size = units.Ki  # 1K
+        my_chunk = int(chunk_size * 1.5)
+        content = b"*" * my_chunk + b"\x00" * my_chunk + b"*" * my_chunk
+        self._do_test_thin_provisioning(content, 3 * my_chunk, 0, 5, False)
+
+    def test_add_thin_provisioning_with_partial_holes_in_file(self):
+        """
+        Tests that a file which contains null bytes not aligned with
+        chunk size is sparsified with a thin provisioning configuration.
+        """
+        chunk_size = units.Ki  # 1K
+        my_chunk = int(chunk_size * 1.5)
+        content = b"*" * my_chunk + b"\x00" * my_chunk + b"*" * my_chunk
+        self._do_test_thin_provisioning(content, 3 * my_chunk, 1, 4, True)
+
+    def _do_test_thin_provisioning(self, content, size, truncate, write, thin):
+        self.config(filesystem_store_chunk_size=units.Ki,
+                    filesystem_thin_provisioning=thin,
+                    group='glance_store')
+        self.store.configure()
+
+        image_file = six.BytesIO(content)
+        image_id = str(uuid.uuid4())
+        with mock.patch.object(builtins, 'open') as popen:
+            self.store.add(image_id, image_file, size, self.hash_algo)
+            write_count = popen.return_value.__enter__().write.call_count
+            truncate_count = popen.return_value.__enter__().truncate.call_count
+            self.assertEqual(write_count, write)
+            self.assertEqual(truncate_count, truncate)
 
     def test_add_with_verifier(self):
         """Test that 'verifier.update' is called when verifier is provided."""
