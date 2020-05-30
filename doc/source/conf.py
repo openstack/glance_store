@@ -25,10 +25,10 @@ extensions = ['openstackdocstheme',
               'sphinxcontrib.apidoc']
 
 # openstackdocstheme options
-repository_name = 'openstack/glance_store'
-bug_project = 'glance-store'
-bug_tag = ''
-html_last_updated_fmt = '%Y-%m-%d %H:%M'
+openstackdocs_repo_name = 'openstack/glance_store'
+openstackdocs_auto_name = False
+openstackdocs_bug_project = 'glance-store'
+openstackdocs_bug_tag = ''
 
 # sphinxcontrib.apidoc options
 apidoc_module_dir = '../../glance_store'
@@ -63,7 +63,7 @@ add_function_parentheses = True
 add_module_names = True
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = 'native'
 
 # -- Options for HTML output --------------------------------------------------
 

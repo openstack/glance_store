@@ -38,10 +38,10 @@ extensions = [
 ]
 
 # openstackdocstheme options
-repository_name = 'openstack/glance_store'
-bug_project = 'glance-store'
-bug_tag = ''
-html_last_updated_fmt = '%Y-%m-%d %H:%M'
+openstackdocs_repo_name = 'openstack/glance_store'
+openstackdocs_auto_name = False
+openstackdocs_bug_project = 'glance-store'
+openstackdocs_bug_tag = ''
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -93,7 +93,7 @@ exclude_patterns = []
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = 'native'
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
