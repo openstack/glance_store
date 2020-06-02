@@ -305,6 +305,11 @@ Possible values:
 Related options:
     * None
 
+NOTE: You cannot use an encrypted volume_type associated with an NFS backend.
+An encrypted volume stored on an NFS backend will raise an exception whenever
+glance_store tries to write or access image data stored in that volume.
+Consult your Cinder administrator to determine an appropriate volume_type.
+
 """),
     cfg.BoolOpt('cinder_enforce_multipath',
                 default=False,
@@ -581,6 +586,16 @@ class Store(glance_store.driver.Store):
                 connection_info['driver_volume_type'], root_helper,
                 conn=connection_info)
             if connection_info['driver_volume_type'] == 'nfs':
+                if volume.encrypted:
+                    volume.unreserve(volume)
+                    volume.delete()
+                    msg = (_('Encrypted volume creation for cinder nfs is not '
+                             'supported from glance_store. Failed to create '
+                             'volume %(volume_id)s')
+                           % {'volume_id': volume.id})
+                    LOG.error(msg)
+                    raise exceptions.BackendException(msg)
+
                 @utils.synchronized(connection_info['data']['export'])
                 def connect_volume_nfs():
                     data = connection_info['data']
