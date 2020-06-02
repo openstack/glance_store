@@ -21,8 +21,6 @@
 Installation script for glance_store's development virtualenv
 """
 
-from __future__ import print_function
-
 import os
 import sys
 
