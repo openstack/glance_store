@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    * Bug 1875281_: API returns 503 if one of the store is mis-configured
+    * Bug 1870289_: Add lock per share for cinder nfs mount/umount
+
+    .. _1875281: https://bugs.launchpad.net/glance-store/+bug/1875281
+    .. _1870289: https://bugs.launchpad.net/glance-store/+bug/1870289
+
