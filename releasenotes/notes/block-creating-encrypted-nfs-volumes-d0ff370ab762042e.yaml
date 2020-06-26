@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    `Bug #1884482 <https://bugs.launchpad.net/cinder/+bug/1884482>`_:
+    Blocked creation of images on encrypted nfs volumes when glance store
+    is cinder.

@@ -151,7 +151,8 @@ class TestCinderStore(base.StoreBaseTest,
 
     def _test_open_cinder_volume(self, open_mode, attach_mode, error,
                                  multipath_supported=False,
-                                 enforce_multipath=False):
+                                 enforce_multipath=False,
+                                 encrypted_nfs=False):
         self.config(cinder_mount_point_base=None)
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available')
         fake_volumes = FakeObject(get=lambda id: fake_volume,
@@ -193,19 +194,35 @@ class TestCinderStore(base.StoreBaseTest,
                                    'get_connector_properties') as mock_conn:
                 if error:
                     self.assertRaises(error, do_open)
+                elif encrypted_nfs:
+                    fake_volume.initialize_connection.return_value = {
+                        'driver_volume_type': 'nfs'
+                    }
+                    fake_volume.encrypted = True
+                    try:
+                        with self.store._open_cinder_volume(
+                                fake_client, fake_volume, open_mode):
+                            pass
+                    except exceptions.BackendException:
+                        self.assertEqual(1,
+                                         fake_volume.unreserve.call_count)
+                        self.assertEqual(1,
+                                         fake_volume.delete.call_count)
                 else:
                     do_open()
 
-                mock_conn.assert_called_once_with(
-                    root_helper, socket.gethostname(), multipath_supported,
-                    enforce_multipath)
-                fake_connector.connect_volume.assert_called_once_with(mock.ANY)
-                fake_connector.disconnect_volume.assert_called_once_with(
-                    mock.ANY, fake_devinfo)
-                fake_volume.attach.assert_called_once_with(
-                    None, 'glance_store', attach_mode,
-                    host_name=socket.gethostname())
-                fake_volumes.detach.assert_called_once_with(fake_volume)
+                if not encrypted_nfs:
+                    mock_conn.assert_called_once_with(
+                        root_helper, socket.gethostname(),
+                        multipath_supported, enforce_multipath)
+                    fake_connector.connect_volume.assert_called_once_with(
+                        mock.ANY)
+                    fake_connector.disconnect_volume.assert_called_once_with(
+                        mock.ANY, fake_devinfo)
+                    fake_volume.attach.assert_called_once_with(
+                        None, 'glance_store', attach_mode,
+                        host_name=socket.gethostname())
+                    fake_volumes.detach.assert_called_once_with(fake_volume)
 
     def test_open_cinder_volume_rw(self):
         self._test_open_cinder_volume('wb', 'rw', None)
@@ -227,6 +244,9 @@ class TestCinderStore(base.StoreBaseTest,
         self._test_open_cinder_volume('wb', 'rw', None,
                                       multipath_supported=True,
                                       enforce_multipath=True)
+
+    def test_open_cinder_volume_nfs_encrypted(self):
+        self._test_open_cinder_volume('rb', 'ro', None, encrypted_nfs=True)
 
     def test_cinder_configure_add(self):
         self.assertRaises(exceptions.BadStoreConfiguration,
