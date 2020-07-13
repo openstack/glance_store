@@ -15,8 +15,6 @@
 
 """Storage backend for RBD
    (RADOS (Reliable Autonomic Distributed Object Store) Block Device)"""
-from __future__ import absolute_import
-from __future__ import with_statement
 
 import contextlib
 import hashlib
