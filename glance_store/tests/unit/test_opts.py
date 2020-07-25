@@ -13,23 +13,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import pkg_resources
+import stevedore
 from testtools import matchers
 
 from glance_store import backend
 from glance_store.tests import base
 
 
-def load_entry_point(entry_point, verify_requirements=False):
-    """Load an entry-point without requiring dependencies."""
-    resolve = getattr(entry_point, 'resolve', None)
-    require = getattr(entry_point, 'require', None)
-    if resolve is not None and require is not None:
-        if verify_requirements:
-            entry_point.require()
-        return entry_point.resolve()
-    else:
-        return entry_point.load(require=verify_requirements)
+def on_load_failure_callback(*args, **kwargs):
+    raise
 
 
 class OptsTestCase(base.StoreBaseTest):
@@ -53,11 +45,16 @@ class OptsTestCase(base.StoreBaseTest):
     def _test_entry_point(self, namespace,
                           expected_opt_groups, expected_opt_names):
         opt_list = None
-        for ep in pkg_resources.iter_entry_points('oslo.config.opts'):
-            if ep.name == namespace:
-                list_fn = load_entry_point(ep)
-                opt_list = list_fn()
-                break
+        mgr = stevedore.NamedExtensionManager(
+            'oslo.config.opts',
+            names=[namespace],
+            invoke_on_load=False,
+            on_load_failure_callback=on_load_failure_callback,
+        )
+        for ext in mgr:
+            list_fn = ext.plugin
+            opt_list = list_fn()
+            break
 
         self.assertIsNotNone(opt_list)
 
