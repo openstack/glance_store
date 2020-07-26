@@ -51,6 +51,7 @@
     parent: tox
     abstract: true
     description: Abstract job for glance_store vs. cinder
+    nodeset: ubuntu-focal
     required-projects:
       - name: openstack/os-brick
       - name: openstack/python-cinderclient
@@ -60,6 +61,7 @@
     parent: glance_store-tox-cinder-tips-base
     description: |
       glance_store py36 unit tests vs. cinder masters
+    nodeset: ubuntu-bionic
     vars:
       tox_envlist: py36
 
@@ -68,6 +70,7 @@
     parent: tox
     abstract: true
     description: Abstract job for glance_store vs. keystone
+    nodeset: ubuntu-focal
     required-projects:
       - name: openstack/keystoneauth
       - name: openstack/python-keystoneclient
@@ -77,6 +80,7 @@
     parent: glance_store-tox-keystone-tips-base
     description: |
       glance_store py36 unit tests vs. keystone masters
+    nodeset: ubuntu-bionic
     vars:
       tox_envlist: py36
 
@@ -85,6 +89,7 @@
     parent: tox
     abstract: true
     description: Abstract job for glance_store vs. oslo
+    nodeset: ubuntu-focal
     required-projects:
       - name: openstack/oslo.concurrency
       - name: openstack/oslo.config
@@ -101,6 +106,7 @@
     parent: glance_store-tox-oslo-tips-base
     description: |
       glance_store py36 unit tests vs. oslo masters
+    nodeset: ubuntu-bionic
     vars:
       tox_envlist: py36
 
@@ -109,6 +115,7 @@
     parent: tox
     abstract: true
     description: Abstract job for glance_store vs. swift
+    nodeset: ubuntu-focal
     required-projects:
       - name: openstack/python-swiftclient
 
@@ -117,6 +124,7 @@
     parent: glance_store-tox-swift-tips-base
     description: |
       glance_store py36 unit tests vs. swift masters
+    nodeset: ubuntu-bionic
     vars:
       tox_envlist: py36
 
