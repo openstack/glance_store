@@ -119,7 +119,7 @@ class _HostMountStateManager(metaclass=HostMountStateManagerMeta):
                                 os.rmdir(dir)
                             except Exception as ex:
                                 LOG.debug(
-                                    "Couldn't remove directory"
+                                    "Couldn't remove directory "
                                     "%(mountpoint)s: %(reason)s",
                                     {'mountpoint': mountpoint,
                                      'reason': ex})
