@@ -1,4 +1,5 @@
 # Copyright 2010-2011 Josh Durgin
+# Copyright 2020 Red Hat, Inc.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -32,7 +33,7 @@ from glance_store import capabilities
 from glance_store.common import utils
 from glance_store import driver
 from glance_store import exceptions
-from glance_store.i18n import _, _LE, _LI
+from glance_store.i18n import _, _LE, _LI, _LW
 from glance_store import location
 
 try:
@@ -327,6 +328,8 @@ class Store(driver.Store):
                                                    reason=reason)
         if self.backend_group:
             self._set_url_prefix()
+        self.size = 0
+        self.resize_amount = self.WRITE_CHUNKSIZE
 
     def _set_url_prefix(self):
         fsid = None
@@ -470,6 +473,18 @@ class Store(driver.Store):
             # Such exception is not dangerous for us so it will be just logged
             LOG.debug("Snapshot %s is unprotected already" % snap_name)
 
+    def _resize_on_write(self, image, image_size, bytes_written, chunk_length):
+        """Handle the rbd resize when needed."""
+        if image_size != 0 or self.size >= bytes_written + chunk_length:
+            return self.size
+        new_size = self.size + self.resize_amount
+        LOG.debug("resizing image to %s KiB" % (new_size / units.Ki))
+        image.resize(new_size)
+        # Note(jokke): We double how much we grow the image each time
+        # up to 8gigs to avoid resizing for each write on bigger images
+        self.resize_amount = min(self.resize_amount * 2, 8 * units.Gi)
+        return new_size
+
     @driver.back_compat_add
     @capabilities.check
     def add(self, image_id, image_file, image_size, hashing_algo, context=None,
@@ -516,9 +531,9 @@ class Store(driver.Store):
                 LOG.debug('creating image %s with order %d and size %d',
                           image_name, order, image_size)
                 if image_size == 0:
-                    LOG.warning(_("since image size is zero we will be doing "
-                                  "resize-before-write for each chunk which "
-                                  "will be considerably slower than normal"))
+                    LOG.warning(_LW("Since image size is zero we will be "
+                                    "doing resize-before-write which will be "
+                                    "slower than normal"))
 
                 try:
                     loc = self._create_image(fsid, conn, ioctx, image_name,
@@ -534,24 +549,27 @@ class Store(driver.Store):
                         chunks = utils.chunkreadable(image_file,
                                                      self.WRITE_CHUNKSIZE)
                         for chunk in chunks:
-                            # If the image size provided is zero we need to do
-                            # a resize for the amount we are writing. This will
-                            # be slower so setting a higher chunk size may
-                            # speed things up a bit.
-                            if image_size == 0:
-                                chunk_length = len(chunk)
-                                length = offset + chunk_length
-                                bytes_written += chunk_length
-                                LOG.debug(_("resizing image to %s KiB") %
-                                          (length / units.Ki))
-                                image.resize(length)
+                            # NOTE(jokke): If we don't know image size we need
+                            # to resize it on write. The resize amount will
+                            # ramp up to 8 gigs.
+                            chunk_length = len(chunk)
+                            self.size = self._resize_on_write(image,
+                                                              image_size,
+                                                              bytes_written,
+                                                              chunk_length)
                             LOG.debug(_("writing chunk at offset %s") %
                                       (offset))
                             offset += image.write(chunk, offset)
+                            bytes_written += chunk_length
                             os_hash_value.update(chunk)
                             checksum.update(chunk)
                             if verifier:
                                 verifier.update(chunk)
+
+                        # Lets trim the image in case we overshoot with resize
+                        if image_size == 0:
+                            image.resize(bytes_written)
+
                         if loc.snapshot:
                             image.create_snap(loc.snapshot)
                             image.protect_snap(loc.snapshot)

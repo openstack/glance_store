@@ -124,7 +124,7 @@ class MockRBD(object):
             raise NotImplementedError()
 
         def resize(self, *args, **kwargs):
-            raise NotImplementedError()
+            pass
 
         def discard(self, offset, length):
             raise NotImplementedError()
@@ -165,6 +165,60 @@ class MockRBD(object):
             raise NotImplementedError()
 
     RBD_FEATURE_LAYERING = 1
+
+
+class TestReSize(base.StoreBaseTest,
+                 test_store_capabilities.TestStoreCapabilitiesChecking):
+
+    def setUp(self):
+        """Establish a clean test environment."""
+        super(TestReSize, self).setUp()
+
+        rbd_store.rados = MockRados
+        rbd_store.rbd = MockRBD
+
+        self.store = rbd_store.Store(self.conf)
+        self.store.configure()
+        self.store_specs = {'pool': 'fake_pool',
+                            'image': 'fake_image',
+                            'snapshot': 'fake_snapshot'}
+        self.location = rbd_store.StoreLocation(self.store_specs,
+                                                self.conf)
+        self.hash_algo = 'sha256'
+
+    def test_add_w_image_size_zero_less_resizes(self):
+        """Assert that correct size is returned even though 0 was provided."""
+        # TODO(jokke): use the FakeData iterator once it exists.
+        data_len = 57 * units.Mi
+        data_iter = six.BytesIO(b'*' * data_len)
+        with mock.patch.object(rbd_store.rbd.Image, 'resize') as resize:
+            with mock.patch.object(rbd_store.rbd.Image, 'write') as write:
+                ret = self.store.add(
+                    'fake_image_id', data_iter, 0, self.hash_algo)
+
+                # We expect to trim at the end so +1
+                expected = 1
+                expected_calls = []
+                data_len_temp = data_len
+                resize_amount = self.store.WRITE_CHUNKSIZE
+                while data_len_temp > 0:
+                    expected_calls.append(resize_amount + (data_len -
+                                                           data_len_temp))
+                    data_len_temp -= resize_amount
+                    resize_amount *= 2
+                    expected += 1
+                self.assertEqual(expected, resize.call_count)
+                resize.assert_has_calls([mock.call(call) for call in
+                                         expected_calls])
+                expected = ([self.store.WRITE_CHUNKSIZE for i in range(int(
+                            data_len / self.store.WRITE_CHUNKSIZE))] +
+                            [(data_len % self.store.WRITE_CHUNKSIZE)])
+                actual = ([len(args[0]) for args, kwargs in
+                          write.call_args_list])
+                self.assertEqual(expected, actual)
+                self.assertEqual(data_len,
+                                 resize.call_args_list[-1][0][0])
+                self.assertEqual(data_len, ret[1])
 
 
 class TestStore(base.StoreBaseTest,
