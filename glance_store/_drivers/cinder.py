@@ -360,13 +360,16 @@ class StoreLocation(glance_store.location.StoreLocation):
         self.volume_id = self.specs.get('volume_id')
 
     def get_uri(self):
+        if self.backend_group:
+            return "cinder://%s/%s" % (self.backend_group,
+                                       self.volume_id)
         return "cinder://%s" % self.volume_id
 
     def parse_uri(self, uri):
         self.validate_schemas(uri, valid_schemas=('cinder://',))
 
         self.scheme = 'cinder'
-        self.volume_id = uri[9:]
+        self.volume_id = uri.split('/')[-1]
 
         if not utils.is_uuid_like(self.volume_id):
             reason = _("URI contains invalid volume ID")
@@ -386,57 +389,126 @@ class Store(glance_store.driver.Store):
 
     def __init__(self, *args, **kargs):
         super(Store, self).__init__(*args, **kargs)
-        if self.backend_group:
-            self._set_url_prefix()
         # We are importing it here to let the config options load
         # before we use them in the fs_mount file
         self.mount = importlib.import_module('glance_store.common.fs_mount')
+        self._set_url_prefix()
+        if self.backend_group:
+            self.store_conf = getattr(self.conf, self.backend_group)
+        else:
+            self.store_conf = self.conf.glance_store
+
+    def _set_url_prefix(self):
+        self._url_prefix = "cinder://"
+        if self.backend_group:
+            self._url_prefix = "cinder://%s" % self.backend_group
+
+    def configure_add(self):
+        """
+        Configure the Store to use the stored configuration options
+        Any store that needs special configuration should implement
+        this method. If the store was not able to successfully configure
+        itself, it should raise `exceptions.BadStoreConfiguration`
+        :raises: `exceptions.BadStoreConfiguration` if multiple stores are
+                 defined and particular store wasn't able to configure
+                 successfully
+        :raises: `exceptions.BackendException` if single store is defined and
+                 it wasn't able to configure successfully
+        """
+        if self.backend_group:
+            cinder_volume_type = self.store_conf.cinder_volume_type
+            if cinder_volume_type:
+                # NOTE: `cinder_volume_type` is configured, check
+                # configured volume_type is available in cinder or not
+                cinder_client = self.get_cinderclient()
+                try:
+                    # We don't even need the volume type object, as long
+                    # as this returns clean, we know the name is good.
+                    cinder_client.volume_types.find(name=cinder_volume_type)
+                    # No need to worry NoUniqueMatch as volume type name is
+                    # unique
+                except cinder_exception.NotFound:
+                    reason = _("Invalid `cinder_volume_type %s`"
+                               % cinder_volume_type)
+                    if len(self.conf.enabled_backends) > 1:
+                        LOG.error(reason)
+                        raise exceptions.BadStoreConfiguration(
+                            store_name=self.backend_group, reason=reason)
+                    else:
+                        LOG.critical(reason)
+                        raise exceptions.BackendException(reason)
+
+    def is_image_associated_with_store(self, context, volume_id):
+        """
+        Updates legacy images URL to respective stores.
+        This method checks the volume type of the volume associated with the
+        image against the configured stores. It returns true if the
+        cinder_volume_type configured in the store matches with the volume
+        type of the image-volume. When cinder_volume_type is not configured
+        then the it checks it against default_volume_type set in cinder.
+        If above both conditions doesn't meet, it returns false.
+        """
+        try:
+            cinder_client = self.get_cinderclient(context=context,
+                                                  legacy_update=True)
+            cinder_volume_type = self.store_conf.cinder_volume_type
+            volume = cinder_client.volumes.get(volume_id)
+            if cinder_volume_type and volume.volume_type == cinder_volume_type:
+                return True
+            elif not cinder_volume_type:
+                default_type = cinder_client.volume_types.default()['name']
+                if volume.volume_type == default_type:
+                    return True
+        except Exception:
+            # Glance calls this method to update legacy images URL
+            # If an exception occours due to image/volume is non-existent or
+            # any other reason, we return False (i.e. the image location URL
+            # won't be updated) and it is glance's responsibility to handle
+            # the case when the image failed to update
+            pass
+
+        return False
 
     def get_root_helper(self):
-        if self.backend_group:
-            rootwrap = getattr(CONF, self.backend_group).rootwrap_config
-        else:
-            rootwrap = CONF.glance_store.rootwrap_config
-
+        rootwrap = self.store_conf.rootwrap_config
         return 'sudo glance-rootwrap %s' % rootwrap
 
     def is_user_overriden(self):
-        if self.backend_group:
-            store_conf = getattr(self.conf, self.backend_group)
-        else:
-            store_conf = self.conf.glance_store
-
-        return all([store_conf.get('cinder_store_' + key)
+        return all([self.store_conf.get('cinder_store_' + key)
                     for key in ['user_name', 'password',
                                 'project_name', 'auth_address']])
 
-    def get_cinderclient(self, context=None):
-        if self.backend_group:
-            glance_store = getattr(self.conf, self.backend_group)
+    def get_cinderclient(self, context=None, legacy_update=False):
+        # NOTE: For legacy image update from single store to multiple
+        # stores we need to use admin context rather than user provided
+        # credentials
+        if legacy_update:
+            user_overriden = False
+            context = context.elevated()
         else:
-            glance_store = self.conf.glance_store
+            user_overriden = self.is_user_overriden()
 
-        user_overriden = self.is_user_overriden()
         if user_overriden:
-            username = glance_store.cinder_store_user_name
-            password = glance_store.cinder_store_password
-            project = glance_store.cinder_store_project_name
-            url = glance_store.cinder_store_auth_address
+            username = self.store_conf.cinder_store_user_name
+            password = self.store_conf.cinder_store_password
+            project = self.store_conf.cinder_store_project_name
+            url = self.store_conf.cinder_store_auth_address
         else:
             username = context.user
             password = context.auth_token
             project = context.tenant
 
-            if glance_store.cinder_endpoint_template:
-                url = glance_store.cinder_endpoint_template % context.to_dict()
+            if self.store_conf.cinder_endpoint_template:
+                template = self.store_conf.cinder_endpoint_template
+                url = template % context.to_dict()
             else:
-                info = glance_store.cinder_catalog_info
+                info = self.store_conf.cinder_catalog_info
                 service_type, service_name, interface = info.split(':')
                 try:
                     catalog = keystone_sc.ServiceCatalogV2(
                         context.service_catalog)
                     url = catalog.url_for(
-                        region_name=glance_store.cinder_os_region_name,
+                        region_name=self.store_conf.cinder_os_region_name,
                         service_type=service_type,
                         service_name=service_name,
                         interface=interface)
@@ -447,10 +519,10 @@ class Store(glance_store.driver.Store):
 
         c = cinderclient.Client(
             username, password, project, auth_url=url,
-            region_name=glance_store.cinder_os_region_name,
-            insecure=glance_store.cinder_api_insecure,
-            retries=glance_store.cinder_http_retries,
-            cacert=glance_store.cinder_ca_certificates_file)
+            region_name=self.store_conf.cinder_os_region_name,
+            insecure=self.store_conf.cinder_api_insecure,
+            retries=self.store_conf.cinder_http_retries,
+            cacert=self.store_conf.cinder_ca_certificates_file)
 
         LOG.debug(
             'Cinderclient connection created for user %(user)s using URL: '
@@ -485,9 +557,6 @@ class Store(glance_store.driver.Store):
     def get_schemes(self):
         return ('cinder',)
 
-    def _set_url_prefix(self):
-        self._url_prefix = "cinder://"
-
     def _check_context(self, context, require_tenant=False):
         user_overriden = self.is_user_overriden()
         if user_overriden and not require_tenant:
@@ -503,12 +572,7 @@ class Store(glance_store.driver.Store):
 
     def _wait_volume_status(self, volume, status_transition, status_expected):
         max_recheck_wait = 15
-        if self.backend_group:
-            timeout = getattr(
-                self.conf, self.backend_group).cinder_state_transition_timeout
-        else:
-            timeout = self.conf.glance_store.cinder_state_transition_timeout
-
+        timeout = self.store_conf.cinder_state_transition_timeout
         volume = volume.manager.get(volume.id)
         tries = 0
         elapsed = 0
@@ -557,17 +621,9 @@ class Store(glance_store.driver.Store):
         root_helper = self.get_root_helper()
         priv_context.init(root_helper=shlex.split(root_helper))
         host = socket.gethostname()
-        if self.backend_group:
-            use_multipath = getattr(
-                self.conf, self.backend_group).cinder_use_multipath
-            enforce_multipath = getattr(
-                self.conf, self.backend_group).cinder_enforce_multipath
-            mount_point_base = getattr(
-                self.conf, self.backend_group).cinder_mount_point_base
-        else:
-            use_multipath = self.conf.glance_store.cinder_use_multipath
-            enforce_multipath = self.conf.glance_store.cinder_enforce_multipath
-            mount_point_base = self.conf.glance_store.cinder_mount_point_base
+        use_multipath = self.store_conf.cinder_use_multipath
+        enforce_multipath = self.store_conf.cinder_enforce_multipath
+        mount_point_base = self.store_conf.cinder_mount_point_base
 
         properties = connector.get_connector_properties(
             root_helper, host, use_multipath, enforce_multipath)
@@ -785,11 +841,7 @@ class Store(glance_store.driver.Store):
                     'image_size': str(image_size),
                     'image_owner': owner}
 
-        if self.backend_group:
-            volume_type = getattr(self.conf,
-                                  self.backend_group).cinder_volume_type
-        else:
-            volume_type = self.conf.glance_store.cinder_volume_type
+        volume_type = self.store_conf.cinder_volume_type
 
         LOG.debug('Creating a new volume: image_size=%d size_gb=%d type=%s',
                   image_size, size_gb, volume_type or 'None')
@@ -873,10 +925,13 @@ class Store(glance_store.driver.Store):
                    'checksum_hex': checksum_hex})
 
         image_metadata = {}
+        location_url = 'cinder://%s' % volume.id
         if self.backend_group:
             image_metadata['store'] = u"%s" % self.backend_group
+            location_url = 'cinder://%s/%s' % (self.backend_group,
+                                               volume.id)
 
-        return ('cinder://%s' % volume.id,
+        return (location_url,
                 bytes_written,
                 checksum_hex,
                 hash_hex,

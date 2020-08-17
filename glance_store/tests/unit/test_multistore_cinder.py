@@ -92,9 +92,15 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                                   user='fake_user',
                                   auth_token='fake_token',
                                   tenant='fake_tenant')
+        self.fake_admin_context = mock.MagicMock()
+        self.fake_admin_context.elevated.return_value = FakeObject(
+            service_catalog=fake_sc,
+            user='admin_user',
+            auth_token='admin_token',
+            tenant='admin_project')
 
     def test_location_url_prefix_is_set(self):
-        self.assertEqual("cinder://", self.store.url_prefix)
+        self.assertEqual("cinder://cinder1", self.store.url_prefix)
 
     def test_get_cinderclient(self):
         cc = self.store.get_cinderclient(self.context)
@@ -109,6 +115,14 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         cc = self.store.get_cinderclient(self.context)
         self.assertIsNone(cc.client.auth_token)
         self.assertEqual('test_address', cc.client.management_url)
+
+    def test_get_cinderclient_legacy_update(self):
+        cc = self.store.get_cinderclient(self.fake_admin_context,
+                                         legacy_update=True)
+        self.assertEqual('admin_token', cc.client.auth_token)
+        self.assertEqual('admin_user', cc.client.user)
+        self.assertEqual('admin_project', cc.client.projectid)
+        self.assertEqual('http://foo/public_url', cc.client.management_url)
 
     def test_temporary_chown(self):
         class fake_stat(object):
@@ -247,7 +261,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                                       multipath_supported=True,
                                       enforce_multipath=True)
 
-    def test_cinder_configure_add(self):
+    def test_cinder_check_context(self):
         self.assertRaises(exceptions.BadStoreConfiguration,
                           self.store._check_context, None)
 
@@ -256,6 +270,57 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                           FakeObject(service_catalog=None))
 
         self.store._check_context(FakeObject(service_catalog='fake'))
+
+    def test_cinder_configure_add(self):
+        with mock.patch.object(self.store, 'get_cinderclient') as mocked_cc:
+            def raise_(ex):
+                raise ex
+            mocked_cc.return_value = FakeObject(volume_types=FakeObject(
+                find=lambda name: 'some_type' if name == 'some_type'
+                else raise_(cinder.cinder_exception.NotFound(code=404))))
+            self.config(cinder_volume_type='some_type',
+                        group=self.store.backend_group)
+            # If volume type exists, no exception is raised
+            self.store.configure_add()
+            # setting cinder_volume_type to non-existent value will raise
+            # BadStoreConfiguration exception
+            self.config(cinder_volume_type='some_random_type',
+                        group=self.store.backend_group)
+
+            self.assertRaises(exceptions.BadStoreConfiguration,
+                              self.store.configure_add)
+            # when only 1 store is configured, BackendException is raised
+            self.config(enabled_backends={'cinder1': 'cinder'})
+            self.assertRaises(exceptions.BackendException,
+                              self.store.configure_add)
+
+    def test_is_image_associated_with_store(self):
+        with mock.patch.object(self.store, 'get_cinderclient') as mocked_cc:
+            mocked_cc.return_value = FakeObject(volumes=FakeObject(
+                get=lambda volume_id: FakeObject(volume_type='some_type')),
+                volume_types=FakeObject(
+                    default=lambda: {'name': 'some_type'}))
+            # When cinder_volume_type is set and is same as volume's type
+            self.config(cinder_volume_type='some_type',
+                        group=self.store.backend_group)
+            fake_vol_id = str(uuid.uuid4())
+            type_match = self.store.is_image_associated_with_store(
+                self.context, fake_vol_id)
+            self.assertTrue(type_match)
+            # When cinder_volume_type is not set and volume's type is same as
+            # set default volume type
+            self.config(cinder_volume_type=None,
+                        group=self.store.backend_group)
+            type_match = self.store.is_image_associated_with_store(
+                self.context, fake_vol_id)
+            self.assertTrue(type_match)
+            # When cinder_volume_type is not set and volume's type does not
+            # match with default volume type
+            mocked_cc.return_value.volume_types = FakeObject(
+                default=lambda: {'name': 'random_type'})
+            type_match = self.store.is_image_associated_with_store(
+                self.context, fake_vol_id)
+            self.assertFalse(type_match)
 
     def test_cinder_get(self):
         expected_size = 5 * units.Ki
@@ -279,7 +344,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                                   side_effect=fake_open):
             mock_cc.return_value = FakeObject(client=fake_client,
                                               volumes=fake_volumes)
-            uri = "cinder://%s" % fake_volume_uuid
+            uri = "cinder://cinder1/%s" % fake_volume_uuid
             loc = location.get_location_from_uri_and_backend(uri,
                                                              "cinder1",
                                                              conf=self.conf)
@@ -306,7 +371,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
             mocked_cc.return_value = FakeObject(client=fake_client,
                                                 volumes=fake_volumes)
 
-            uri = 'cinder://%s' % fake_volume_uuid
+            uri = 'cinder://cinder1/%s' % fake_volume_uuid
             loc = location.get_location_from_uri_and_backend(uri,
                                                              "cinder1",
                                                              conf=self.conf)
@@ -325,7 +390,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
             mocked_cc.return_value = FakeObject(client=fake_client,
                                                 volumes=fake_volumes)
 
-            uri = 'cinder://%s' % fake_volume_uuid
+            uri = 'cinder://cinder1/%s' % fake_volume_uuid
             loc = location.get_location_from_uri_and_backend(uri,
                                                              "cinder1",
                                                              conf=self.conf)
@@ -339,7 +404,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         expected_file_contents = b"*" * expected_size
         image_file = six.BytesIO(expected_file_contents)
         expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
-        expected_location = 'cinder://%s' % fake_volume.id
+        expected_location = 'cinder://%s/%s' % (backend, fake_volume.id)
         fake_client = FakeObject(auth_token=None, management_url=None)
         fake_volume.manager.get.return_value = fake_volume
         fake_volumes = FakeObject(create=mock.Mock(return_value=fake_volume))
@@ -410,7 +475,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
             mocked_cc.return_value = FakeObject(client=fake_client,
                                                 volumes=fake_volumes)
 
-            uri = 'cinder://%s' % fake_volume_uuid
+            uri = 'cinder://cinder1/%s' % fake_volume_uuid
             loc = location.get_location_from_uri_and_backend(uri,
                                                              "cinder1",
                                                              conf=self.conf)
