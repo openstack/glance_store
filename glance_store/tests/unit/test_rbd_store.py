@@ -221,6 +221,70 @@ class TestReSize(base.StoreBaseTest,
                                  resize.call_args_list[-1][0][0])
                 self.assertEqual(data_len, ret[1])
 
+    def test_resize_on_write_ceiling(self):
+        image = mock.MagicMock()
+
+        # image, size, written, chunk
+
+        # Non-zero image size means no resize
+        ret = self.store._resize_on_write(image, 32, 16, 16)
+        self.assertEqual(0, ret)
+        image.resize.assert_not_called()
+
+        # Current size is smaller than we need
+        self.store.size = 8
+        ret = self.store._resize_on_write(image, 0, 16, 16)
+        self.assertEqual(8 + self.store.WRITE_CHUNKSIZE, ret)
+        self.assertEqual(self.store.WRITE_CHUNKSIZE * 2,
+                         self.store.resize_amount)
+        image.resize.assert_called_once_with(ret)
+
+        # More reads under the limit do not require a resize
+        image.resize.reset_mock()
+        self.store.size = ret
+        ret = self.store._resize_on_write(image, 0, 64, 16)
+        self.assertEqual(8 + self.store.WRITE_CHUNKSIZE, ret)
+        image.resize.assert_not_called()
+
+        # Read past the limit triggers another resize
+        ret = self.store._resize_on_write(image, 0, ret + 1, 16)
+        self.assertEqual(8 + self.store.WRITE_CHUNKSIZE * 3, ret)
+        image.resize.assert_called_once_with(ret)
+        self.assertEqual(self.store.WRITE_CHUNKSIZE * 4,
+                         self.store.resize_amount)
+
+        # Check that we do not resize past the 8G ceiling.
+
+        # Start with resize_amount at 4G, 1G read so far
+        image.resize.reset_mock()
+        self.store.resize_amount = 4 * units.Gi
+        self.store.size = 1 * units.Gi
+
+        # First resize happens and we get the 4G,
+        # resize_amount goes to limit of 8G
+        ret = self.store._resize_on_write(image, 0, 4097 * units.Mi, 16)
+        self.assertEqual(5 * units.Gi, ret)
+        self.assertEqual(8 * units.Gi, self.store.resize_amount)
+        self.store.size = ret
+
+        # Second resize happens and we get to 13G,
+        # resize amount stays at limit of 8G
+        ret = self.store._resize_on_write(image, 0, 6144 * units.Mi, 16)
+        self.assertEqual((5 + 8) * units.Gi, ret)
+        self.assertEqual(8 * units.Gi, self.store.resize_amount)
+        self.store.size = ret
+
+        # Third resize happens and we get to 21G,
+        # resize amount stays at limit of 8G
+        ret = self.store._resize_on_write(image, 0, 14336 * units.Mi, 16)
+        self.assertEqual((5 + 8 + 8) * units.Gi, ret)
+        self.assertEqual(8 * units.Gi, self.store.resize_amount)
+
+        image.resize.assert_has_calls([
+            mock.call(5 * units.Gi),
+            mock.call(13 * units.Gi),
+            mock.call(21 * units.Gi)])
+
 
 class TestStore(base.StoreBaseTest,
                 test_store_capabilities.TestStoreCapabilitiesChecking):
