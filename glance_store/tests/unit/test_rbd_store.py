@@ -24,6 +24,7 @@ from glance_store import exceptions
 from glance_store import location as g_location
 from glance_store.tests import base
 from glance_store.tests.unit import test_store_capabilities
+from glance_store.tests import utils as test_utils
 
 
 class TestException(Exception):
@@ -189,9 +190,8 @@ class TestReSize(base.StoreBaseTest,
 
     def test_add_w_image_size_zero_less_resizes(self):
         """Assert that correct size is returned even though 0 was provided."""
-        # TODO(jokke): use the FakeData iterator once it exists.
         data_len = 57 * units.Mi
-        data_iter = six.BytesIO(b'*' * data_len)
+        data_iter = test_utils.FakeData(data_len)
         with mock.patch.object(rbd_store.rbd.Image, 'resize') as resize:
             with mock.patch.object(rbd_store.rbd.Image, 'write') as write:
                 ret = self.store.add(
