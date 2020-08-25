@@ -408,3 +408,6 @@ class TestCinderStore(base.StoreBaseTest,
             loc = location.get_location_from_uri(uri, conf=self.conf)
             self.store.delete(loc, context=self.context)
             fake_volume.delete.assert_called_once_with()
+
+    def test_set_url_prefix(self):
+        self.assertEqual('cinder://', self.store._url_prefix)

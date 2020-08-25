@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    Added support for cinder multiple stores. Operators can now configure
+    multiple cinder stores by configuring a unique cinder_volume_type for
+    each cinder store.
+upgrade:
+  - |
+    Legacy images will be moved to specific stores as per their current
+    volume's type and the location URL will be updated respectively.
