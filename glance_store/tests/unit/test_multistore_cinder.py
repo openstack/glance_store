@@ -299,7 +299,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
             mocked_cc.return_value = FakeObject(volumes=FakeObject(
                 get=lambda volume_id: FakeObject(volume_type='some_type')),
                 volume_types=FakeObject(
-                    default=lambda: {'name': 'some_type'}))
+                    default=lambda: FakeObject(name='some_type')))
             # When cinder_volume_type is set and is same as volume's type
             self.config(cinder_volume_type='some_type',
                         group=self.store.backend_group)

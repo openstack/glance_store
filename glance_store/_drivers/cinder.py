@@ -456,8 +456,8 @@ class Store(glance_store.driver.Store):
             if cinder_volume_type and volume.volume_type == cinder_volume_type:
                 return True
             elif not cinder_volume_type:
-                default_type = cinder_client.volume_types.default()['name']
-                if volume.volume_type == default_type:
+                default_type = cinder_client.volume_types.default()
+                if volume.volume_type == default_type.name:
                     return True
         except Exception:
             # Glance calls this method to update legacy images URL
