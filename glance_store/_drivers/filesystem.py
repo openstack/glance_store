@@ -110,11 +110,13 @@ Related options:
                help="""
 Filesystem store metadata file.
 
-The path to a file which contains the metadata to be returned with
-any location associated with the filesystem store. The file must
-contain a valid JSON object. The object should contain the keys
-``id`` and ``mountpoint``. The value for both keys should be a
-string.
+The path to a file which contains the metadata to be returned with any location
+associated with the filesystem store. Once this option is set, it is used for
+new images created afterward only - previously existing images are not
+affected.
+
+The file must contain a valid JSON object. The object should contain the keys
+``id`` and ``mountpoint``. The value for both keys should be a string.
 
 Possible values:
     * A valid path to the store metadata file
