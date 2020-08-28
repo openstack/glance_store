@@ -463,26 +463,26 @@ class Store(driver.Store):
                                        {'snap_exc': exc})
                                 LOG.debug(msg)
                             except rbd.ImageBusy as exc:
-                                log_msg = (_LE("Snap Operating Exception "
+                                log_msg = (_LW("Snap Operating Exception "
                                                "%(snap_exc)s "
                                                "Snapshot is in use.") %
                                            {'snap_exc': exc})
-                                LOG.error(log_msg)
+                                LOG.warning(log_msg)
                                 raise exceptions.InUseByStore()
 
                     # Then delete image.
                     rbd.RBD().remove(ioctx, image_name)
                 except rbd.ImageHasSnapshots:
-                    log_msg = (_LE("Remove image %(img_name)s failed. "
+                    log_msg = (_LW("Remove image %(img_name)s failed. "
                                    "It has snapshot(s) left.") %
                                {'img_name': image_name})
-                    LOG.error(log_msg)
+                    LOG.warning(log_msg)
                     raise exceptions.HasSnapshot()
                 except rbd.ImageBusy:
-                    log_msg = (_LE("Remove image %(img_name)s failed. "
+                    log_msg = (_LW("Remove image %(img_name)s failed. "
                                    "It is in use.") %
                                {'img_name': image_name})
-                    LOG.error(log_msg)
+                    LOG.warning(log_msg)
                     raise exceptions.InUseByStore()
                 except rbd.ImageNotFound:
                     msg = _("RBD image %s does not exist") % image_name
