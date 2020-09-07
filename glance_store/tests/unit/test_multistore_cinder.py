@@ -89,15 +89,15 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                     u'name': u'cinder',
                     u'type': u'volumev2'}]
         self.context = FakeObject(service_catalog=fake_sc,
-                                  user='fake_user',
+                                  user_id='fake_user',
                                   auth_token='fake_token',
-                                  tenant='fake_tenant')
+                                  project_id='fake_project')
         self.fake_admin_context = mock.MagicMock()
         self.fake_admin_context.elevated.return_value = FakeObject(
             service_catalog=fake_sc,
-            user='admin_user',
+            user_id='admin_user',
             auth_token='admin_token',
-            tenant='admin_project')
+            project_id='admin_project')
 
     def test_location_url_prefix_is_set(self):
         self.assertEqual("cinder://cinder1", self.store.url_prefix)
@@ -431,7 +431,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
             fake_volumes.create.assert_called_once_with(
                 1,
                 name='image-%s' % expected_image_id,
-                metadata={'image_owner': self.context.tenant,
+                metadata={'image_owner': self.context.project_id,
                           'glance_image_id': expected_image_id,
                           'image_size': str(expected_size)},
                 volume_type='some_type')

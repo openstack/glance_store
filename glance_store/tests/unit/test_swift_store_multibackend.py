@@ -1309,7 +1309,7 @@ class SwiftTests(object):
         mock_identity.V3Token.assert_called_once_with(
             auth_url=default_swift_reference.get('auth_address'),
             token=ctxt.auth_token,
-            project_id=ctxt.tenant
+            project_id=ctxt.project_id
         )
         mock_session.Session.assert_any_call(auth=mock_identity.V3Token(),
                                              verify=verify)
@@ -1331,8 +1331,8 @@ class SwiftTests(object):
                                              verify=verify)
         mock_client.Client.assert_any_call(session=trustee_session)
         trustor_client.trusts.create.assert_called_once_with(
-            trustee_user='fake_user', trustor_user=ctxt.user,
-            project=ctxt.tenant, impersonation=True,
+            trustee_user='fake_user', trustor_user=ctxt.user_id,
+            project=ctxt.project_id, impersonation=True,
             role_names=['fake_role']
         )
         mock_identity.V3Password.assert_any_call(
