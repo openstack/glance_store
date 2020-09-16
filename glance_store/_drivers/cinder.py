@@ -494,9 +494,9 @@ class Store(glance_store.driver.Store):
             project = self.store_conf.cinder_store_project_name
             url = self.store_conf.cinder_store_auth_address
         else:
-            username = context.user
+            username = context.user_id
             password = context.auth_token
-            project = context.tenant
+            project = context.project_id
 
             if self.store_conf.cinder_endpoint_template:
                 template = self.store_conf.cinder_endpoint_template
@@ -836,7 +836,7 @@ class Store(glance_store.driver.Store):
         if size_gb == 0:
             size_gb = 1
         name = "image-%s" % image_id
-        owner = context.tenant
+        owner = context.project_id
         metadata = {'glance_image_id': image_id,
                     'image_size': str(image_size),
                     'image_owner': owner}

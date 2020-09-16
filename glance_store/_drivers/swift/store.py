@@ -1599,7 +1599,7 @@ class MultiTenantStore(BaseStore):
         # create client for multitenant user(trustor)
         trustor_auth = ks_identity.V3Token(auth_url=auth_address,
                                            token=context.auth_token,
-                                           project_id=context.tenant)
+                                           project_id=context.project_id)
         trustor_sess = ks_session.Session(auth=trustor_auth,
                                           verify=self.ks_verify)
         trustor_client = ks_client.Client(session=trustor_sess)
@@ -1626,8 +1626,8 @@ class MultiTenantStore(BaseStore):
 
         # create trust for trustee user
         trust_id = trustor_client.trusts.create(
-            trustee_user=trustee_user_id, trustor_user=context.user,
-            project=context.tenant, impersonation=True,
+            trustee_user=trustee_user_id, trustor_user=context.user_id,
+            project=context.project_id, impersonation=True,
             role_names=roles
         ).id
         # initialize a new client with trust and trustee credentials

@@ -62,9 +62,9 @@ class TestCinderStore(base.StoreBaseTest,
                     u'name': u'cinder',
                     u'type': u'volumev2'}]
         self.context = FakeObject(service_catalog=fake_sc,
-                                  user='fake_user',
+                                  user_id='fake_user',
                                   auth_token='fake_token',
-                                  tenant='fake_tenant')
+                                  project_id='fake_project')
         self.hash_algo = 'sha256'
 
     def test_get_cinderclient(self):
@@ -361,7 +361,7 @@ class TestCinderStore(base.StoreBaseTest,
             fake_volumes.create.assert_called_once_with(
                 1,
                 name='image-%s' % expected_image_id,
-                metadata={'image_owner': self.context.tenant,
+                metadata={'image_owner': self.context.project_id,
                           'glance_image_id': expected_image_id,
                           'image_size': str(expected_size)},
                 volume_type='some_type')
