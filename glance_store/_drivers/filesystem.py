@@ -19,7 +19,6 @@ A simple filesystem-backed store
 """
 
 import errno
-import hashlib
 import logging
 import os
 import stat
@@ -739,8 +738,8 @@ class Store(glance_store.driver.Store):
 
         if os.path.exists(filepath):
             raise exceptions.Duplicate(image=filepath)
-        os_hash_value = hashlib.new(str(hashing_algo))
-        checksum = hashlib.md5()
+        os_hash_value = utils.get_hasher(hashing_algo, False)
+        checksum = utils.get_hasher('md5', False)
         bytes_written = 0
         try:
             with open(filepath, 'wb') as f:

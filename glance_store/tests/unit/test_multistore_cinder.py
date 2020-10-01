@@ -15,7 +15,6 @@
 
 import contextlib
 import errno
-import hashlib
 import os
 from unittest import mock
 
@@ -30,6 +29,7 @@ import fixtures
 from os_brick.initiator import connector
 from oslo_concurrency import processutils
 from oslo_config import cfg
+from oslo_utils.secretutils import md5
 from oslo_utils import units
 
 import glance_store as store
@@ -403,7 +403,8 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         expected_size = size_kb * units.Ki
         expected_file_contents = b"*" * expected_size
         image_file = six.BytesIO(expected_file_contents)
-        expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_checksum = md5(expected_file_contents,
+                                usedforsecurity=False).hexdigest()
         expected_location = 'cinder://%s/%s' % (backend, fake_volume.id)
         fake_client = FakeObject(auth_token=None, management_url=None)
         fake_volume.manager.get.return_value = fake_volume

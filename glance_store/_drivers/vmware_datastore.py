@@ -15,7 +15,6 @@
 
 """Storage backend for VMware Datastore"""
 
-import hashlib
 import logging
 import os
 
@@ -261,8 +260,8 @@ class _Reader(object):
     def __init__(self, data, hashing_algo, verifier=None):
         self._size = 0
         self.data = data
-        self.checksum = hashlib.md5()
-        self.os_hash_value = hashlib.new(str(hashing_algo))
+        self.os_hash_value = utils.get_hasher(hashing_algo, False)
+        self.checksum = utils.get_hasher('md5', False)
         self.verifier = verifier
 
     def read(self, size=None):

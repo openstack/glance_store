@@ -16,7 +16,6 @@
 """Tests the filesystem backend store"""
 
 import errno
-import hashlib
 import json
 import os
 import stat
@@ -25,6 +24,7 @@ import uuid
 
 import fixtures
 from oslo_config import cfg
+from oslo_utils.secretutils import md5
 from oslo_utils import units
 import six
 from six.moves import builtins
@@ -189,7 +189,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = b"*" * expected_file_size
-        expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_checksum = md5(expected_file_contents,
+                                usedforsecurity=False).hexdigest()
         expected_location = "file://%s/%s" % (self.test_dir,
                                               expected_image_id)
         image_file = six.BytesIO(expected_file_contents)
@@ -229,7 +230,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = b"*" * expected_file_size
-        expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_checksum = md5(expected_file_contents,
+                                usedforsecurity=False).hexdigest()
         expected_location = "file://%s/%s" % (self.test_dir,
                                               expected_image_id)
         image_file = six.BytesIO(expected_file_contents)
@@ -583,7 +585,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = b"*" * expected_file_size
-        expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_checksum = md5(expected_file_contents,
+                                usedforsecurity=False).hexdigest()
         expected_location = "file://%s/%s" % (store_map[1],
                                               expected_image_id)
         image_file = six.BytesIO(expected_file_contents)
@@ -630,7 +633,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = b"*" * expected_file_size
-        expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_checksum = md5(expected_file_contents,
+                                usedforsecurity=False).hexdigest()
         expected_location = "file://%s/%s" % (store_map[1],
                                               expected_image_id)
         image_file = six.BytesIO(expected_file_contents)
@@ -741,7 +745,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = b"*" * expected_file_size
-        expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_checksum = md5(expected_file_contents,
+                                usedforsecurity=False).hexdigest()
         expected_location = "file://%s/%s" % (store,
                                               expected_image_id)
         image_file = six.BytesIO(expected_file_contents)
@@ -785,7 +790,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 5 * units.Ki  # 5K
         expected_file_contents = b"*" * expected_file_size
-        expected_checksum = hashlib.md5(expected_file_contents).hexdigest()
+        expected_checksum = md5(expected_file_contents,
+                                usedforsecurity=False).hexdigest()
         expected_location = "file://%s/%s" % (store,
                                               expected_image_id)
         image_file = six.BytesIO(expected_file_contents)

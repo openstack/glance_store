@@ -25,6 +25,7 @@ import uuid
 
 from oslo_config import cfg
 from oslo_utils import encodeutils
+from oslo_utils.secretutils import md5
 from oslo_utils import units
 import requests_mock
 import six
@@ -112,7 +113,8 @@ class SwiftTests(object):
                 if kwargs.get('headers'):
                     manifest = kwargs.get('headers').get('X-Object-Manifest')
                     etag = kwargs.get('headers') \
-                                 .get('ETag', hashlib.md5(b'').hexdigest())
+                                 .get('ETag', md5(
+                                     b'', usedforsecurity=False).hexdigest())
                     fixture_headers[fixture_key] = {
                         'manifest': True,
                         'etag': etag,
@@ -124,7 +126,7 @@ class SwiftTests(object):
                     fixture_object = six.BytesIO()
                     read_len = 0
                     chunk = contents.read(CHUNKSIZE)
-                    checksum = hashlib.md5()
+                    checksum = md5(usedforsecurity=False)
                     while chunk:
                         fixture_object.write(chunk)
                         read_len += len(chunk)
@@ -134,7 +136,8 @@ class SwiftTests(object):
                 else:
                     fixture_object = six.BytesIO(contents)
                     read_len = len(contents)
-                    etag = hashlib.md5(fixture_object.getvalue()).hexdigest()
+                    etag = md5(fixture_object.getvalue(),
+                               usedforsecurity=False).hexdigest()
                 if read_len > MAX_SWIFT_OBJECT_SIZE:
                     msg = ('Image size:%d exceeds Swift max:%d' %
                            (read_len, MAX_SWIFT_OBJECT_SIZE))
@@ -396,7 +399,8 @@ class SwiftTests(object):
         self.store.configure()
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
-        expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
+        expected_checksum = md5(expected_swift_contents,
+                                usedforsecurity=False).hexdigest()
         expected_image_id = str(uuid.uuid4())
         loc = "swift+https://tenant%%3Auser1:key@localhost:8080/glance/%s"
         expected_location = loc % (expected_image_id)
@@ -520,7 +524,7 @@ class SwiftTests(object):
             expected_swift_size = FIVE_KB
             expected_swift_contents = b"*" * expected_swift_size
             expected_checksum = \
-                hashlib.md5(expected_swift_contents).hexdigest()
+                md5(expected_swift_contents, usedforsecurity=False).hexdigest()
 
             image_swift = six.BytesIO(expected_swift_contents)
 
@@ -595,7 +599,8 @@ class SwiftTests(object):
         """
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
-        expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
+        expected_checksum = md5(expected_swift_contents,
+                                usedforsecurity=False).hexdigest()
         expected_image_id = str(uuid.uuid4())
         loc = 'swift+config://ref1/noexist/%s'
         expected_location = loc % (expected_image_id)
@@ -641,7 +646,8 @@ class SwiftTests(object):
         """
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
-        expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
+        expected_checksum = md5(expected_swift_contents,
+                                usedforsecurity=False).hexdigest()
         expected_image_id = str(uuid.uuid4())
         container = 'randomname_' + expected_image_id[:2]
         loc = 'swift+config://ref1/%s/%s'
@@ -865,7 +871,8 @@ class SwiftTests(object):
         """
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
-        expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
+        expected_checksum = md5(expected_swift_contents,
+                                usedforsecurity=False).hexdigest()
         expected_image_id = str(uuid.uuid4())
         loc = 'swift+config://ref1/glance/%s'
         expected_location = loc % (expected_image_id)
@@ -919,7 +926,8 @@ class SwiftTests(object):
         # Set up a 'large' image of 5KB
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
-        expected_checksum = hashlib.md5(expected_swift_contents).hexdigest()
+        expected_checksum = md5(expected_swift_contents,
+                                usedforsecurity=False).hexdigest()
         expected_image_id = str(uuid.uuid4())
         loc = 'swift+config://ref1/glance/%s'
         expected_location = loc % (expected_image_id)
@@ -2076,14 +2084,14 @@ class TestChunkReader(base.MultiStoreBaseTest):
         """
         CHUNKSIZE = 100
         data = b'*' * units.Ki
-        expected_checksum = hashlib.md5(data).hexdigest()
+        expected_checksum = md5(data, usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(data).hexdigest()
         data_file = tempfile.NamedTemporaryFile()
         data_file.write(data)
         data_file.flush()
         infile = open(data_file.name, 'rb')
         bytes_read = 0
-        checksum = hashlib.md5()
+        checksum = md5(usedforsecurity=False)
         os_hash_value = hashlib.sha256()
         while True:
             cr = swift.ChunkReader(infile, checksum, os_hash_value, CHUNKSIZE)
@@ -2105,10 +2113,10 @@ class TestChunkReader(base.MultiStoreBaseTest):
         Replicate what goes on in the Swift driver with the
         repeated creation of the ChunkReader object
         """
-        expected_checksum = hashlib.md5(b'').hexdigest()
+        expected_checksum = md5(b'', usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(b'').hexdigest()
         CHUNKSIZE = 100
-        checksum = hashlib.md5()
+        checksum = md5(usedforsecurity=False)
         os_hash_value = hashlib.sha256()
         data_file = tempfile.NamedTemporaryFile()
         infile = open(data_file.name, 'rb')

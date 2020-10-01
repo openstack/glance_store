@@ -15,6 +15,7 @@
 
 import hashlib
 
+from oslo_utils.secretutils import md5
 from oslotest import base
 
 import glance_store.driver as driver
@@ -26,12 +27,16 @@ class _FakeStore(object):
     def add(self, image_id, image_file, image_size, hashing_algo,
             context=None, verifier=None):
         """This is a 0.26.0+ add, returns a 5-tuple"""
-        hasher = hashlib.new(hashing_algo)
+        if hashing_algo == 'md5':
+            hasher = md5(usedforsecurity=False)
+        else:
+            hasher = hashlib.new(str(hashing_algo))
+
         # assume 'image_file' will be bytes for these tests
         hasher.update(image_file)
         backend_url = "backend://%s" % image_id
         bytes_written = len(image_file)
-        checksum = hashlib.md5(image_file).hexdigest()
+        checksum = md5(image_file, usedforsecurity=False).hexdigest()
         multihash = hasher.hexdigest()
         metadata_dict = {"verifier_obj":
                          verifier.name if verifier else None,
@@ -58,7 +63,8 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.img_id = '1234'
         self.img_file = b'0123456789'
         self.img_size = 10
-        self.img_checksum = hashlib.md5(self.img_file).hexdigest()
+        self.img_checksum = md5(self.img_file,
+                                usedforsecurity=False).hexdigest()
         self.hashing_algo = 'sha256'
         self.img_sha256 = hashlib.sha256(self.img_file).hexdigest()
 

@@ -44,7 +44,7 @@ oslo.privsep==1.23.0
 oslo.rootwrap==5.8.0
 oslo.serialization==2.18.0
 oslotest==3.2.0
-oslo.utils==3.33.0
+oslo.utils==4.7.0
 oslo.vmware==2.17.0
 packaging==17.1
 Parsley==1.3

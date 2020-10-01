@@ -20,6 +20,7 @@ from unittest import mock
 import uuid
 
 from oslo_config import cfg
+from oslo_utils import secretutils
 from oslo_utils import units
 from oslo_vmware import api
 from oslo_vmware import exceptions as vmware_exceptions
@@ -175,7 +176,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_size = FIVE_KB
         expected_contents = b"*" * expected_size
-        hash_code = hashlib.md5(expected_contents)
+        hash_code = secretutils.md5(expected_contents, usedforsecurity=False)
         expected_checksum = hash_code.hexdigest()
         fake_size.__get__ = mock.Mock(return_value=expected_size)
         expected_cookie = 'vmware_soap_session=fake-uuid'
@@ -216,7 +217,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_size = FIVE_KB
         expected_contents = b"*" * expected_size
-        hash_code = hashlib.md5(expected_contents)
+        hash_code = secretutils.md5(expected_contents, usedforsecurity=False)
         expected_checksum = hash_code.hexdigest()
         fake_size.__get__ = mock.Mock(return_value=expected_size)
         with mock.patch('hashlib.md5') as md5:
@@ -330,7 +331,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
     def test_reader_full(self):
         content = b'XXX'
         image = six.BytesIO(content)
-        expected_checksum = hashlib.md5(content).hexdigest()
+        expected_checksum = secretutils.md5(content,
+                                            usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(content).hexdigest()
         reader = vm_store._Reader(image, self.hash_algo)
         ret = reader.read()
@@ -342,7 +344,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
     def test_reader_partial(self):
         content = b'XXX'
         image = six.BytesIO(content)
-        expected_checksum = hashlib.md5(b'X').hexdigest()
+        expected_checksum = secretutils.md5(b'X',
+                                            usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(b'X').hexdigest()
         reader = vm_store._Reader(image, self.hash_algo)
         ret = reader.read(1)

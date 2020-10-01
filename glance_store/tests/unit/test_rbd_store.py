@@ -16,6 +16,7 @@
 import hashlib
 from unittest import mock
 
+from oslo_utils.secretutils import md5
 from oslo_utils import units
 import six
 
@@ -416,7 +417,8 @@ class TestStore(base.StoreBaseTest,
         file_size = 5 * units.Ki  # 5K
         file_contents = b"*" * file_size
         image_file = six.BytesIO(file_contents)
-        expected_checksum = hashlib.md5(file_contents).hexdigest()
+        expected_checksum = md5(file_contents,
+                                usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(file_contents).hexdigest()
 
         with mock.patch.object(rbd_store.rbd.Image, 'write'):
@@ -489,7 +491,8 @@ class TestStore(base.StoreBaseTest,
 
         image_id = 'fake_image_id'
         image_file = six.BytesIO(content)
-        expected_checksum = hashlib.md5(content).hexdigest()
+        expected_checksum = md5(content,
+                                usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(content).hexdigest()
 
         with mock.patch.object(rbd_store.rbd.Image, 'write') as mock_write:

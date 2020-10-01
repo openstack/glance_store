@@ -15,7 +15,6 @@
 
 """Storage backend for SWIFT"""
 
-import hashlib
 import logging
 import math
 
@@ -40,6 +39,7 @@ from glance_store._drivers.swift import buffered
 from glance_store._drivers.swift import connection_manager
 from glance_store._drivers.swift import utils as sutils
 from glance_store import capabilities
+from glance_store.common import utils as gutils
 from glance_store import driver
 from glance_store import exceptions
 from glance_store.i18n import _, _LE, _LI
@@ -931,7 +931,7 @@ class BaseStore(driver.Store):
         :raises: `glance_store.exceptions.Duplicate` if something already
                 exists at this location
         """
-        os_hash_value = hashlib.new(str(hashing_algo))
+        os_hash_value = gutils.get_hasher(hashing_algo, False)
         location = self.create_location(image_id, context=context)
         # initialize a manager with re-auth if image need to be splitted
         need_chunks = (image_size == 0) or (
@@ -948,7 +948,7 @@ class BaseStore(driver.Store):
                 if not need_chunks:
                     # Image size is known, and is less than large_object_size.
                     # Send to Swift with regular PUT.
-                    checksum = hashlib.md5()
+                    checksum = gutils.get_hasher('md5', False)
                     reader = ChunkReader(image_file, checksum,
                                          os_hash_value, image_size,
                                          verifier=verifier)
@@ -973,7 +973,7 @@ class BaseStore(driver.Store):
                                   "Swift.")
                         total_chunks = '?'
 
-                    checksum = hashlib.md5()
+                    checksum = gutils.get_hasher('md5', False)
                     written_chunks = []
                     combined_chunks_size = 0
                     while True:

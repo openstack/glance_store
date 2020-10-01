@@ -18,7 +18,6 @@
    (RADOS (Reliable Autonomic Distributed Object Store) Block Device)"""
 
 import contextlib
-import hashlib
 import logging
 import math
 
@@ -531,8 +530,8 @@ class Store(driver.Store):
         :raises: `glance_store.exceptions.Duplicate` if the image already
                  exists
         """
-        checksum = hashlib.md5()
-        os_hash_value = hashlib.new(str(hashing_algo))
+        os_hash_value = utils.get_hasher(hashing_algo, False)
+        checksum = utils.get_hasher('md5', False)
         image_name = str(image_id)
         with self.get_connection(conffile=self.conf_file,
                                  rados_id=self.user) as conn:

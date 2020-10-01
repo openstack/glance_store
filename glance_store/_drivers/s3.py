@@ -15,7 +15,6 @@
 
 """Storage backend for S3 or Storage Servers that follow the S3 Protocol"""
 
-import hashlib
 import logging
 import math
 import re
@@ -631,8 +630,8 @@ class Store(glance_store.driver.Store):
                   (3) checksum, (4) multihash value, and (5) a dictionary
                   with storage system specific information
         """
-        os_hash_value = hashlib.new(str(hashing_algo))
-        checksum = hashlib.md5()
+        os_hash_value = utils.get_hasher(hashing_algo, False)
+        checksum = utils.get_hasher('md5', False)
         image_data = b''
         image_size = 0
         for chunk in utils.chunkreadable(image_file, self.WRITE_CHUNKSIZE):
@@ -676,8 +675,8 @@ class Store(glance_store.driver.Store):
                   (3) checksum, (4) multihash value, and (5) a dictionary
                   with storage system specific information
         """
-        os_hash_value = hashlib.new(str(hashing_algo))
-        checksum = hashlib.md5()
+        os_hash_value = utils.get_hasher(hashing_algo, False)
+        checksum = utils.get_hasher('md5', False)
         pool_size = self.s3_store_thread_pools
         pool = eventlet.greenpool.GreenPool(size=pool_size)
         mpu = s3_client.create_multipart_upload(Bucket=bucket, Key=key)

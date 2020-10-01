@@ -23,6 +23,7 @@ import boto3
 import botocore
 from botocore import exceptions as boto_exceptions
 from botocore import stub
+from oslo_utils.secretutils import md5
 from oslo_utils import units
 import six
 
@@ -158,7 +159,8 @@ class TestStore(base.StoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_s3_size = FIVE_KB
         expected_s3_contents = b"*" * expected_s3_size
-        expected_checksum = hashlib.md5(expected_s3_contents).hexdigest()
+        expected_checksum = md5(expected_s3_contents,
+                                usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
         expected_location = format_s3_location(
             S3_CONF['s3_store_access_key'],
@@ -230,7 +232,8 @@ class TestStore(base.StoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_s3_size = 16 * units.Mi
         expected_s3_contents = b"*" * expected_s3_size
-        expected_checksum = hashlib.md5(expected_s3_contents).hexdigest()
+        expected_checksum = md5(expected_s3_contents,
+                                usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
         expected_location = format_s3_location(
             S3_CONF['s3_store_access_key'],
