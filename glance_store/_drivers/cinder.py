@@ -1047,7 +1047,7 @@ class Store(glance_store.driver.Store):
         image_metadata = {}
         location_url = 'cinder://%s' % volume.id
         if self.backend_group:
-            image_metadata['store'] = u"%s" % self.backend_group
+            image_metadata['store'] = self.backend_group
             location_url = 'cinder://%s/%s' % (self.backend_group,
                                                volume.id)
 

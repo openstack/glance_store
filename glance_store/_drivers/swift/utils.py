@@ -12,11 +12,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import configparser
 import logging
-import sys
 
 from oslo_config import cfg
-from six.moves import configparser
 
 from glance_store import exceptions
 from glance_store.i18n import _, _LE
@@ -104,16 +103,11 @@ _config_defaults = {'user_domain_id': 'default',
                     'project_domain_id': 'default',
                     'project_domain_name': 'default'}
 
-if sys.version_info >= (3, 2):
-    parser_class = configparser.ConfigParser
-else:
-    parser_class = configparser.SafeConfigParser
 
-
-class SwiftConfigParser(parser_class):
+class SwiftConfigParser(configparser.ConfigParser):
 
     def get(self, *args, **kwargs):
-        value = super(parser_class, self).get(*args, **kwargs)
+        value = super(configparser.ConfigParser, self).get(*args, **kwargs)
         return self._process_quotes(value)
 
     @staticmethod
@@ -127,10 +121,7 @@ class SwiftConfigParser(parser_class):
         return value
 
 
-if sys.version_info >= (3,):
-    CONFIG = SwiftConfigParser(defaults=_config_defaults)
-else:
-    CONFIG = parser_class(defaults=_config_defaults)
+CONFIG = SwiftConfigParser(defaults=_config_defaults)
 
 LOG = logging.getLogger(__name__)
 

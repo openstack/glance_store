@@ -15,8 +15,11 @@
 
 """Storage backend for SWIFT"""
 
+import http.client
+import io
 import logging
 import math
+import urllib.parse
 
 from keystoneauth1.access import service_catalog as keystone_sc
 from keystoneauth1 import identity as ks_identity
@@ -26,9 +29,6 @@ from oslo_config import cfg
 from oslo_utils import encodeutils
 from oslo_utils import excutils
 from oslo_utils import units
-import six
-from six.moves import http_client
-from six.moves import urllib
 try:
     import swiftclient
 except ImportError:
@@ -478,17 +478,13 @@ Related options:
 
 
 def swift_retry_iter(resp_iter, length, store, location, manager):
-    if not length and isinstance(resp_iter, six.BytesIO):
-        if six.PY3:
-            # On Python 3, io.BytesIO does not have a len attribute, instead
-            # go the end using seek to get the size of the file
-            pos = resp_iter.tell()
-            resp_iter.seek(0, 2)
-            length = resp_iter.tell()
-            resp_iter.seek(pos)
-        else:
-            # On Python 2, StringIO has a len attribute
-            length = resp_iter.len
+    if not length and isinstance(resp_iter, io.BytesIO):
+        # io.BytesIO does not have a len attribute, instead go the end using
+        # seek to get the size of the file
+        pos = resp_iter.tell()
+        resp_iter.seek(0, 2)
+        length = resp_iter.tell()
+        resp_iter.seek(pos)
 
     length = length if length else (resp_iter.len
                                     if hasattr(resp_iter, 'len') else 0)
@@ -773,7 +769,7 @@ Store.OPTIONS = _SWIFT_OPTS + sutils.swift_opts + buffered.BUFFERING_OPTS
 
 
 def _is_slo(slo_header):
-    if (slo_header is not None and isinstance(slo_header, six.string_types)
+    if (slo_header is not None and isinstance(slo_header, str)
             and slo_header.lower() == 'true'):
         return True
 
@@ -836,7 +832,7 @@ class BaseStore(driver.Store):
                 location.container, location.obj,
                 resp_chunk_size=self.CHUNKSIZE, headers=headers)
         except swiftclient.ClientException as e:
-            if e.http_status == http_client.NOT_FOUND:
+            if e.http_status == http.client.NOT_FOUND:
                 msg = _("Swift could not find object %s.") % location.obj
                 LOG.warning(msg)
                 raise exceptions.NotFound(message=msg)
@@ -1065,19 +1061,19 @@ class BaseStore(driver.Store):
 
                 metadata = {}
                 if self.backend_group:
-                    metadata['store'] = u"%s" % self.backend_group
+                    metadata['store'] = self.backend_group
 
                 return (location.get_uri(credentials_included=include_creds),
                         image_size, obj_etag, os_hash_value.hexdigest(),
                         metadata)
             except swiftclient.ClientException as e:
-                if e.http_status == http_client.CONFLICT:
+                if e.http_status == http.client.CONFLICT:
                     msg = _("Swift already has an image at this location")
                     raise exceptions.Duplicate(message=msg)
-                elif e.http_status == http_client.REQUEST_ENTITY_TOO_LARGE:
+                elif e.http_status == http.client.REQUEST_ENTITY_TOO_LARGE:
                     raise exceptions.StorageFull(message=e.msg)
 
-                msg = (_(u"Failed to add object to Swift.\n"
+                msg = (_("Failed to add object to Swift.\n"
                          "Got error from Swift: %s.")
                        % encodeutils.exception_to_unicode(e))
                 LOG.error(msg)
@@ -1102,7 +1098,7 @@ class BaseStore(driver.Store):
                 dlo_manifest = headers.get('x-object-manifest')
                 slo_manifest = headers.get('x-static-large-object')
             except swiftclient.ClientException as e:
-                if e.http_status != http_client.NOT_FOUND:
+                if e.http_status != http.client.NOT_FOUND:
                     raise
 
             if _is_slo(slo_manifest):
@@ -1134,7 +1130,7 @@ class BaseStore(driver.Store):
             connection.delete_object(location.container, location.obj)
 
         except swiftclient.ClientException as e:
-            if e.http_status == http_client.NOT_FOUND:
+            if e.http_status == http.client.NOT_FOUND:
                 msg = _("Swift could not find image at URI.")
                 raise exceptions.NotFound(message=msg)
             else:
@@ -1155,7 +1151,7 @@ class BaseStore(driver.Store):
         try:
             connection.head_container(container)
         except swiftclient.ClientException as e:
-            if e.http_status == http_client.NOT_FOUND:
+            if e.http_status == http.client.NOT_FOUND:
                 if store_conf.swift_store_create_container_on_put:
                     try:
                         msg = (_LI("Creating swift container %(container)s") %
@@ -1541,7 +1537,7 @@ class MultiTenantStore(BaseStore):
         try:
             connection.post_container(location.container, headers=headers)
         except swiftclient.ClientException as e:
-            if e.http_status == http_client.NOT_FOUND:
+            if e.http_status == http.client.NOT_FOUND:
                 msg = _("Swift could not find image at URI.")
                 raise exceptions.NotFound(message=msg)
             else:

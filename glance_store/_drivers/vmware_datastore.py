@@ -17,6 +17,7 @@
 
 import logging
 import os
+import urllib.parse
 
 from oslo_config import cfg
 from oslo_utils import excutils
@@ -31,15 +32,9 @@ try:
 except ImportError:
     api = None
 
-from six.moves import urllib
-import six.moves.urllib.parse as urlparse
-
 import requests
 from requests import adapters
 from requests.packages.urllib3.util import retry
-import six
-# NOTE(jokke): simplified transition to py3, behaves like py2 xrange
-from six.moves import range
 
 import glance_store
 from glance_store import capabilities
@@ -349,9 +344,9 @@ class StoreLocation(location.StoreLocation):
         Creates a https url that can be used to upload/download data from a
         vmware store.
         """
-        parsed_url = urlparse.urlparse(self.get_uri())
+        parsed_url = urllib.parse.urlparse(self.get_uri())
         new_url = parsed_url._replace(scheme='https')
-        return urlparse.urlunparse(new_url)
+        return urllib.parse.urlunparse(new_url)
 
 
 class Store(glance_store.Store):
@@ -597,7 +592,7 @@ class Store(glance_store.Store):
         image_file = _Reader(image_file, hashing_algo, verifier)
         headers = {}
         if image_size > 0:
-            headers.update({'Content-Length': six.text_type(image_size)})
+            headers.update({'Content-Length': str(image_size)})
             data = image_file
         else:
             data = utils.chunkiter(image_file, CHUNKSIZE)
@@ -656,7 +651,7 @@ class Store(glance_store.Store):
 
         metadata = {}
         if self.backend_group:
-            metadata['store'] = u"%s" % self.backend_group
+            metadata['store'] = self.backend_group
 
         return (loc.get_uri(),
                 image_file.size,
@@ -804,9 +799,9 @@ class Store(glance_store.Store):
         # Note(sabari): The redirect url will have a scheme 'http(s)', but the
         # store only accepts url with scheme 'vsphere'. Thus, replacing with
         # store's scheme.
-        parsed_url = urlparse.urlparse(url)
+        parsed_url = urllib.parse.urlparse(url)
         new_url = parsed_url._replace(scheme='vsphere')
-        vsphere_url = urlparse.urlunparse(new_url)
+        vsphere_url = urllib.parse.urlunparse(new_url)
         return glance_store.location.Location(store_name,
                                               store_class,
                                               self.conf,

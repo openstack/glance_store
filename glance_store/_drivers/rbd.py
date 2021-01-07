@@ -20,11 +20,11 @@
 import contextlib
 import logging
 import math
+import urllib
 
 from oslo_config import cfg
 from oslo_utils import encodeutils
 from oslo_utils import units
-from six.moves import urllib
 
 from glance_store import capabilities
 from glance_store.common import utils
@@ -651,7 +651,7 @@ class Store(driver.Store):
         # Add store backend information to location metadata
         metadata = {}
         if self.backend_group:
-            metadata['store'] = u"%s" % self.backend_group
+            metadata['store'] = self.backend_group
 
         return (loc.get_uri(),
                 image_size,

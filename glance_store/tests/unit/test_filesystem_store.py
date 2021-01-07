@@ -15,8 +15,10 @@
 
 """Tests the filesystem backend store"""
 
+import builtins
 import errno
 import hashlib
+import io
 import json
 import os
 import stat
@@ -26,10 +28,6 @@ import uuid
 import fixtures
 from oslo_utils.secretutils import md5
 from oslo_utils import units
-import six
-from six.moves import builtins
-# NOTE(jokke): simplified transition to py3, behaves like py2 xrange
-from six.moves import range
 
 from glance_store._drivers import filesystem
 from glance_store import exceptions
@@ -67,7 +65,7 @@ class TestStore(base.StoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_file_size = 10
         expected_file_contents = b"*" * expected_file_size
-        image_file = six.BytesIO(expected_file_contents)
+        image_file = io.BytesIO(expected_file_contents)
         self.store.FILESYSTEM_STORE_METADATA = in_metadata
         return self.store.add(expected_image_id, image_file,
                               expected_file_size, self.hash_algo)
@@ -77,7 +75,7 @@ class TestStore(base.StoreBaseTest,
         # First add an image...
         image_id = str(uuid.uuid4())
         file_contents = b"chunk00000remainder"
-        image_file = six.BytesIO(file_contents)
+        image_file = io.BytesIO(file_contents)
 
         loc, size, checksum, multihash, _ = self.store.add(
             image_id, image_file, len(file_contents), self.hash_algo)
@@ -103,7 +101,7 @@ class TestStore(base.StoreBaseTest,
         # First add an image...
         image_id = str(uuid.uuid4())
         file_contents = b"chunk00000remainder"
-        image_file = six.BytesIO(file_contents)
+        image_file = io.BytesIO(file_contents)
 
         loc, size, checksum, multihash, _ = self.store.add(
             image_id, image_file, len(file_contents), self.hash_algo)
@@ -160,7 +158,7 @@ class TestStore(base.StoreBaseTest,
         expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (self.test_dir,
                                               expected_image_id)
-        image_file = six.BytesIO(expected_file_contents)
+        image_file = io.BytesIO(expected_file_contents)
 
         loc, size, checksum, multihash, _ = self.store.add(
             expected_image_id, image_file, expected_file_size, self.hash_algo)
@@ -254,7 +252,7 @@ class TestStore(base.StoreBaseTest,
                     group='glance_store')
         self.store.configure()
 
-        image_file = six.BytesIO(content)
+        image_file = io.BytesIO(content)
         image_id = str(uuid.uuid4())
         with mock.patch.object(builtins, 'open') as popen:
             self.store.add(image_id, image_file, size, self.hash_algo)
@@ -273,7 +271,7 @@ class TestStore(base.StoreBaseTest,
         image_id = str(uuid.uuid4())
         file_size = units.Ki  # 1K
         file_contents = b"*" * file_size
-        image_file = six.BytesIO(file_contents)
+        image_file = io.BytesIO(file_contents)
 
         self.store.add(image_id, image_file, file_size, self.hash_algo,
                        verifier=verifier)
@@ -310,7 +308,7 @@ class TestStore(base.StoreBaseTest,
                     group="glance_store")
         expected_file_size = 10
         expected_file_contents = b"*" * expected_file_size
-        image_file = six.BytesIO(expected_file_contents)
+        image_file = io.BytesIO(expected_file_contents)
 
         location, size, checksum, multihash, metadata = self.store.add(
             expected_image_id, image_file, expected_file_size, self.hash_algo)
@@ -326,11 +324,11 @@ class TestStore(base.StoreBaseTest,
         image_id = str(uuid.uuid4())
         file_size = 5 * units.Ki  # 5K
         file_contents = b"*" * file_size
-        image_file = six.BytesIO(file_contents)
+        image_file = io.BytesIO(file_contents)
 
         location, size, checksum, multihash, _ = self.store.add(
             image_id, image_file, file_size, self.hash_algo)
-        image_file = six.BytesIO(b"nevergonnamakeit")
+        image_file = io.BytesIO(b"nevergonnamakeit")
         self.assertRaises(exceptions.Duplicate,
                           self.store.add,
                           image_id, image_file, 0, self.hash_algo)
@@ -341,7 +339,7 @@ class TestStore(base.StoreBaseTest,
         file_size = 5 * units.Ki  # 5K
         file_contents = b"*" * file_size
         path = os.path.join(self.test_dir, image_id)
-        image_file = six.BytesIO(file_contents)
+        image_file = io.BytesIO(file_contents)
 
         with mock.patch.object(builtins, 'open') as popen:
             e = IOError()
@@ -392,7 +390,7 @@ class TestStore(base.StoreBaseTest,
         file_size = 5 * units.Ki  # 5K
         file_contents = b"*" * file_size
         path = os.path.join(self.test_dir, image_id)
-        image_file = six.BytesIO(file_contents)
+        image_file = io.BytesIO(file_contents)
 
         def fake_Error(size):
             raise AttributeError()
@@ -413,7 +411,7 @@ class TestStore(base.StoreBaseTest,
         image_id = str(uuid.uuid4())
         file_size = 5 * units.Ki  # 5K
         file_contents = b"*" * file_size
-        image_file = six.BytesIO(file_contents)
+        image_file = io.BytesIO(file_contents)
 
         loc, size, checksum, multihash, _ = self.store.add(
             image_id, image_file, file_size, self.hash_algo)
@@ -445,7 +443,7 @@ class TestStore(base.StoreBaseTest,
         image_id = str(uuid.uuid4())
         file_size = 5 * units.Ki  # 5K
         file_contents = b"*" * file_size
-        image_file = six.BytesIO(file_contents)
+        image_file = io.BytesIO(file_contents)
 
         loc, size, checksum, multihash, _ = self.store.add(
             image_id, image_file, file_size, self.hash_algo)
@@ -611,7 +609,7 @@ class TestStore(base.StoreBaseTest,
         expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store_map[1],
                                               expected_image_id)
-        image_file = six.BytesIO(expected_file_contents)
+        image_file = io.BytesIO(expected_file_contents)
 
         loc, size, checksum, multihash, _ = self.store.add(
             expected_image_id, image_file, expected_file_size, self.hash_algo)
@@ -659,7 +657,7 @@ class TestStore(base.StoreBaseTest,
         expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store_map[1],
                                               expected_image_id)
-        image_file = six.BytesIO(expected_file_contents)
+        image_file = io.BytesIO(expected_file_contents)
 
         loc, size, checksum, multihash, _ = self.store.add(
             expected_image_id, image_file, expected_file_size, self.hash_algo)
@@ -709,7 +707,7 @@ class TestStore(base.StoreBaseTest,
             expected_image_id = str(uuid.uuid4())
             expected_file_size = 5 * units.Ki  # 5K
             expected_file_contents = b"*" * expected_file_size
-            image_file = six.BytesIO(expected_file_contents)
+            image_file = io.BytesIO(expected_file_contents)
 
             self.assertRaises(exceptions.StorageFull,
                               self.store.add,
@@ -770,7 +768,7 @@ class TestStore(base.StoreBaseTest,
         expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store,
                                               expected_image_id)
-        image_file = six.BytesIO(expected_file_contents)
+        image_file = io.BytesIO(expected_file_contents)
 
         location, size, checksum, multihash, _ = self.store.add(
             expected_image_id, image_file, expected_file_size, self.hash_algo)
@@ -813,7 +811,7 @@ class TestStore(base.StoreBaseTest,
         expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = "file://%s/%s" % (store,
                                               expected_image_id)
-        image_file = six.BytesIO(expected_file_contents)
+        image_file = io.BytesIO(expected_file_contents)
 
         location, size, checksum, multihash, _ = self.store.add(
             expected_image_id, image_file, expected_file_size, self.hash_algo)

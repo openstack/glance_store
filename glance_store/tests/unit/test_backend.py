@@ -122,25 +122,25 @@ class TestStoreAddToBackend(base.StoreBaseTest):
         self._good_metadata(metadata)
 
     def test_string(self):
-        metadata = {'key': u'somevalue'}
+        metadata = {'key': 'somevalue'}
         self._good_metadata(metadata)
 
     def test_list(self):
-        m = {'key': [u'somevalue', u'2']}
+        m = {'key': ['somevalue', '2']}
         self._good_metadata(m)
 
     def test_unicode_dict(self):
-        inner = {'key1': u'somevalue', 'key2': u'somevalue'}
+        inner = {'key1': 'somevalue', 'key2': 'somevalue'}
         m = {'topkey': inner}
         self._good_metadata(m)
 
     def test_unicode_dict_list(self):
-        inner = {'key1': u'somevalue', 'key2': u'somevalue'}
-        m = {'topkey': inner, 'list': [u'somevalue', u'2'], 'u': u'2'}
+        inner = {'key1': 'somevalue', 'key2': 'somevalue'}
+        m = {'topkey': inner, 'list': ['somevalue', '2'], 'u': '2'}
         self._good_metadata(m)
 
     def test_nested_dict(self):
-        inner = {'key1': u'somevalue', 'key2': u'somevalue'}
+        inner = {'key1': 'somevalue', 'key2': 'somevalue'}
         inner = {'newkey': inner}
         inner = {'anotherkey': inner}
         m = {'topkey': inner}
@@ -151,9 +151,9 @@ class TestStoreAddToBackend(base.StoreBaseTest):
         self._bad_metadata(metadata)
 
     def test_bad_nonunicode_dict_list(self):
-        inner = {'key1': u'somevalue', 'key2': u'somevalue',
+        inner = {'key1': 'somevalue', 'key2': 'somevalue',
                  'k3': [1, object()]}
-        m = {'topkey': inner, 'list': [u'somevalue', u'2'], 'u': u'2'}
+        m = {'topkey': inner, 'list': ['somevalue', '2'], 'u': '2'}
         self._bad_metadata(m)
 
     def test_bad_metadata_not_dict(self):

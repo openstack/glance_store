@@ -13,11 +13,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import io
 from unittest import mock
 
 from oslo_config import cfg
 from oslo_utils import units
-import six
 
 import glance_store as store
 from glance_store._drivers import rbd as rbd_store
@@ -222,7 +222,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                                                 self.conf)
         # Provide enough data to get more than one chunk iteration.
         self.data_len = 3 * units.Ki
-        self.data_iter = six.BytesIO(b'*' * self.data_len)
+        self.data_iter = io.BytesIO(b'*' * self.data_len)
 
     def test_location_url_prefix_is_set(self):
         expected_url_prefix = "rbd://"
@@ -253,7 +253,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                                                 self.conf)
         # Provide enough data to get more than one chunk iteration.
         self.data_len = 3 * units.Ki
-        self.data_iter = six.BytesIO(b'*' * self.data_len)
+        self.data_iter = io.BytesIO(b'*' * self.data_len)
         self.store.chunk_size = units.Ki
         with mock.patch.object(rbd_store.rbd.Image, 'resize') as resize:
             with mock.patch.object(rbd_store.rbd.Image, 'write') as write:

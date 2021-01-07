@@ -56,8 +56,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Glance_store Release Notes'
-copyright = u'2015, Openstack Foundation'
+project = 'Glance_store Release Notes'
+copyright = '2015, Openstack Foundation'
 
 # Release notes are unversioned, so we don't need to set version or release
 version = ''
@@ -206,8 +206,8 @@ latex_elements = {
 latex_documents = [
     ('index',
      'GlanceStoreReleaseNotes.tex',
-     u'Glance_store Release Notes Documentation',
-     u'Glance_store Developers',
+     'Glance_store Release Notes Documentation',
+     'Glance_store Developers',
      'manual'),
 ]
 
@@ -239,8 +239,8 @@ latex_documents = [
 man_pages = [
     ('index',
      'glancestorereleasenotes',
-     u'Glance_store Release Notes Documentation',
-     [u'Glance_store Developers'],
+     'Glance_store Release Notes Documentation',
+     ['Glance_store Developers'],
      1)
 ]
 
@@ -256,8 +256,8 @@ man_pages = [
 texinfo_documents = [
     ('index',
      'GlanceStoreReleaseNotes',
-     u'Glance_store Release Notes Documentation',
-     u'Glance_store Developers',
+     'Glance_store Release Notes Documentation',
+     'Glance_store Developers',
      'GlanceStoreReleaseNotes',
      'One line description of project.',
      'Miscellaneous'),

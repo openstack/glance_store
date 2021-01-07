@@ -15,9 +15,11 @@
 
 """Storage backend for S3 or Storage Servers that follow the S3 Protocol"""
 
+import io
 import logging
 import math
 import re
+import urllib
 
 from boto3 import session as boto_session
 from botocore import client as boto_client
@@ -27,8 +29,6 @@ import eventlet
 from oslo_config import cfg
 from oslo_utils import encodeutils
 from oslo_utils import units
-import six
-from six.moves import urllib
 
 import glance_store
 from glance_store import capabilities
@@ -706,7 +706,7 @@ class Store(glance_store.driver.Store):
                     checksum.update(write_chunk)
                     if verifier:
                         verifier.update(write_chunk)
-                    fp = six.BytesIO(write_chunk)
+                    fp = io.BytesIO(write_chunk)
                     fp.seek(0)
                     part = UploadPart(mpu, fp, cstart + 1, len(write_chunk))
                     pool.spawn_n(run_upload, s3_client, bucket, key, part)
@@ -721,7 +721,7 @@ class Store(glance_store.driver.Store):
                     checksum.update(write_chunk)
                     if verifier:
                         verifier.update(write_chunk)
-                    fp = six.BytesIO(write_chunk)
+                    fp = io.BytesIO(write_chunk)
                     fp.seek(0)
                     part = UploadPart(mpu, fp, cstart + 1, len(write_chunk))
                     pool.spawn_n(run_upload, s3_client, bucket, key, part)
@@ -888,7 +888,7 @@ class Store(glance_store.driver.Store):
                 {
                     'PartNumber': pnum,
                     'ETag': etag
-                } for pnum, etag in six.iteritems(pedict)
+                } for pnum, etag in pedict.items()
             ]
         }
 

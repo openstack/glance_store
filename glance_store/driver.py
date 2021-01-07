@@ -24,7 +24,6 @@ from oslo_config import cfg
 from oslo_utils import encodeutils
 from oslo_utils import importutils
 from oslo_utils import units
-import six
 
 from glance_store import capabilities
 from glance_store import exceptions
@@ -93,7 +92,7 @@ class Store(capabilities.StoreCapability):
             self.configure_add()
         except exceptions.BadStoreConfiguration as e:
             self.unset_capabilities(capabilities.BitMasks.WRITE_ACCESS)
-            msg = (_(u"Failed to configure store correctly: %s "
+            msg = (_("Failed to configure store correctly: %s "
                      "Disabling add method.")
                    % encodeutils.exception_to_unicode(e))
             LOG.warning(msg)
@@ -257,8 +256,7 @@ def back_compat_add(store_add_fun):
             # everything is present, including hashing_algo
             back_compat_required = False
         elif ('hashing_algo' in kwargs or
-              (num_args >= p_algo + 1 and isinstance(args[p_algo],
-                                                     six.string_types))):
+              (num_args >= p_algo + 1 and isinstance(args[p_algo], str))):
             # there is a hashing_algo argument present
             back_compat_required = False
         else:

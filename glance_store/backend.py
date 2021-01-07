@@ -19,7 +19,6 @@ import logging
 
 from oslo_config import cfg
 from oslo_utils import encodeutils
-import six
 from stevedore import driver
 from stevedore import extension
 
@@ -380,7 +379,7 @@ def check_location_metadata(val, key=''):
         for v in val:
             check_location_metadata(v, key='%s[%d]' % (key, ndx))
             ndx = ndx + 1
-    elif not isinstance(val, six.text_type):
+    elif not isinstance(val, str):
         raise exceptions.BackendException(_("The image metadata key %(key)s "
                                             "has an invalid type of %(type)s. "
                                             "Only dict, list, and unicode are "

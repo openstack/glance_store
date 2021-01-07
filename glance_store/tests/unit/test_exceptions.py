@@ -14,7 +14,6 @@
 #    under the License.
 from oslo_utils import encodeutils
 from oslotest import base
-import six
 
 import glance_store
 
@@ -23,11 +22,11 @@ class TestExceptions(base.BaseTestCase):
     """Test routines in glance_store.common.utils."""
     def test_backend_exception(self):
         msg = glance_store.BackendException()
-        self.assertIn(u'', encodeutils.exception_to_unicode(msg))
+        self.assertIn('', encodeutils.exception_to_unicode(msg))
 
     def test_unsupported_backend_exception(self):
         msg = glance_store.UnsupportedBackend()
-        self.assertIn(u'', encodeutils.exception_to_unicode(msg))
+        self.assertIn('', encodeutils.exception_to_unicode(msg))
 
     def test_redirect_exception(self):
         # Just checks imports work ok
@@ -54,4 +53,4 @@ class TestExceptions(base.BaseTestCase):
     def test_non_unicode_error_msg(self):
         exc = glance_store.NotFound(str('test'))
         self.assertIsInstance(encodeutils.exception_to_unicode(exc),
-                              six.text_type)
+                              str)

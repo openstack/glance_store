@@ -13,8 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import six
-from six.moves import urllib
+import io
+import urllib.parse
 
 from oslo_utils import units
 import requests
@@ -45,7 +45,7 @@ def sort_url_by_qs_keys(url):
 class FakeHTTPResponse(object):
     def __init__(self, status=200, headers=None, data=None, *args, **kwargs):
         data = data or 'I am a teapot, short and stout\n'
-        self.data = six.StringIO(data)
+        self.data = io.StringIO(data)
         self.read = self.data.read
         self.status = status
         self.headers = headers or {'content-length': len(data)}

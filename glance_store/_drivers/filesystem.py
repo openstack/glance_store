@@ -22,6 +22,7 @@ import errno
 import logging
 import os
 import stat
+import urllib
 
 import jsonschema
 from oslo_config import cfg
@@ -29,7 +30,6 @@ from oslo_serialization import jsonutils
 from oslo_utils import encodeutils
 from oslo_utils import excutils
 from oslo_utils import units
-from six.moves import urllib
 
 import glance_store
 from glance_store import capabilities
@@ -793,7 +793,7 @@ class Store(glance_store.driver.Store):
 
         # Add store backend information to location metadata
         if self.backend_group:
-            metadata['store'] = u"%s" % self.backend_group
+            metadata['store'] = self.backend_group
 
         return ('file://%s' % filepath,
                 bytes_written,

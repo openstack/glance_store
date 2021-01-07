@@ -14,11 +14,11 @@
 #    under the License.
 
 import hashlib
+import io
 from unittest import mock
 
 from oslo_utils.secretutils import md5
 from oslo_utils import units
-import six
 
 from glance_store._drivers import rbd as rbd_store
 from glance_store import exceptions
@@ -315,7 +315,7 @@ class TestStore(base.StoreBaseTest,
                                                 self.conf)
         # Provide enough data to get more than one chunk iteration.
         self.data_len = 3 * units.Ki
-        self.data_iter = six.BytesIO(b'*' * self.data_len)
+        self.data_iter = io.BytesIO(b'*' * self.data_len)
         self.hash_algo = 'sha256'
 
     def test_thin_provisioning_is_disabled_by_default(self):
@@ -409,7 +409,7 @@ class TestStore(base.StoreBaseTest,
         image_id = 'fake_image_id'
         file_size = 5 * units.Ki  # 5K
         file_contents = b"*" * file_size
-        image_file = six.BytesIO(file_contents)
+        image_file = io.BytesIO(file_contents)
 
         with mock.patch.object(rbd_store.rbd.Image, 'write'):
             self.store.add(image_id, image_file, file_size, self.hash_algo,
@@ -422,7 +422,7 @@ class TestStore(base.StoreBaseTest,
         image_id = 'fake_image_id'
         file_size = 5 * units.Ki  # 5K
         file_contents = b"*" * file_size
-        image_file = six.BytesIO(file_contents)
+        image_file = io.BytesIO(file_contents)
         expected_checksum = md5(file_contents,
                                 usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(file_contents).hexdigest()
@@ -496,7 +496,7 @@ class TestStore(base.StoreBaseTest,
         self.store.configure()
 
         image_id = 'fake_image_id'
-        image_file = six.BytesIO(content)
+        image_file = io.BytesIO(content)
         expected_checksum = md5(content,
                                 usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(content).hexdigest()

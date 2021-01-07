@@ -38,9 +38,9 @@ credentials and is **not** user-facing.
 """
 
 import logging
+import urllib.parse
 
 from oslo_config import cfg
-from six.moves import urllib
 
 from glance_store import exceptions
 from glance_store.i18n import _

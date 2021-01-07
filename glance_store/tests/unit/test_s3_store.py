@@ -16,6 +16,7 @@
 """Tests the S3 backend store"""
 
 import hashlib
+import io
 from unittest import mock
 import uuid
 
@@ -25,7 +26,6 @@ from botocore import exceptions as boto_exceptions
 from botocore import stub
 from oslo_utils.secretutils import md5
 from oslo_utils import units
-import six
 
 from glance_store._drivers import s3
 from glance_store import capabilities
@@ -89,7 +89,7 @@ class TestStore(base.StoreBaseTest,
         """Test a "normal" retrieval of an image in chunks."""
         bucket, key = 'glance', FAKE_UUID
         fixture_object = {
-            'Body': six.BytesIO(b"*" * FIVE_KB),
+            'Body': io.BytesIO(b"*" * FIVE_KB),
             'ContentLength': FIVE_KB
         }
         fake_s3_client = botocore.session.get_session().create_client('s3')
@@ -169,7 +169,7 @@ class TestStore(base.StoreBaseTest,
             S3_CONF['s3_store_host'],
             S3_CONF['s3_store_bucket'],
             expected_image_id)
-        image_s3 = six.BytesIO(expected_s3_contents)
+        image_s3 = io.BytesIO(expected_s3_contents)
 
         fake_s3_client = botocore.session.get_session().create_client('s3')
 
@@ -221,7 +221,7 @@ class TestStore(base.StoreBaseTest,
             S3_CONF['s3_store_host'],
             S3_CONF['s3_store_bucket'],
             expected_image_id)
-        image_s3 = six.BytesIO(expected_s3_contents)
+        image_s3 = io.BytesIO(expected_s3_contents)
 
         fake_s3_client = botocore.session.get_session().create_client('s3')
 
@@ -262,7 +262,7 @@ class TestStore(base.StoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_s3_size = FIVE_KB
         expected_s3_contents = b"*" * expected_s3_size
-        image_s3 = six.BytesIO(expected_s3_contents)
+        image_s3 = io.BytesIO(expected_s3_contents)
 
         fake_s3_client = botocore.session.get_session().create_client('s3')
         verifier = mock.MagicMock(name='mock_verifier')
@@ -294,7 +294,7 @@ class TestStore(base.StoreBaseTest,
             S3_CONF['s3_store_host'],
             S3_CONF['s3_store_bucket'],
             expected_image_id)
-        image_s3 = six.BytesIO(expected_s3_contents)
+        image_s3 = io.BytesIO(expected_s3_contents)
 
         fake_s3_client = botocore.session.get_session().create_client('s3')
 
@@ -375,7 +375,7 @@ class TestStore(base.StoreBaseTest,
         """Tests that adding an image with an existing identifier
         raises an appropriate exception
         """
-        image_s3 = six.BytesIO(b"never_gonna_make_it")
+        image_s3 = io.BytesIO(b"never_gonna_make_it")
 
         fake_s3_client = botocore.session.get_session().create_client('s3')
 

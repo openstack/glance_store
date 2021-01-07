@@ -16,6 +16,7 @@
 """Tests the Multiple VMware Datastore backend store"""
 
 import hashlib
+import io
 from unittest import mock
 import uuid
 
@@ -26,7 +27,6 @@ from oslo_vmware import api
 from oslo_vmware import exceptions as vmware_exceptions
 from oslo_vmware.objects import datacenter as oslo_datacenter
 from oslo_vmware.objects import datastore as oslo_datastore
-import six
 
 import glance_store as store
 import glance_store._drivers.vmware_datastore as vm_store
@@ -130,7 +130,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.store.configure()
 
     def _mock_http_connection(self):
-        return mock.patch('six.moves.http_client.HTTPConnection')
+        return mock.patch('http.client.HTTPConnection')
 
     def test_location_url_prefix_is_set(self):
         expected_url_prefix = "vsphere://127.0.0.1/openstack_glance"
@@ -181,7 +181,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         fake_size.__get__ = mock.Mock(return_value=expected_size)
         expected_cookie = 'vmware_soap_session=fake-uuid'
         fake_cookie.return_value = expected_cookie
-        expected_headers = {'Content-Length': six.text_type(expected_size),
+        expected_headers = {'Content-Length': str(expected_size),
                             'Cookie': expected_cookie}
         with mock.patch('hashlib.md5') as md5:
             md5.return_value = hash_code
@@ -190,7 +190,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                 VMWARE_DS['vmware_store_image_dir'],
                 expected_image_id,
                 VMWARE_DS['vmware_datastores'])
-            image = six.BytesIO(expected_contents)
+            image = io.BytesIO(expected_contents)
             with mock.patch('requests.Session.request') as HttpConn:
                 HttpConn.return_value = utils.fake_response()
                 location, size, checksum, metadata = self.store.add(
@@ -227,7 +227,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
                 VMWARE_DS['vmware_store_image_dir'],
                 expected_image_id,
                 VMWARE_DS['vmware_datastores'])
-            image = six.BytesIO(expected_contents)
+            image = io.BytesIO(expected_contents)
             with mock.patch('requests.Session.request') as HttpConn:
                 HttpConn.return_value = utils.fake_response()
                 location, size, checksum, metadata = self.store.add(
@@ -247,7 +247,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         image_id = str(uuid.uuid4())
         size = FIVE_KB
         contents = b"*" * size
-        image = six.BytesIO(contents)
+        image = io.BytesIO(contents)
         with mock.patch('requests.Session.request') as HttpConn:
             HttpConn.return_value = utils.fake_response()
             location, size, checksum, multihash, metadata = self.store.add(
@@ -264,7 +264,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         image_id = str(uuid.uuid4())
         size = FIVE_KB
         contents = b"*" * size
-        image = six.BytesIO(contents)
+        image = io.BytesIO(contents)
         with mock.patch('requests.Session.request') as HttpConn:
             HttpConn.return_value = utils.fake_response()
             location, size, checksum, multihash, metadata = self.store.add(
@@ -330,7 +330,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
 
     def test_reader_full(self):
         content = b'XXX'
-        image = six.BytesIO(content)
+        image = io.BytesIO(content)
         expected_checksum = secretutils.md5(content,
                                             usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(content).hexdigest()
@@ -343,7 +343,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
 
     def test_reader_partial(self):
         content = b'XXX'
-        image = six.BytesIO(content)
+        image = io.BytesIO(content)
         expected_checksum = secretutils.md5(b'X',
                                             usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(b'X').hexdigest()
@@ -356,7 +356,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
 
     def test_reader_with_verifier(self):
         content = b'XXX'
-        image = six.BytesIO(content)
+        image = io.BytesIO(content)
         verifier = mock.MagicMock(name='mock_verifier')
         reader = vm_store._Reader(image, self.hash_algo, verifier)
         reader.read()
@@ -413,7 +413,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_size = FIVE_KB
         expected_contents = b"*" * expected_size
-        image = six.BytesIO(expected_contents)
+        image = io.BytesIO(expected_contents)
         self.session = mock.Mock()
         with mock.patch('requests.Session.request') as HttpConn:
             HttpConn.return_value = utils.fake_response(status_code=401)
@@ -428,7 +428,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_size = FIVE_KB
         expected_contents = b"*" * expected_size
-        image = six.BytesIO(expected_contents)
+        image = io.BytesIO(expected_contents)
         self.session = mock.Mock()
         with self._mock_http_connection() as HttpConn:
             HttpConn.return_value = utils.fake_response(status_code=500,
@@ -470,7 +470,7 @@ class TestMultiStore(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_size = FIVE_KB
         expected_contents = b"*" * expected_size
-        image = six.BytesIO(expected_contents)
+        image = io.BytesIO(expected_contents)
         self.session = mock.Mock()
         with mock.patch('requests.Session.request') as HttpConn:
             HttpConn.request.side_effect = IOError

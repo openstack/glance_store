@@ -14,11 +14,11 @@
 #    under the License.
 
 import logging
+import urllib
 
 from oslo_config import cfg
 from oslo_utils import encodeutils
 
-from six.moves import urllib
 
 import requests
 

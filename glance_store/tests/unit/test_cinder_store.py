@@ -43,10 +43,10 @@ class TestCinderStore(base.StoreBaseTest,
         self.store.READ_CHUNKSIZE = 4096
         self.store.WRITE_CHUNKSIZE = 4096
 
-        fake_sc = [{u'endpoints': [{u'publicURL': u'http://foo/public_url'}],
-                    u'endpoints_links': [],
-                    u'name': u'cinder',
-                    u'type': u'volumev3'}]
+        fake_sc = [{'endpoints': [{'publicURL': 'http://foo/public_url'}],
+                    'endpoints_links': [],
+                    'name': 'cinder',
+                    'type': 'volumev3'}]
         self.context = mock.MagicMock(service_catalog=fake_sc,
                                       user_id='fake_user',
                                       auth_token='fake_token',
