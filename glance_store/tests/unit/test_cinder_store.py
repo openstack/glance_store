@@ -411,3 +411,23 @@ class TestCinderStore(base.StoreBaseTest,
 
     def test_set_url_prefix(self):
         self.assertEqual('cinder://', self.store._url_prefix)
+
+    def test_configure_add(self):
+
+        def fake_volume_type(name):
+            if name != 'some_type':
+                raise cinder.cinder_exception.NotFound(code=404)
+
+        with mock.patch.object(self.store, 'get_cinderclient') as mocked_cc:
+            mocked_cc.return_value = FakeObject(volume_types=FakeObject(
+                find=fake_volume_type))
+            self.config(cinder_volume_type='some_type')
+            # If volume type exists, no exception is raised
+            self.store.configure_add()
+            # setting cinder_volume_type to non-existent value will log a
+            # warning
+            self.config(cinder_volume_type='some_random_type')
+            with mock.patch.object(cinder, 'LOG') as mock_log:
+                self.store.configure_add()
+                mock_log.warning.assert_called_with(
+                    "Invalid `cinder_volume_type some_random_type`")
