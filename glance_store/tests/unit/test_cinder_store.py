@@ -61,7 +61,7 @@ class TestCinderStore(base.StoreBaseTest,
         fake_sc = [{u'endpoints': [{u'publicURL': u'http://foo/public_url'}],
                     u'endpoints_links': [],
                     u'name': u'cinder',
-                    u'type': u'volumev2'}]
+                    u'type': u'volumev3'}]
         self.context = FakeObject(service_catalog=fake_sc,
                                   user_id='fake_user',
                                   auth_token='fake_token',

@@ -53,7 +53,7 @@ LOG = logging.getLogger(__name__)
 
 _CINDER_OPTS = [
     cfg.StrOpt('cinder_catalog_info',
-               default='volumev2::publicURL',
+               default='volumev3::publicURL',
                help="""
 Information to match when looking for cinder in the service catalog.
 
