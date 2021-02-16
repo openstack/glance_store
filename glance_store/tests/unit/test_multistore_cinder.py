@@ -271,27 +271,55 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
 
         self.store._check_context(FakeObject(service_catalog='fake'))
 
-    def test_cinder_configure_add(self):
+    def test_configure_add(self):
+
+        def fake_volume_type_check(name):
+            if name != 'some_type':
+                raise cinder.cinder_exception.NotFound(code=404)
+
         with mock.patch.object(self.store, 'get_cinderclient') as mocked_cc:
-            def raise_(ex):
-                raise ex
             mocked_cc.return_value = FakeObject(volume_types=FakeObject(
-                find=lambda name: 'some_type' if name == 'some_type'
-                else raise_(cinder.cinder_exception.NotFound(code=404))))
+                find=fake_volume_type_check))
             self.config(cinder_volume_type='some_type',
                         group=self.store.backend_group)
             # If volume type exists, no exception is raised
             self.store.configure_add()
-            # setting cinder_volume_type to non-existent value will raise
-            # BadStoreConfiguration exception
+            # setting cinder_volume_type to non-existent value will log a
+            # warning
             self.config(cinder_volume_type='some_random_type',
                         group=self.store.backend_group)
+            with mock.patch.object(cinder, 'LOG') as mock_log:
+                self.store.configure_add()
+                mock_log.warning.assert_called_with(
+                    "Invalid `cinder_volume_type some_random_type`")
 
-            self.assertRaises(exceptions.BadStoreConfiguration,
-                              self.store.configure_add)
-            # when only 1 store is configured, BackendException is raised
-            self.config(enabled_backends={'cinder1': 'cinder'})
-            self.assertRaises(exceptions.BackendException,
+    def test_configure_add_cinder_service_down(self):
+
+        def fake_volume_type_check(name):
+            raise cinder.cinder_exception.ClientException(code=503)
+
+        self.config(cinder_volume_type='some_type',
+                    group=self.store.backend_group)
+        with mock.patch.object(self.store, 'get_cinderclient') as mocked_cc:
+            mocked_cc.return_value = FakeObject(volume_types=FakeObject(
+                find=fake_volume_type_check))
+            # We handle the ClientException to pass so no exception is raised
+            # in this case
+            self.store.configure_add()
+
+    def test_configure_add_authorization_failed(self):
+
+        def fake_volume_type_check(name):
+            raise cinder.exceptions.AuthorizationFailure(code=401)
+
+        self.config(cinder_volume_type='some_type',
+                    group=self.store.backend_group)
+        with mock.patch.object(self.store, 'get_cinderclient') as mocked_cc:
+            mocked_cc.return_value = FakeObject(volume_types=FakeObject(
+                find=fake_volume_type_check))
+            # Anything apart from invalid volume type or cinder service
+            # down will raise an exception
+            self.assertRaises(cinder.exceptions.AuthorizationFailure,
                               self.store.configure_add)
 
     def test_is_image_associated_with_store(self):

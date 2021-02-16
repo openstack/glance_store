@@ -33,7 +33,7 @@ from glance_store import capabilities
 from glance_store.common import utils
 import glance_store.driver
 from glance_store import exceptions
-from glance_store.i18n import _, _LE, _LI
+from glance_store.i18n import _, _LE, _LI, _LW
 import glance_store.location
 
 try:
@@ -405,38 +405,26 @@ class Store(glance_store.driver.Store):
 
     def configure_add(self):
         """
-        Configure the Store to use the stored configuration options
-        Any store that needs special configuration should implement
-        this method. If the store was not able to successfully configure
-        itself, it should raise `exceptions.BadStoreConfiguration`
-        :raises: `exceptions.BadStoreConfiguration` if multiple stores are
-                 defined and particular store wasn't able to configure
-                 successfully
-        :raises: `exceptions.BackendException` if single store is defined and
-                 it wasn't able to configure successfully
+        Check to verify if the volume types configured for the cinder store
+        exist in deployment and if not, log a warning.
         """
-        if self.backend_group:
-            cinder_volume_type = self.store_conf.cinder_volume_type
-            if cinder_volume_type:
-                # NOTE: `cinder_volume_type` is configured, check
-                # configured volume_type is available in cinder or not
-                cinder_client = self.get_cinderclient()
-                try:
-                    # We don't even need the volume type object, as long
-                    # as this returns clean, we know the name is good.
-                    cinder_client.volume_types.find(name=cinder_volume_type)
-                    # No need to worry NoUniqueMatch as volume type name is
-                    # unique
-                except cinder_exception.NotFound:
-                    reason = _("Invalid `cinder_volume_type %s`"
-                               % cinder_volume_type)
-                    if len(self.conf.enabled_backends) > 1:
-                        LOG.error(reason)
-                        raise exceptions.BadStoreConfiguration(
-                            store_name=self.backend_group, reason=reason)
-                    else:
-                        LOG.critical(reason)
-                        raise exceptions.BackendException(reason)
+        cinder_volume_type = self.store_conf.cinder_volume_type
+        if cinder_volume_type:
+            # NOTE: `cinder_volume_type` is configured, check
+            # configured volume_type is available in cinder or not
+            cinder_client = self.get_cinderclient()
+            try:
+                # We don't even need the volume type object, as long
+                # as this returns clean, we know the name is good.
+                cinder_client.volume_types.find(name=cinder_volume_type)
+                # No need to worry about a NoUniqueMatch as volume type name
+                # is unique
+            except cinder_exception.NotFound:
+                reason = (_LW("Invalid `cinder_volume_type %s`"
+                              % cinder_volume_type))
+                LOG.warning(reason)
+            except cinder_exception.ClientException:
+                pass
 
     def is_image_associated_with_store(self, context, volume_id):
         """
@@ -849,8 +837,18 @@ class Store(glance_store.driver.Store):
             LOG.info(_LI("Since image size is zero, we will be doing "
                          "resize-before-write for each GB which "
                          "will be considerably slower than normal."))
-        volume = client.volumes.create(size_gb, name=name, metadata=metadata,
-                                       volume_type=volume_type)
+        try:
+            volume = client.volumes.create(size_gb, name=name,
+                                           metadata=metadata,
+                                           volume_type=volume_type)
+        except cinder_exception.NotFound:
+            LOG.error(_LE("Invalid volume type %s configured. Please check "
+                          "the `cinder_volume_type` configuration parameter."
+                          % volume_type))
+            msg = (_("Failed to create image-volume due to invalid "
+                     "`cinder_volume_type` configured."))
+            raise exceptions.BackendException(msg)
+
         volume = self._wait_volume_status(volume, 'creating', 'available')
         size_gb = volume.size
 

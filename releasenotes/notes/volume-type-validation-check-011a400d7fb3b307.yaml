@@ -1,0 +1,12 @@
+---
+upgrade:
+  - |
+    Previously, during service startup, the check to validate volume types
+    used to raise ``BackendException`` or ``BadStoreConfiguration`` exceptions
+    when an invalid volume type was configured hence failing the service
+    startup. It now logs a warning and the glance service starts normally.
+fixes:
+  - |
+    `Bug #1915163 <https://bugs.launchpad.net/glance-store/+bug/1915163>`_:
+    Added handling to log and raise proper exception during image create when
+    an invalid volume type is configured.
