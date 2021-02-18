@@ -140,6 +140,18 @@
     vars:
       tempest_test_regex: (^tempest\.(api|scenario)|(^cinder_tempest_plugin))
 
+- job:
+    name: cross-glance-tox-functional
+    parent: openstack-tox
+    description: |
+      Run cross-project glance functional tests on glance_store.
+    vars:
+      zuul_work_dir: src/opendev.org/openstack/glance
+      tox_envlist: functional
+    required-projects:
+      - openstack/glance
+      - openstack/glance_store
+
 - project:
     templates:
       - check-requirements
@@ -150,6 +162,7 @@
       - release-notes-jobs-python3
     check:
       jobs:
+        - cross-glance-tox-functional
         - glance_store-src-ceph-tempest:
             voting: false
             irrelevant-files: &tempest-irrelevant-files
