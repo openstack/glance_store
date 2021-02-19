@@ -1534,6 +1534,31 @@ class TestSingleTenantStoreConnections(base.StoreBaseTest):
                           'endpoint_type': 'publicURL'},
                          connection.os_options)
 
+    @mock.patch("keystoneauth1.session.Session.get_endpoint")
+    @mock.patch("keystoneauth1.session.Session.get_auth_headers",
+                new=mock.Mock())
+    def _test_connection_manager_authv3_conf_endpoint(
+            self, mock_ep, expected_endpoint="https://from-catalog.com"):
+        self.config(swift_store_auth_version='3')
+        mock_ep.return_value = "https://from-catalog.com"
+        ctx = mock.MagicMock()
+        self.store.configure()
+        connection_manager = manager.SingleTenantConnectionManager(
+            store=self.store,
+            store_location=self.location,
+            context=ctx
+        )
+        conn = connection_manager._init_connection()
+        self.assertEqual(expected_endpoint, conn.preauthurl)
+
+    def test_connection_manager_authv3_without_conf_endpoint(self):
+        self._test_connection_manager_authv3_conf_endpoint()
+
+    def test_connection_manager_authv3_with_conf_endpoint(self):
+        self.config(swift_store_endpoint='http://localhost')
+        self._test_connection_manager_authv3_conf_endpoint(
+            expected_endpoint='http://localhost')
+
     def test_connection_with_no_trailing_slash(self):
         self.location.auth_or_store_url = 'example.com/v2'
         connection = self.store.get_connection(self.location)
