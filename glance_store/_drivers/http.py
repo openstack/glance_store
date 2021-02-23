@@ -105,18 +105,26 @@ class StoreLocation(glance_store.location.StoreLocation):
         self.user = self.specs.get('user')
         self.password = self.specs.get('password')
         self.path = self.specs.get('path')
+        self.query = self.spec.get('query')
 
     def _get_credstring(self):
         if self.user:
             return '%s:%s@' % (self.user, self.password)
         return ''
 
+    def _get_query_string(self):
+        if self.query:
+            return "?%s" % self.query
+        return ""
+
     def get_uri(self):
-        return "%s://%s%s%s" % (
+        return "%s://%s%s%s%s" % (
             self.scheme,
             self._get_credstring(),
             self.netloc,
-            self.path)
+            self.path,
+            self._get_query_string()
+        )
 
     def parse_uri(self, uri):
         """
@@ -164,6 +172,7 @@ class StoreLocation(glance_store.location.StoreLocation):
 
         self.netloc = netloc
         self.path = path
+        self.query = pieces.query
 
 
 def http_response_iterator(conn, response, size):
