@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Default value of the ``cinder_catalog_info`` parameter has been changed
+    from ``volumev2::publicURL`` to ``volumev3::publicURL``, so that
+    the current v3 API is used by default instead of the deprecated v2 API.
