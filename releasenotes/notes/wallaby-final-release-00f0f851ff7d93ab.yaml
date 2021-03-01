@@ -1,0 +1,10 @@
+---
+prelude: >
+  This was a quiet development cycle for the ``glance_store`` library.
+  Several bugs were fixed and some code changes were committed to
+  increase stability.
+fixes:
+  - |
+    * Bug 1915602_: Cinder store: Use v3 API by default
+
+    .. _1915602: https://code.launchpad.net/bugs/1915602
