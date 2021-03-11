@@ -170,6 +170,23 @@ Related options:
     * None
 
 """),
+    cfg.BoolOpt('rbd_size_by_diff',
+                default=False,
+                help="""
+Enable calculating the image size by performing rbd diff on the image.
+This will get the real size occupied by the image on the disk. 
+
+RBD diff iterates over the changed extends of an image, thus allowing to
+capture the real size of each block and calculate the sum.
+
+Possible Values:
+    * True
+    * False
+
+Related options:
+    * None
+
+"""),
 ]
 
 
@@ -324,6 +341,8 @@ class Store(driver.Store):
                 thin_provisioning = getattr(self.conf,
                                             self.backend_group).\
                     rbd_thin_provisioning
+                rbd_size_by_diff = getattr(
+                    self.conf, self.backend_group).rbd_size_by_diff
             else:
                 chunk = self.conf.glance_store.rbd_store_chunk_size
                 pool = self.conf.glance_store.rbd_store_pool
@@ -332,11 +351,13 @@ class Store(driver.Store):
                 connect_timeout = self.conf.glance_store.rados_connect_timeout
                 thin_provisioning = \
                     self.conf.glance_store.rbd_thin_provisioning
+                rbd_size_by_diff = self.conf.glance_store.rbd_size_by_diff
 
             self.thin_provisioning = thin_provisioning
             self.chunk_size = chunk * units.Mi
             self.READ_CHUNKSIZE = self.chunk_size
             self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
+            self.size_by_diff = rbd_size_by_diff
 
             # these must not be unicode since they will be passed to a
             # non-unicode-aware C library
@@ -403,8 +424,7 @@ class Store(driver.Store):
                 try:
                     with rbd.Image(ioctx, loc.image,
                                    snapshot=loc.snapshot) as image:
-                        img_info = image.stat()
-                        return img_info['size']
+                        return ImageSize(image, self.size_by_diff).get_size()
                 except rbd.ImageNotFound:
                     msg = _('RBD image %s does not exist') % loc.get_uri()
                     LOG.debug(msg)
@@ -658,3 +678,27 @@ class Store(driver.Store):
         loc = location.store_location
         target_pool = loc.pool or self.pool
         self._delete_image(target_pool, loc.image, loc.snapshot)
+
+
+class ImageSize(object):
+    """Gets the size of an image using either stat() or diff_iterate()."""
+    def __init__(self, image, use_diff=False):
+        self._size = 0
+        self._image = image
+        self._use_diff = use_diff
+
+    def _diff_callback(self, offset, length, exists):
+        # appends the length of the block to self._size
+        self._size += length
+
+    def get_size(self):
+        self._size = 0
+        img_size = self._image.stat()['size']
+
+        if not self._use_diff:
+            self._size = img_size
+        else:
+            # calculate sum of the image blocks into self._size
+            self._image.diff_iterate(0, img_size, None, self._diff_callback)
+
+        return self._size
