@@ -72,6 +72,7 @@ requests==2.14.2
 requestsexceptions==1.4.0
 requests-mock==1.2.0
 restructuredtext-lint==1.1.3
+retrying==1.3.3
 rfc3986==1.1.0
 six==1.11.0
 smmap2==2.0.3
