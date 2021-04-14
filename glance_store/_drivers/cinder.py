@@ -628,7 +628,7 @@ class Store(glance_store.driver.Store):
             connection_info = volume.initialize_connection(volume, properties)
             conn = connector.InitiatorConnector.factory(
                 connection_info['driver_volume_type'], root_helper,
-                conn=connection_info)
+                conn=connection_info, use_multipath=use_multipath)
             if connection_info['driver_volume_type'] == 'nfs':
                 if volume.encrypted:
                     volume.unreserve(volume)
