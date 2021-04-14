@@ -188,7 +188,7 @@ class TestCinderStore(base.StoreBaseTest,
                 mock.patch.object(cinder.Store, 'get_root_helper',
                                   return_value=root_helper), \
                 mock.patch.object(connector.InitiatorConnector, 'factory',
-                                  side_effect=fake_factory):
+                                  side_effect=fake_factory) as fake_conn_obj:
 
             with mock.patch.object(connector,
                                    'get_connector_properties') as mock_conn:
@@ -223,6 +223,9 @@ class TestCinderStore(base.StoreBaseTest,
                         None, 'glance_store', attach_mode,
                         host_name=socket.gethostname())
                     fake_volumes.detach.assert_called_once_with(fake_volume)
+                    fake_conn_obj.assert_called_once_with(
+                        mock.ANY, root_helper, conn=mock.ANY,
+                        use_multipath=multipath_supported)
 
     def test_open_cinder_volume_rw(self):
         self._test_open_cinder_volume('wb', 'rw', None)
