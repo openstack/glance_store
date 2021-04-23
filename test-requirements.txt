@@ -21,7 +21,7 @@ oslotest>=3.2.0 # Apache-2.0
 
 # Dependencies for each of the optional stores
 boto3>=1.9.199 # Apache-2.0
-oslo.vmware>=2.17.0 # Apache-2.0
+oslo.vmware>=3.6.0 # Apache-2.0
 httplib2>=0.9.1 # MIT
 python-swiftclient>=3.2.0 # Apache-2.0
 python-cinderclient>=4.1.0 # Apache-2.0

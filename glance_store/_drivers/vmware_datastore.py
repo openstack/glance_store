@@ -564,7 +564,7 @@ class Store(glance_store.Store):
         """Build ESX host session cookie header."""
         if verify_session and not self.session.is_current_session_active():
             self.reset_session()
-        vim_cookies = self.session.vim.client.options.transport.cookiejar
+        vim_cookies = self.session.vim.client.cookiejar
         if len(list(vim_cookies)) > 0:
             cookie = list(vim_cookies)[0]
             return cookie.name + '=' + cookie.value
