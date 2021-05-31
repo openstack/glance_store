@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    For the Cinder store, if using an internal user to store images,
+    it is now possible to have the internal user and the internal project
+    in Keystone domains other than the ``Default`` one.
+    Two new config options ``cinder_store_user_domain_name`` and
+    ``cinder_store_project_domain_name`` are added
+    (both default to ``Default``) and now are possible to use in the
+    configuration of the Cinder store.

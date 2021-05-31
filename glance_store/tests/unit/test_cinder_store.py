@@ -26,7 +26,6 @@ import tempfile
 import time
 import uuid
 
-from cinderclient.v3 import client as cinderclient
 from os_brick.initiator import connector
 from oslo_concurrency import processutils
 from oslo_utils.secretutils import md5
@@ -67,31 +66,30 @@ class TestCinderStore(base.StoreBaseTest,
                                   auth_token='fake_token',
                                   project_id='fake_project')
         self.hash_algo = 'sha256'
+        cinder._reset_cinder_session()
 
     def test_get_cinderclient(self):
         cc = self.store.get_cinderclient(self.context)
-        self.assertEqual('fake_token', cc.client.auth_token)
-        self.assertEqual('http://foo/public_url', cc.client.management_url)
+        self.assertEqual('fake_token', cc.client.auth.token)
+        self.assertEqual('http://foo/public_url', cc.client.auth.endpoint)
 
-    def test_get_cinderclient_with_user_overriden(self):
+    def _test_get_cinderclient_with_user_overriden(self):
         self.config(cinder_store_user_name='test_user')
         self.config(cinder_store_password='test_password')
         self.config(cinder_store_project_name='test_project')
         self.config(cinder_store_auth_address='test_address')
         cc = self.store.get_cinderclient(self.context)
-        self.assertIsNone(cc.client.auth_token)
-        self.assertEqual('test_address', cc.client.management_url)
+        self.assertEqual('test_project', cc.client.session.auth.project_name)
+        self.assertEqual('Default', cc.client.session.auth.project_domain_name)
+        return cc
+
+    def test_get_cinderclient_with_user_overriden(self):
+        self._test_get_cinderclient_with_user_overriden()
 
     def test_get_cinderclient_with_user_overriden_and_region(self):
         self.config(cinder_os_region_name='test_region')
-        fake_client = FakeObject(client=FakeObject(auth_token=None))
-        with mock.patch.object(cinderclient, 'Client',
-                               return_value=fake_client) as mock_client:
-            self.test_get_cinderclient_with_user_overriden()
-            mock_client.assert_called_once_with(
-                'test_user', 'test_password', 'test_project',
-                auth_url='test_address', cacert=None, insecure=False,
-                region_name='test_region', retries=3)
+        cc = self._test_get_cinderclient_with_user_overriden()
+        self.assertEqual('test_region', cc.client.region_name)
 
     def test_temporary_chown(self):
         class fake_stat(object):
