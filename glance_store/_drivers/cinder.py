@@ -713,12 +713,20 @@ class Store(glance_store.driver.Store):
                 connection_info['driver_volume_type'], root_helper,
                 conn=connection_info, use_multipath=use_multipath)
             if connection_info['driver_volume_type'] == 'nfs':
-                if volume.encrypted:
-                    self.volume_api.attachment_delete(client, attachment.id)
-                    msg = (_('Encrypted volume creation for cinder nfs is not '
-                             'supported from glance_store. Failed to create '
-                             'volume %(volume_id)s')
-                           % {'volume_id': volume_id})
+                # The format info of nfs volumes is exposed via attachment_get
+                # API hence it is not available in the connection info of
+                # attachment object received from attachment_update and we
+                # need to do this call
+                vol_attachment = self.volume_api.attachment_get(
+                    client, attachment.id)
+                if (volume.encrypted or
+                        vol_attachment.connection_info['format'] == 'qcow2'):
+                    issue_type = 'Encrypted' if volume.encrypted else 'qcow2'
+                    msg = (_('%(issue_type)s volume creation for cinder nfs '
+                             'is not supported from glance_store. Failed to '
+                             'create volume %(volume_id)s')
+                           % {'issue_type': issue_type,
+                              'volume_id': volume_id})
                     LOG.error(msg)
                     raise exceptions.BackendException(msg)
 

@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    `Bug #1901138 <https://bugs.launchpad.net/glance-store/+bug/1901138>`_:
+    Blocked creation of images when glance store is cinder,
+    cinder backend is nfs and volumes created are qcow2 format.

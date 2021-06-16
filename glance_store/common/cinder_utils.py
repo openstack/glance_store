@@ -61,7 +61,6 @@ class API(object):
         volume = client.volumes.create(size, **kwargs)
         return volume
 
-    @handle_exceptions
     def delete(self, client, volume_id):
         client.volumes.delete(volume_id)
 
