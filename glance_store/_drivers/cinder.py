@@ -25,6 +25,9 @@ import time
 
 from keystoneauth1.access import service_catalog as keystone_sc
 from keystoneauth1 import exceptions as keystone_exc
+from keystoneauth1 import identity as ksa_identity
+from keystoneauth1 import session as ksa_session
+from keystoneauth1 import token_endpoint as ksa_token_endpoint
 from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_utils import units
@@ -79,6 +82,8 @@ Related options:
     * cinder_store_user_name
     * cinder_store_project_name
     * cinder_store_password
+    * cinder_store_project_domain_name
+    * cinder_store_user_domain_name
 
 """),
     cfg.StrOpt('cinder_endpoint_template',
@@ -104,6 +109,8 @@ Related options:
     * cinder_store_user_name
     * cinder_store_project_name
     * cinder_store_password
+    * cinder_store_project_domain_name
+    * cinder_store_user_domain_name
     * cinder_catalog_info
 
 """),
@@ -215,6 +222,8 @@ Related options:
     * cinder_store_user_name
     * cinder_store_password
     * cinder_store_project_name
+    * cinder_store_project_domain_name
+    * cinder_store_user_domain_name
 
 """),
     cfg.StrOpt('cinder_store_user_name',
@@ -222,8 +231,9 @@ Related options:
                help="""
 User name to authenticate against cinder.
 
-This must be used with all the following related options. If any of these are
-not specified, the user of the current context is used.
+This must be used with all the following non-domain-related options.
+If any of these are not specified (except domain-related options),
+the user of the current context is used.
 
 Possible values:
     * A valid user name
@@ -232,14 +242,33 @@ Related options:
     * cinder_store_auth_address
     * cinder_store_password
     * cinder_store_project_name
+    * cinder_store_project_domain_name
+    * cinder_store_user_domain_name
+
+"""),
+    cfg.StrOpt('cinder_store_user_domain_name',
+               default='Default',
+               help="""
+Domain of the user to authenticate against cinder.
+
+Possible values:
+    * A valid domain name for the user specified by ``cinder_store_user_name``
+
+Related options:
+    * cinder_store_auth_address
+    * cinder_store_password
+    * cinder_store_project_name
+    * cinder_store_project_domain_name
+    * cinder_store_user_name
 
 """),
     cfg.StrOpt('cinder_store_password', secret=True,
                help="""
 Password for the user authenticating against cinder.
 
-This must be used with all the following related options. If any of these are
-not specified, the user of the current context is used.
+This must be used with all the following related options.
+If any of these are not specified (except domain-related options),
+the user of the current context is used.
 
 Possible values:
     * A valid password for the user specified by ``cinder_store_user_name``
@@ -248,6 +277,8 @@ Related options:
     * cinder_store_auth_address
     * cinder_store_user_name
     * cinder_store_project_name
+    * cinder_store_project_domain_name
+    * cinder_store_user_domain_name
 
 """),
     cfg.StrOpt('cinder_store_project_name',
@@ -258,8 +289,9 @@ Project name where the image volume is stored in cinder.
 If this configuration option is not set, the project in current context is
 used.
 
-This must be used with all the following related options. If any of these are
-not specified, the project of the current context is used.
+This must be used with all the following related options.
+If any of these are not specified (except domain-related options),
+the user of the current context is used.
 
 Possible values:
     * A valid project name
@@ -268,6 +300,25 @@ Related options:
     * ``cinder_store_auth_address``
     * ``cinder_store_user_name``
     * ``cinder_store_password``
+    * ``cinder_store_project_domain_name``
+    * ``cinder_store_user_domain_name``
+
+"""),
+    cfg.StrOpt('cinder_store_project_domain_name',
+               default='Default',
+               help="""
+Domain of the project where the image volume is stored in cinder.
+
+Possible values:
+    * A valid domain name of the project specified by
+      ``cinder_store_project_name``
+
+Related options:
+    * ``cinder_store_auth_address``
+    * ``cinder_store_user_name``
+    * ``cinder_store_password``
+    * ``cinder_store_project_domain_name``
+    * ``cinder_store_user_domain_name``
 
 """),
     cfg.StrOpt('rootwrap_config',
@@ -349,6 +400,34 @@ Possible values:
 * A string representing absolute path of mount point.
 """),
 ]
+
+CINDER_SESSION = None
+
+
+def _reset_cinder_session():
+    global CINDER_SESSION
+    CINDER_SESSION = None
+
+
+def get_cinder_session(conf):
+    global CINDER_SESSION
+    if not CINDER_SESSION:
+        auth = ksa_identity.V3Password(
+            password=conf.cinder_store_password,
+            username=conf.cinder_store_user_name,
+            user_domain_name=conf.cinder_store_user_domain_name,
+            project_name=conf.cinder_store_project_name,
+            project_domain_name=conf.cinder_store_project_domain_name,
+            auth_url=conf.cinder_store_auth_address
+        )
+        if conf.cinder_api_insecure:
+            verify = False
+        elif conf.cinder_ca_certificates_file:
+            verify = conf.cinder_ca_certificates_file
+        else:
+            verify = True
+        CINDER_SESSION = ksa_session.Session(auth=auth, verify=verify)
+    return CINDER_SESSION
 
 
 class StoreLocation(glance_store.location.StoreLocation):
@@ -476,15 +555,18 @@ class Store(glance_store.driver.Store):
         else:
             user_overriden = self.is_user_overriden()
 
+        session = get_cinder_session(self.store_conf)
+
         if user_overriden:
             username = self.store_conf.cinder_store_user_name
-            password = self.store_conf.cinder_store_password
-            project = self.store_conf.cinder_store_project_name
             url = self.store_conf.cinder_store_auth_address
+            # use auth that is already in the session
+            auth = None
         else:
             username = context.user_id
-            password = context.auth_token
             project = context.project_id
+            # noauth extracts user_id:project_id from auth_token
+            token = context.auth_token or '%s:%s' % (username, project)
 
             if self.store_conf.cinder_endpoint_template:
                 template = self.store_conf.cinder_endpoint_template
@@ -504,23 +586,17 @@ class Store(glance_store.driver.Store):
                     reason = _("Failed to find Cinder from a service catalog.")
                     raise exceptions.BadStoreConfiguration(store_name="cinder",
                                                            reason=reason)
+            auth = ksa_token_endpoint.Token(endpoint=url, token=token)
 
         c = cinderclient.Client(
-            username, password, project, auth_url=url,
+            session=session, auth=auth,
             region_name=self.store_conf.cinder_os_region_name,
-            insecure=self.store_conf.cinder_api_insecure,
-            retries=self.store_conf.cinder_http_retries,
-            cacert=self.store_conf.cinder_ca_certificates_file)
+            retries=self.store_conf.cinder_http_retries)
 
         LOG.debug(
             'Cinderclient connection created for user %(user)s using URL: '
             '%(url)s.', {'user': username, 'url': url})
 
-        # noauth extracts user_id:project_id from auth_token
-        if not user_overriden:
-            c.client.auth_token = context.auth_token or '%s:%s' % (username,
-                                                                   project)
-        c.client.management_url = url
         return c
 
     @contextlib.contextmanager

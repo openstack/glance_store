@@ -98,14 +98,15 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
             user_id='admin_user',
             auth_token='admin_token',
             project_id='admin_project')
+        cinder._reset_cinder_session()
 
     def test_location_url_prefix_is_set(self):
         self.assertEqual("cinder://cinder1", self.store.url_prefix)
 
     def test_get_cinderclient(self):
         cc = self.store.get_cinderclient(self.context)
-        self.assertEqual('fake_token', cc.client.auth_token)
-        self.assertEqual('http://foo/public_url', cc.client.management_url)
+        self.assertEqual('fake_token', cc.client.auth.token)
+        self.assertEqual('http://foo/public_url', cc.client.auth.endpoint)
 
     def test_get_cinderclient_with_user_overriden(self):
         self.config(cinder_store_user_name='test_user', group="cinder1")
@@ -113,16 +114,14 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         self.config(cinder_store_project_name='test_project', group="cinder1")
         self.config(cinder_store_auth_address='test_address', group="cinder1")
         cc = self.store.get_cinderclient(self.context)
-        self.assertIsNone(cc.client.auth_token)
-        self.assertEqual('test_address', cc.client.management_url)
+        self.assertEqual('Default', cc.client.session.auth.project_domain_name)
+        self.assertEqual('test_project', cc.client.session.auth.project_name)
 
     def test_get_cinderclient_legacy_update(self):
         cc = self.store.get_cinderclient(self.fake_admin_context,
                                          legacy_update=True)
-        self.assertEqual('admin_token', cc.client.auth_token)
-        self.assertEqual('admin_user', cc.client.user)
-        self.assertEqual('admin_project', cc.client.projectid)
-        self.assertEqual('http://foo/public_url', cc.client.management_url)
+        self.assertEqual('admin_token', cc.client.auth.token)
+        self.assertEqual('http://foo/public_url', cc.client.auth.endpoint)
 
     def test_temporary_chown(self):
         class fake_stat(object):
