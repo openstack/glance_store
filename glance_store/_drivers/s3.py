@@ -361,7 +361,7 @@ class Store(glance_store.driver.Store):
     EXAMPLE_URL = "s3://<ACCESS_KEY>:<SECRET_KEY>@<S3_URL>/<BUCKET>/<OBJ>"
 
     READ_CHUNKSIZE = 64 * units.Ki
-    WRITE_CHUNKSIZE = READ_CHUNKSIZE
+    WRITE_CHUNKSIZE = 5 * units.Mi
 
     @staticmethod
     def get_schemes():

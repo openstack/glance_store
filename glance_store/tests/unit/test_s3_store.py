@@ -43,7 +43,7 @@ S3_CONF = {
     's3_store_secret_key': 'key',
     's3_store_host': 'localhost',
     's3_store_bucket': 'glance',
-    's3_store_large_object_size': 5,        # over 5MB is large
+    's3_store_large_object_size': 9,        # over 9MB is large
     's3_store_large_object_chunk_size': 6,  # part size is 6MB
 }
 
@@ -157,7 +157,60 @@ class TestStore(base.StoreBaseTest,
     def test_add_singlepart(self, mock_client):
         """Test that we can add an image via the s3 backend."""
         expected_image_id = str(uuid.uuid4())
+        # 5KiB is smaller than WRITE_CHUNKSIZE
         expected_s3_size = FIVE_KB
+        expected_s3_contents = b"*" * expected_s3_size
+        expected_checksum = md5(expected_s3_contents,
+                                usedforsecurity=False).hexdigest()
+        expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
+        expected_location = format_s3_location(
+            S3_CONF['s3_store_access_key'],
+            S3_CONF['s3_store_secret_key'],
+            S3_CONF['s3_store_host'],
+            S3_CONF['s3_store_bucket'],
+            expected_image_id)
+        image_s3 = six.BytesIO(expected_s3_contents)
+
+        fake_s3_client = botocore.session.get_session().create_client('s3')
+
+        with stub.Stubber(fake_s3_client) as stubber:
+            stubber.add_response(method='head_bucket',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket']
+                                 })
+            stubber.add_client_error(method='head_object',
+                                     service_error_code='404',
+                                     service_message='',
+                                     expected_params={
+                                         'Bucket': S3_CONF['s3_store_bucket'],
+                                         'Key': expected_image_id
+                                     })
+            stubber.add_response(method='put_object',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket'],
+                                     'Key': expected_image_id,
+                                     'Body': botocore.stub.ANY
+                                 })
+
+            mock_client.return_value = fake_s3_client
+            loc, size, checksum, multihash, _ = \
+                self.store.add(expected_image_id, image_s3, expected_s3_size,
+                               self.hash_algo)
+
+            self.assertEqual(expected_location, loc)
+            self.assertEqual(expected_s3_size, size)
+            self.assertEqual(expected_checksum, checksum)
+            self.assertEqual(expected_multihash, multihash)
+
+    @mock.patch.object(boto3.session.Session, "client")
+    def test_add_singlepart_bigger_than_write_chunk(self, mock_client):
+        """Test that we can add a large image via the s3 backend."""
+        expected_image_id = str(uuid.uuid4())
+        # 8 MiB is bigger than WRITE_CHUNKSIZE(=5MiB),
+        # but smaller than s3_store_large_object_size
+        expected_s3_size = 8 * units.Mi
         expected_s3_contents = b"*" * expected_s3_size
         expected_checksum = md5(expected_s3_contents,
                                 usedforsecurity=False).hexdigest()
