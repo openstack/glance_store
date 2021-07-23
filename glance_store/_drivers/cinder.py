@@ -33,6 +33,7 @@ from oslo_config import cfg
 from oslo_utils import units
 
 from glance_store import capabilities
+from glance_store.common import cinder_utils
 from glance_store.common import utils
 import glance_store.driver
 from glance_store import exceptions
@@ -40,6 +41,7 @@ from glance_store.i18n import _, _LE, _LI, _LW
 import glance_store.location
 
 try:
+    from cinderclient import api_versions
     from cinderclient import exceptions as cinder_exception
     from cinderclient.v3 import client as cinderclient
     from os_brick.initiator import connector
@@ -476,6 +478,7 @@ class Store(glance_store.driver.Store):
             self.store_conf = getattr(self.conf, self.backend_group)
         else:
             self.store_conf = self.conf.glance_store
+        self.volume_api = cinder_utils.API()
 
     def _set_url_prefix(self):
         self._url_prefix = "cinder://"
@@ -545,7 +548,8 @@ class Store(glance_store.driver.Store):
                     for key in ['user_name', 'password',
                                 'project_name', 'auth_address']])
 
-    def get_cinderclient(self, context=None, legacy_update=False):
+    def get_cinderclient(self, context=None, legacy_update=False,
+                         version='3.0'):
         # NOTE: For legacy image update from single store to multiple
         # stores we need to use admin context rather than user provided
         # credentials
@@ -588,10 +592,12 @@ class Store(glance_store.driver.Store):
                                                            reason=reason)
             auth = ksa_token_endpoint.Token(endpoint=url, token=token)
 
+        api_version = api_versions.APIVersion(version)
         c = cinderclient.Client(
             session=session, auth=auth,
             region_name=self.store_conf.cinder_os_region_name,
-            retries=self.store_conf.cinder_http_retries)
+            retries=self.store_conf.cinder_http_retries,
+            api_version=api_version)
 
         LOG.debug(
             'Cinderclient connection created for user %(user)s using URL: '
@@ -688,52 +694,49 @@ class Store(glance_store.driver.Store):
         use_multipath = self.store_conf.cinder_use_multipath
         enforce_multipath = self.store_conf.cinder_enforce_multipath
         mount_point_base = self.store_conf.cinder_mount_point_base
+        volume_id = volume.id
 
-        properties = connector.get_connector_properties(
+        connector_prop = connector.get_connector_properties(
             root_helper, host, use_multipath, enforce_multipath)
 
-        try:
-            volume.reserve(volume)
-        except cinder_exception.ClientException as e:
-            msg = (_('Failed to reserve volume %(volume_id)s: %(error)s')
-                   % {'volume_id': volume.id, 'error': e})
-            LOG.error(msg)
-            raise exceptions.BackendException(msg)
+        attachment = self.volume_api.attachment_create(client, volume_id,
+                                                       mode=attach_mode)
+        attachment = self.volume_api.attachment_update(
+            client, attachment['id'], connector_prop,
+            mountpoint='glance_store')
+        self.volume_api.attachment_complete(client, attachment.id)
+        volume = volume.manager.get(volume_id)
+        connection_info = attachment.connection_info
 
         try:
-            connection_info = volume.initialize_connection(volume, properties)
             conn = connector.InitiatorConnector.factory(
                 connection_info['driver_volume_type'], root_helper,
                 conn=connection_info, use_multipath=use_multipath)
             if connection_info['driver_volume_type'] == 'nfs':
                 if volume.encrypted:
-                    volume.unreserve(volume)
-                    volume.delete()
+                    self.volume_api.attachment_delete(client, attachment.id)
                     msg = (_('Encrypted volume creation for cinder nfs is not '
                              'supported from glance_store. Failed to create '
                              'volume %(volume_id)s')
-                           % {'volume_id': volume.id})
+                           % {'volume_id': volume_id})
                     LOG.error(msg)
                     raise exceptions.BackendException(msg)
 
-                @utils.synchronized(connection_info['data']['export'])
+                @utils.synchronized(connection_info['export'])
                 def connect_volume_nfs():
-                    data = connection_info['data']
-                    export = data['export']
-                    vol_name = data['name']
+                    export = connection_info['export']
+                    vol_name = connection_info['name']
                     mountpoint = self._get_mount_path(
                         export,
                         os.path.join(mount_point_base, 'nfs'))
-                    options = data['options']
+                    options = connection_info['options']
                     self.mount.mount(
                         'nfs', export, vol_name, mountpoint, host,
                         root_helper, options)
                     return {'path': os.path.join(mountpoint, vol_name)}
                 device = connect_volume_nfs()
             else:
-                device = conn.connect_volume(connection_info['data'])
-            volume.attach(None, 'glance_store', attach_mode, host_name=host)
-            volume = self._wait_volume_status(volume, 'attaching', 'in-use')
+                device = conn.connect_volume(connection_info)
             if (connection_info['driver_volume_type'] == 'rbd' and
                not conn.do_local_attach):
                 yield device['path']
@@ -746,38 +749,23 @@ class Store(glance_store.driver.Store):
                               '%(volume_id)s.'), {'volume_id': volume.id})
             raise
         finally:
-            if volume.status == 'in-use':
-                volume.begin_detaching(volume)
-            elif volume.status == 'attaching':
-                volume.unreserve(volume)
-
             if device:
                 try:
                     if connection_info['driver_volume_type'] == 'nfs':
-                        @utils.synchronized(connection_info['data']['export'])
+                        @utils.synchronized(connection_info['export'])
                         def disconnect_volume_nfs():
                             path, vol_name = device['path'].rsplit('/', 1)
                             self.mount.umount(vol_name, path, host,
                                               root_helper)
                         disconnect_volume_nfs()
                     else:
-                        conn.disconnect_volume(connection_info['data'], device)
+                        conn.disconnect_volume(connection_info, device)
                 except Exception:
                     LOG.exception(_LE('Failed to disconnect volume '
                                       '%(volume_id)s.'),
                                   {'volume_id': volume.id})
 
-            try:
-                volume.terminate_connection(volume, properties)
-            except Exception:
-                LOG.exception(_LE('Failed to terminate connection of volume '
-                                  '%(volume_id)s.'), {'volume_id': volume.id})
-
-            try:
-                client.volumes.detach(volume)
-            except Exception:
-                LOG.exception(_LE('Failed to detach volume %(volume_id)s.'),
-                              {'volume_id': volume.id})
+            self.volume_api.attachment_delete(client, attachment.id)
 
     def _cinder_volume_data_iterator(self, client, volume, max_size, offset=0,
                                      chunk_size=None, partial_length=None):
@@ -824,7 +812,7 @@ class Store(glance_store.driver.Store):
         loc = location.store_location
         self._check_context(context)
         try:
-            client = self.get_cinderclient(context)
+            client = self.get_cinderclient(context, version='3.54')
             volume = client.volumes.get(loc.volume_id)
             size = int(volume.metadata.get('image_size',
                                            volume.size * units.Gi))
@@ -892,7 +880,7 @@ class Store(glance_store.driver.Store):
         """
 
         self._check_context(context, require_tenant=True)
-        client = self.get_cinderclient(context)
+        client = self.get_cinderclient(context, version='3.54')
         os_hash_value = utils.get_hasher(hashing_algo, False)
         checksum = utils.get_hasher('md5', False)
         bytes_written = 0
@@ -914,9 +902,9 @@ class Store(glance_store.driver.Store):
                          "resize-before-write for each GB which "
                          "will be considerably slower than normal."))
         try:
-            volume = client.volumes.create(size_gb, name=name,
-                                           metadata=metadata,
-                                           volume_type=volume_type)
+            volume = self.volume_api.create(client, size_gb, name=name,
+                                            metadata=metadata,
+                                            volume_type=volume_type)
         except cinder_exception.NotFound:
             LOG.error(_LE("Invalid volume type %s configured. Please check "
                           "the `cinder_volume_type` configuration parameter."
@@ -1025,9 +1013,9 @@ class Store(glance_store.driver.Store):
         """
         loc = location.store_location
         self._check_context(context)
+        client = self.get_cinderclient(context)
         try:
-            volume = self.get_cinderclient(context).volumes.get(loc.volume_id)
-            volume.delete()
+            self.volume_api.delete(client, loc.volume_id)
         except cinder_exception.NotFound:
             raise exceptions.NotFound(image=loc.volume_id)
         except cinder_exception.ClientException as e:
