@@ -54,7 +54,7 @@ format::
        username: admin
      identity_api_version: '3'
      region_name: RegionOne
-     volume_api_version: '2'
+     volume_api_version: '3'
 
 The clouds.yaml format allows for a set of credentials to be defined for each
 named cloud.  By default, the tests will use the credentials for the cloud
