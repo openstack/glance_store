@@ -143,11 +143,16 @@ class SingleTenantConnectionManager(SwiftConnectionManager):
     def _get_storage_url(self):
         """Get swift endpoint from keystone
 
-        Return endpoint for swift from service catalog. The method works only
-        Keystone v3. If you are using different version (1 or 2)
+        Return endpoint for swift from service catalog if not overridden in
+        store configuration. The method works only Keystone v3.
+        If you are using different version (1 or 2)
         it returns None.
         :return: swift endpoint
         """
+
+        if self.store.conf_endpoint:
+            return self.store.conf_endpoint
+
         if self.store.auth_version == '3':
             try:
                 return self.client.session.get_endpoint(
