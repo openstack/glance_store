@@ -479,6 +479,33 @@ class SwiftTests(object):
             expected_image_id, image_swift, expected_swift_size, HASH_ALGO)
         self.assertEqual(expected_location, location)
 
+    def test_add_raises_storage_full(self):
+
+        conf = copy.deepcopy(SWIFT_CONF)
+        conf['default_swift_reference'] = 'store_2'
+        self.config(**conf)
+        moves.reload_module(swift)
+        self.mock_keystone_client()
+        self.store = Store(self.conf)
+        self.store.configure()
+
+        def fake_put_object_entity_too_large(*args, **kwargs):
+            msg = "Test Out of Quota"
+            raise swiftclient.ClientException(
+                msg, http_status=http_client.REQUEST_ENTITY_TOO_LARGE)
+
+        self.useFixture(fixtures.MockPatch(
+            'swiftclient.client.put_object', fake_put_object_entity_too_large))
+
+        expected_swift_size = FIVE_KB
+        expected_swift_contents = b"*" * expected_swift_size
+        expected_image_id = str(uuid.uuid4())
+        image_swift = six.BytesIO(expected_swift_contents)
+
+        self.assertRaises(exceptions.StorageFull, self.store.add,
+                          expected_image_id, image_swift,
+                          expected_swift_size, HASH_ALGO)
+
     @mock.patch('glance_store._drivers.swift.utils'
                 '.is_multiple_swift_store_accounts_enabled',
                 mock.Mock(return_value=False))

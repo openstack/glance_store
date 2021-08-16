@@ -1074,6 +1074,8 @@ class BaseStore(driver.Store):
                 if e.http_status == http_client.CONFLICT:
                     msg = _("Swift already has an image at this location")
                     raise exceptions.Duplicate(message=msg)
+                elif e.http_status == http_client.REQUEST_ENTITY_TOO_LARGE:
+                    raise exceptions.StorageFull(message=e.msg)
 
                 msg = (_(u"Failed to add object to Swift.\n"
                          "Got error from Swift: %s.")
