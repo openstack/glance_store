@@ -1,0 +1,12 @@
+---
+prelude: >
+    This release adds support for handling cinder's multiattach volumes
+    in glance cinder store.
+features:
+  - |
+    Glance cinder store now supports handling of multiattach volumes.
+fixes:
+  - |
+    `Bug #1904546 <https://bugs.launchpad.net/cinder/+bug/1904546>`_:
+     Fixed creating multiple instances/volumes from image if multiattach
+     volumes are used.

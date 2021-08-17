@@ -33,6 +33,7 @@ from oslo_config import cfg
 from oslo_utils import units
 
 from glance_store import capabilities
+from glance_store.common import attachment_state_manager
 from glance_store.common import cinder_utils
 from glance_store.common import utils
 import glance_store.driver
@@ -699,8 +700,13 @@ class Store(glance_store.driver.Store):
         connector_prop = connector.get_connector_properties(
             root_helper, host, use_multipath, enforce_multipath)
 
-        attachment = self.volume_api.attachment_create(client, volume_id,
-                                                       mode=attach_mode)
+        if volume.multiattach:
+            attachment = attachment_state_manager.attach(client, volume_id,
+                                                         host,
+                                                         mode=attach_mode)
+        else:
+            attachment = self.volume_api.attachment_create(client, volume_id,
+                                                           mode=attach_mode)
         attachment = self.volume_api.attachment_update(
             client, attachment['id'], connector_prop,
             mountpoint='glance_store')
@@ -767,13 +773,19 @@ class Store(glance_store.driver.Store):
                                               root_helper)
                         disconnect_volume_nfs()
                     else:
-                        conn.disconnect_volume(connection_info, device)
+                        if volume.multiattach:
+                            attachment_state_manager.detach(
+                                client, attachment.id, volume_id, host, conn,
+                                connection_info, device)
+                        else:
+                            conn.disconnect_volume(connection_info, device)
                 except Exception:
                     LOG.exception(_LE('Failed to disconnect volume '
                                       '%(volume_id)s.'),
                                   {'volume_id': volume.id})
 
-            self.volume_api.attachment_delete(client, attachment.id)
+            if not volume.multiattach:
+                self.volume_api.attachment_delete(client, attachment.id)
 
     def _cinder_volume_data_iterator(self, client, volume, max_size, offset=0,
                                      chunk_size=None, partial_length=None):

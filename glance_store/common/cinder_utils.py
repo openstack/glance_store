@@ -47,6 +47,12 @@ def _retry_on_internal_server_error(e):
     return False
 
 
+def _retry_on_bad_request(e):
+    if isinstance(e, cinder_exception.BadRequest):
+        return True
+    return False
+
+
 class API(object):
     """API for interacting with the cinder."""
 
@@ -64,6 +70,8 @@ class API(object):
     def delete(self, client, volume_id):
         client.volumes.delete(volume_id)
 
+    @retrying.retry(stop_max_attempt_number=5,
+                    retry_on_exception=_retry_on_bad_request)
     @handle_exceptions
     def attachment_create(self, client, volume_id, connector=None,
                           mountpoint=None, mode=None):
@@ -95,11 +103,18 @@ class API(object):
             return attachment_ref
         except cinder_exception.ClientException as ex:
             with excutils.save_and_reraise_exception():
-                LOG.error(_LE('Create attachment failed for volume '
-                              '%(volume_id)s. Error: %(msg)s Code: %(code)s'),
-                          {'volume_id': volume_id,
-                           'msg': str(ex),
-                           'code': getattr(ex, 'code', None)})
+                # While handling simultaneous requests, the volume can be
+                # in different states and we retry on attachment_create
+                # until the volume reaches a valid state for attachment.
+                # Hence, it is better to not log 400 cases as no action
+                # from users is needed in this case
+                if getattr(ex, 'code', None) != 400:
+                    LOG.error(_LE('Create attachment failed for volume '
+                                  '%(volume_id)s. Error: %(msg)s '
+                                  'Code: %(code)s'),
+                              {'volume_id': volume_id,
+                               'msg': str(ex),
+                               'code': getattr(ex, 'code', None)})
 
     @handle_exceptions
     def attachment_get(self, client, attachment_id):

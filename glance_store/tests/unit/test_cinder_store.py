@@ -31,6 +31,7 @@ from oslo_concurrency import processutils
 from oslo_utils.secretutils import md5
 from oslo_utils import units
 
+from glance_store.common import attachment_state_manager
 from glance_store.common import cinder_utils
 from glance_store import exceptions
 from glance_store import location
@@ -152,9 +153,11 @@ class TestCinderStore(base.StoreBaseTest,
     def _test_open_cinder_volume(self, open_mode, attach_mode, error,
                                  multipath_supported=False,
                                  enforce_multipath=False,
-                                 encrypted_nfs=False, qcow2_vol=False):
+                                 encrypted_nfs=False, qcow2_vol=False,
+                                 multiattach=False):
         self.config(cinder_mount_point_base=None)
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available')
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available',
+                                     multiattach=multiattach)
         fake_volume.manager.get.return_value = fake_volume
         fake_volumes = FakeObject(get=lambda id: fake_volume)
         fake_attachment_id = str(uuid.uuid4())
@@ -178,10 +181,20 @@ class TestCinderStore(base.StoreBaseTest,
             yield
 
         def do_open():
-            with self.store._open_cinder_volume(
-                    fake_client, fake_volume, open_mode):
-                if error:
-                    raise error
+            if multiattach:
+                with mock.patch.object(
+                        attachment_state_manager._AttachmentStateManager,
+                        'get_state') as mock_get_state:
+                    mock_get_state.return_value.__enter__.return_value = (
+                        attachment_state_manager._AttachmentState())
+                    with self.store._open_cinder_volume(
+                            fake_client, fake_volume, open_mode):
+                        pass
+            else:
+                with self.store._open_cinder_volume(
+                        fake_client, fake_volume, open_mode):
+                    if error:
+                        raise error
 
         def fake_factory(protocol, root_helper, **kwargs):
             return fake_connector
@@ -297,6 +310,9 @@ class TestCinderStore(base.StoreBaseTest,
 
     def test_open_cinder_volume_nfs_qcow2_volume(self):
         self._test_open_cinder_volume('rb', 'ro', None, qcow2_vol=True)
+
+    def test_open_cinder_volume_multiattach_volume(self):
+        self._test_open_cinder_volume('rb', 'ro', None, multiattach=True)
 
     def test_cinder_configure_add(self):
         self.assertRaises(exceptions.BadStoreConfiguration,

@@ -74,6 +74,27 @@ class CinderUtilsTestCase(base.BaseTestCase):
             self.volume_api.attachment_create,
             self.fake_client, self.fake_vol_id)
 
+    def test_attachment_create_retries(self):
+
+        fake_attach_id = 'fake-attach-id'
+        # Make create fail two times and succeed on the third attempt.
+        self.fake_client.attachments.create.side_effect = [
+            cinder_exception.BadRequest(400),
+            cinder_exception.BadRequest(400),
+            fake_attach_id]
+
+        # Make sure we get a clean result.
+        fake_attachment_id = self.volume_api.attachment_create(
+            self.fake_client, self.fake_vol_id)
+
+        self.assertEqual(fake_attach_id, fake_attachment_id)
+        # Assert that we called attachment create three times due to the retry
+        # decorator.
+        self.fake_client.attachments.create.assert_has_calls([
+            mock.call(self.fake_vol_id, None, mode=None),
+            mock.call(self.fake_vol_id, None, mode=None),
+            mock.call(self.fake_vol_id, None, mode=None)])
+
     def test_attachment_get(self):
         self.volume_api.attachment_get(self.fake_client, self.fake_attach_id)
         self.fake_client.attachments.show.assert_called_once_with(
