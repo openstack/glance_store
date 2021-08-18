@@ -1,0 +1,14 @@
+---
+prelude: >
+  This was a quiet development cycle for the ``glance_store`` library.
+  Several bugs were fixed and some code changes were committed to
+  increase stability.
+fixes:
+  - |
+    * Bug 1926404_: HTTP 413 : Failed to add object to Swift. Got error from Swift
+    * Bug 1885651_: swift_store_endpoint doesn't override keystone catalog
+    * Bug 1934849_: s3 backend takes time exponentially
+
+    .. _1926404: https://code.launchpad.net/bugs/1926404
+    .. _1885651: https://code.launchpad.net/bugs/1885651
+    .. _1934849: https://code.launchpad.net/bugs/1934849
