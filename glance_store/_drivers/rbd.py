@@ -158,7 +158,7 @@ Enable or not thin provisioning in this backend.
 This configuration option enable the feature of not really write null byte
 sequences on the RBD backend, the holes who can appear will automatically
 be interpreted by Ceph as null bytes, and do not really consume your storage.
-Enabling this feature will also speed up image upload and save network trafic
+Enabling this feature will also speed up image upload and save network traffic
 in addition to save space in the backend, as null bytes sequences are not
 sent over the network.
 
@@ -544,7 +544,7 @@ class Store(driver.Store):
                 # Fix with encodeutils.safe_decode CAN BE REMOVED
                 # after librados's fix will be stable.
                 #
-                # More informations:
+                # More information:
                 # https://bugs.launchpad.net/glance-store/+bug/1816721
                 # https://bugs.launchpad.net/cinder/+bug/1816468
                 # https://tracker.ceph.com/issues/38381

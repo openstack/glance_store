@@ -753,7 +753,7 @@ def Store(conf, backend=None):
                     "work with swift+config. The options "
                     "'swift_store_multi_tenant' and "
                     "'swift_store_config_file' are mutually exclusive. "
-                    "If you inted to use multi-tenant swift store, please "
+                    "If you intend to use multi-tenant swift store, please "
                     "make sure that you have not set a swift configuration "
                     "file with the 'swift_store_config_file' option.")
             raise exceptions.BadStoreConfiguration(store_name="swift",
@@ -933,7 +933,7 @@ class BaseStore(driver.Store):
         """
         os_hash_value = gutils.get_hasher(hashing_algo, False)
         location = self.create_location(image_id, context=context)
-        # initialize a manager with re-auth if image need to be splitted
+        # initialize a manager with re-auth if image need to be split
         need_chunks = (image_size == 0) or (
             image_size >= self.large_object_size)
         with self.get_manager(location, context,
