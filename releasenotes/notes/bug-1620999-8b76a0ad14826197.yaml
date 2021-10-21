@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Now the ``project_domain_name`` parameter and the ``user_domain_name``
+    parameter are properly used by swift backends. Previously these two
+    parameters were ignored and the ``*_domain_id`` parameters should be
+    set to use a keystone domain different from the default one.

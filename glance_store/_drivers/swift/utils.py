@@ -98,11 +98,6 @@ Related options:
 """),
 ]
 
-_config_defaults = {'user_domain_id': 'default',
-                    'user_domain_name': 'default',
-                    'project_domain_id': 'default',
-                    'project_domain_name': 'default'}
-
 
 class SwiftConfigParser(configparser.ConfigParser):
 
@@ -121,7 +116,7 @@ class SwiftConfigParser(configparser.ConfigParser):
         return value
 
 
-CONFIG = SwiftConfigParser(defaults=_config_defaults)
+CONFIG = SwiftConfigParser()
 
 LOG = logging.getLogger(__name__)
 
@@ -193,14 +188,24 @@ class SwiftParams(object):
         for ref in account_references:
             reference = {}
             try:
-                for param in ('auth_address',
-                              'user',
-                              'key',
-                              'project_domain_id',
-                              'project_domain_name',
-                              'user_domain_id',
-                              'user_domain_name'):
+                for param in ('auth_address', 'user', 'key'):
                     reference[param] = CONFIG.get(ref, param)
+
+                reference['project_domain_name'] = CONFIG.get(
+                    ref, 'project_domain_name', fallback=None)
+                reference['project_domain_id'] = CONFIG.get(
+                    ref, 'project_domain_id', fallback=None)
+                if (reference['project_domain_name'] is None and
+                        reference['project_domain_id'] is None):
+                    reference['project_domain_id'] = 'default'
+
+                reference['user_domain_name'] = CONFIG.get(
+                    ref, 'user_domain_name', fallback=None)
+                reference['user_domain_id'] = CONFIG.get(
+                    ref, 'user_domain_id', fallback=None)
+                if (reference['user_domain_name'] is None and
+                        reference['user_domain_id'] is None):
+                    reference['user_domain_id'] = 'default'
 
                 try:
                     reference['auth_version'] = CONFIG.get(ref, 'auth_version')

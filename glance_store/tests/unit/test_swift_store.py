@@ -1462,15 +1462,72 @@ class TestStoreAuthV3(TestStoreAuthV1):
         loc = location.get_location_from_uri(uri, conf=self.conf)
         ctxt = mock.MagicMock()
         store.init_client(location=loc.store_location, context=ctxt)
-        # check that keystone was initialized correctly
-        tenant = None if store.auth_version == '1' else "tenant"
-        username = "tenant:user1" if store.auth_version == '1' else "user1"
         mock_identity.V3Password.assert_called_once_with(
             auth_url=loc.store_location.swift_url + '/',
-            username=username, password="key",
-            project_name=tenant,
-            project_domain_id='default', project_domain_name='default',
-            user_domain_id='default', user_domain_name='default',)
+            username="user1", password="key",
+            project_name="tenant",
+            project_domain_id='default', project_domain_name=None,
+            user_domain_id='default', user_domain_name=None,)
+        mock_session.Session.assert_called_once_with(
+            auth=mock_identity.V3Password(), verify=True)
+        mock_client.Client.assert_called_once_with(
+            session=mock_session.Session())
+
+    @mock.patch("glance_store._drivers.swift.store.ks_identity")
+    @mock.patch("glance_store._drivers.swift.store.ks_session")
+    @mock.patch("glance_store._drivers.swift.store.ks_client")
+    def test_init_client_single_tenant_with_domain_ids(self,
+                                                       mock_client,
+                                                       mock_session,
+                                                       mock_identity):
+        """Test that keystone client was initialized correctly"""
+        # initialize client
+        conf = self.getConfig()
+        conf['default_swift_reference'] = 'ref4'
+        self.config(**conf)
+        store = Store(self.conf)
+        store.configure()
+        uri = "swift://%s:key@auth_address/glance/%s" % (
+            self.swift_store_user, FAKE_UUID)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        ctxt = mock.MagicMock()
+        store.init_client(location=loc.store_location, context=ctxt)
+        mock_identity.V3Password.assert_called_once_with(
+            auth_url=loc.store_location.swift_url + '/',
+            username="user1", password="key",
+            project_name="tenant",
+            project_domain_id='projdomainid', project_domain_name=None,
+            user_domain_id='userdomainid', user_domain_name=None,)
+        mock_session.Session.assert_called_once_with(
+            auth=mock_identity.V3Password(), verify=True)
+        mock_client.Client.assert_called_once_with(
+            session=mock_session.Session())
+
+    @mock.patch("glance_store._drivers.swift.store.ks_identity")
+    @mock.patch("glance_store._drivers.swift.store.ks_session")
+    @mock.patch("glance_store._drivers.swift.store.ks_client")
+    def test_init_client_single_tenant_with_domain_names(self,
+                                                         mock_client,
+                                                         mock_session,
+                                                         mock_identity):
+        """Test that keystone client was initialized correctly"""
+        # initialize client
+        conf = self.getConfig()
+        conf['default_swift_reference'] = 'ref5'
+        self.config(**conf)
+        store = Store(self.conf)
+        store.configure()
+        uri = "swift://%s:key@auth_address/glance/%s" % (
+            self.swift_store_user, FAKE_UUID)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        ctxt = mock.MagicMock()
+        store.init_client(location=loc.store_location, context=ctxt)
+        mock_identity.V3Password.assert_called_once_with(
+            auth_url=loc.store_location.swift_url + '/',
+            username="user1", password="key",
+            project_name="tenant",
+            project_domain_id=None, project_domain_name='projdomain',
+            user_domain_id=None, user_domain_name='userdomain',)
         mock_session.Session.assert_called_once_with(
             auth=mock_identity.V3Password(), verify=True)
         mock_client.Client.assert_called_once_with(
