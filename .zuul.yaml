@@ -12,7 +12,6 @@
     vars:
       devstack_localrc:
         LIBS_FROM_GIT: glance_store
-        USE_PYTHON3: True
       devstack_services:
         # turn off ceilometer
         ceilometer-acentral: false
@@ -43,8 +42,6 @@
         s-container: true
         s-object: true
         s-proxy: true
-      devstack_localrc:
-        ENABLE_IDENTITY_V2: true
 
 - job:
     name: glance_store-tox-cinder-tips-base
