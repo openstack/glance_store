@@ -30,6 +30,7 @@ from keystoneauth1 import session as ksa_session
 from keystoneauth1 import token_endpoint as ksa_token_endpoint
 from oslo_concurrency import processutils
 from oslo_config import cfg
+from oslo_utils import strutils
 from oslo_utils import units
 
 from glance_store import capabilities
@@ -747,9 +748,16 @@ class Store(glance_store.driver.Store):
         else:
             attachment = self.volume_api.attachment_create(client, volume_id,
                                                            mode=attach_mode)
+        LOG.debug('Attachment %(attachment_id)s created successfully.',
+                  {'attachment_id': attachment['id']})
         attachment = self.volume_api.attachment_update(
             client, attachment['id'], connector_prop,
             mountpoint='glance_store')
+        LOG.debug('Attachment %(attachment_id)s updated successfully with '
+                  'connection info %(conn_info)s',
+                  {'attachment_id': attachment.id,
+                   'conn_info': strutils.mask_dict_password(
+                       attachment.connection_info)})
         volume = volume.manager.get(volume_id)
         connection_info = attachment.connection_info
 
@@ -794,6 +802,8 @@ class Store(glance_store.driver.Store):
             # Complete the attachment (marking the volume "in-use") after
             # the connection with os-brick is complete
             self.volume_api.attachment_complete(client, attachment.id)
+            LOG.debug('Attachment %(attachment_id)s completed successfully.',
+                      {'attachment_id': attachment.id})
             if (connection_info['driver_volume_type'] == 'rbd' and
                not conn.do_local_attach):
                 yield device['path']

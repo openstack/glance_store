@@ -277,7 +277,8 @@ class TestCinderStoreBase(object):
                 mock.patch.object(socket,
                                   'gethostname') as mock_get_host, \
                 mock.patch.object(socket,
-                                  'getaddrinfo') as mock_get_host_ip:
+                                  'getaddrinfo') as mock_get_host_ip, \
+                mock.patch.object(cinder.strutils, 'mask_dict_password'):
 
             fake_host = 'fake_host'
             fake_addr_info = [[0, 1, 2, 3, ['127.0.0.1']]]
