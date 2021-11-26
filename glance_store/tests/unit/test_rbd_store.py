@@ -114,6 +114,12 @@ class MockRBD(object):
         def remove_snap(self, *args, **kwargs):
             pass
 
+        def set_snap(self, *args, **kwargs):
+            pass
+
+        def list_children(self, *args, **kwargs):
+            pass
+
         def protect_snap(self, *args, **kwargs):
             pass
 
@@ -622,6 +628,15 @@ class TestStore(base.StoreBaseTest,
                               snapshot_name='snap')
 
             self.called_commands_expected = ['unprotect_snap']
+
+    def test_delete_image_snap_has_external_references(self):
+        with mock.patch.object(MockRBD.Image, 'list_children') as mocked:
+            mocked.return_value = True
+
+            self.assertRaises(exceptions.InUseByStore,
+                              self.store._delete_image,
+                              'fake_pool', self.location.image,
+                              snapshot_name='snap')
 
     def test_delete_image_w_snap_exc_image_has_snap(self):
         def _fake_remove(*args, **kwargs):

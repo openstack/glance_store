@@ -1,0 +1,13 @@
+---
+fixes:
+  - |
+    * Bug 1954883_: [RBD] Image is unusable if deletion fails
+
+    .. _1954883: https://code.launchpad.net/bugs/1954883
+
+upgrade:
+  - |
+    Deployments which are using Ceph V2 clone feature (i.e. RBD backend for
+    glance_store as well as cinder driver is RBD or nova is using RBD driver)
+    and minimum ceph client version is greater than 'luminous' need to grant
+    glance osd read access to the cinder and nova RBD pool.
