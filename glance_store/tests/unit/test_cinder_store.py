@@ -279,8 +279,6 @@ class TestCinderStore(base.StoreBaseTest,
                     attach_update.assert_called_once_with(
                         fake_client, fake_attachment_id,
                         fake_conn_info, mountpoint='glance_store')
-                    attach_complete.assert_called_once_with(
-                        fake_client, fake_attachment_id)
                     attach_delete.assert_called_once_with(
                         fake_client, fake_attachment_id)
 

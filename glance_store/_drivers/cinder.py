@@ -710,7 +710,6 @@ class Store(glance_store.driver.Store):
         attachment = self.volume_api.attachment_update(
             client, attachment['id'], connector_prop,
             mountpoint='glance_store')
-        self.volume_api.attachment_complete(client, attachment.id)
         volume = volume.manager.get(volume_id)
         connection_info = attachment.connection_info
 
@@ -751,6 +750,10 @@ class Store(glance_store.driver.Store):
                 device = connect_volume_nfs()
             else:
                 device = conn.connect_volume(connection_info)
+
+            # Complete the attachment (marking the volume "in-use") after
+            # the connection with os-brick is complete
+            self.volume_api.attachment_complete(client, attachment.id)
             if (connection_info['driver_volume_type'] == 'rbd' and
                not conn.do_local_attach):
                 yield device['path']
