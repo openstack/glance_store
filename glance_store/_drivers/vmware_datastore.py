@@ -553,7 +553,7 @@ class Store(glance_store.Store):
             store_conf = self.conf.glance_store
 
         result = getattr(store_conf, param)
-        if not result:
+        if result is None:
             reason = (_("Could not find %(param)s in configuration "
                         "options.") % {'param': param})
             raise exceptions.BadStoreConfiguration(

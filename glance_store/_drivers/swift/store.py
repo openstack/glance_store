@@ -891,7 +891,7 @@ class BaseStore(driver.Store):
         else:
             result = getattr(self.conf.glance_store, param)
 
-        if not result:
+        if result is None:
             reason = (_("Could not find %(param)s in configuration options.")
                       % param)
             LOG.error(reason)
