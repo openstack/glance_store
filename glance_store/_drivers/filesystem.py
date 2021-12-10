@@ -176,7 +176,7 @@ This configuration option enable the feature of not really write null byte
 sequences on the filesystem, the holes who can appear will automatically
 be interpreted by the filesystem as null bytes, and do not really consume
 your storage.
-Enabling this feature will also speed up image upload and save network trafic
+Enabling this feature will also speed up image upload and save network traffic
 in addition to save space in the backend, as null bytes sequences are not
 sent over the network.
 

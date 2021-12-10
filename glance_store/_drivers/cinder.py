@@ -382,7 +382,7 @@ Related options:
     cfg.BoolOpt('cinder_use_multipath',
                 default=False,
                 help="""
-Flag to identify mutipath is supported or not in the deployment.
+Flag to identify multipath is supported or not in the deployment.
 
 Set it to False if multipath is not supported.
 
@@ -532,7 +532,7 @@ class Store(glance_store.driver.Store):
                     return True
         except Exception:
             # Glance calls this method to update legacy images URL
-            # If an exception occours due to image/volume is non-existent or
+            # If an exception occurs due to image/volume is non-existent or
             # any other reason, we return False (i.e. the image location URL
             # won't be updated) and it is glance's responsibility to handle
             # the case when the image failed to update
