@@ -434,6 +434,14 @@ class Store(driver.Store):
             'snapshot': DEFAULT_SNAPNAME,
         }, self.conf)
 
+    def _snapshot_has_external_reference(self, image, snapshot_name):
+        """Returns True if snapshot has external reference else False.
+        """
+        image.set_snap(snapshot_name)
+        has_references = bool(image.list_children())
+        image.set_snap(None)
+        return has_references
+
     def _delete_image(self, target_pool, image_name,
                       snapshot_name=None, context=None):
         """
@@ -453,6 +461,14 @@ class Store(driver.Store):
                     if snapshot_name is not None:
                         with rbd.Image(ioctx, image_name) as image:
                             try:
+                                # NOTE(abhishekk): Check whether snapshot
+                                # has any external references
+                                if self._snapshot_has_external_reference(
+                                        image, snapshot_name):
+                                    raise rbd.ImageBusy(
+                                        "Image snapshot has external "
+                                        "references.")
+
                                 self._unprotect_snapshot(image, snapshot_name)
                                 image.remove_snap(snapshot_name)
                             except rbd.ImageNotFound as exc:
