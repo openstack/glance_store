@@ -221,7 +221,17 @@ class TestCinderStore(base.StoreBaseTest,
                 mock.patch.object(cinder_utils.API,
                                   'attachment_get') as attach_get, \
                 mock.patch.object(cinder_utils.API,
-                                  'attachment_complete') as attach_complete:
+                                  'attachment_complete') as attach_complete, \
+                mock.patch.object(socket,
+                                  'gethostname') as mock_get_host, \
+                mock.patch.object(socket,
+                                  'getaddrinfo') as mock_get_host_ip:
+
+            fake_host = 'fake_host'
+            fake_addr_info = [[0, 1, 2, 3, ['127.0.0.1']]]
+            fake_ip = fake_addr_info[0][4][0]
+            mock_get_host.return_value = fake_host
+            mock_get_host_ip.return_value = fake_addr_info
 
             with mock.patch.object(connector,
                                    'get_connector_properties',
@@ -247,8 +257,9 @@ class TestCinderStore(base.StoreBaseTest,
 
                 if not (encrypted_nfs or qcow2_vol):
                     mock_conn.assert_called_once_with(
-                        root_helper, socket.gethostname(),
-                        multipath_supported, enforce_multipath)
+                        root_helper, fake_ip,
+                        multipath_supported, enforce_multipath,
+                        host=fake_host)
                     fake_connector.connect_volume.assert_called_once_with(
                         mock.ANY)
                     fake_connector.disconnect_volume.assert_called_once_with(
@@ -267,8 +278,9 @@ class TestCinderStore(base.StoreBaseTest,
                         fake_client, fake_attachment_id)
                 else:
                     mock_conn.assert_called_once_with(
-                        root_helper, socket.gethostname(),
-                        multipath_supported, enforce_multipath)
+                        root_helper, fake_ip,
+                        multipath_supported, enforce_multipath,
+                        host=fake_host)
                     fake_connector.connect_volume.assert_not_called()
                     fake_connector.disconnect_volume.assert_not_called()
                     fake_conn_obj.assert_called_once_with(
