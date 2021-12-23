@@ -685,6 +685,12 @@ class Store(glance_store.driver.Store):
         """
         return os.path.join(mount_point_base, self.get_hash_str(share))
 
+    def _get_host_ip(self, host):
+        try:
+            return socket.getaddrinfo(host, None, socket.AF_INET6)[0][4][0]
+        except socket.gaierror:
+            return socket.getaddrinfo(host, None, socket.AF_INET)[0][4][0]
+
     @contextlib.contextmanager
     def _open_cinder_volume(self, client, volume, mode):
         attach_mode = 'rw' if mode == 'wb' else 'ro'
@@ -692,13 +698,14 @@ class Store(glance_store.driver.Store):
         root_helper = self.get_root_helper()
         priv_context.init(root_helper=shlex.split(root_helper))
         host = socket.gethostname()
+        my_ip = self._get_host_ip(host)
         use_multipath = self.store_conf.cinder_use_multipath
         enforce_multipath = self.store_conf.cinder_enforce_multipath
         mount_point_base = self.store_conf.cinder_mount_point_base
         volume_id = volume.id
 
         connector_prop = connector.get_connector_properties(
-            root_helper, host, use_multipath, enforce_multipath)
+            root_helper, my_ip, use_multipath, enforce_multipath, host=host)
 
         if volume.multiattach:
             attachment = attachment_state_manager.attach(client, volume_id,

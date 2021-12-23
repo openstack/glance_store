@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    `Bug #1955668 <https://bugs.launchpad.net/glance-store/+bug/1955668>`_:
+    Fixed issue with glance cinder store passing hostname instead of IP
+    address to os-brick while getting connector information.
