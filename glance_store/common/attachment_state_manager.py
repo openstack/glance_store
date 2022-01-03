@@ -83,7 +83,7 @@ class _AttachmentStateManager(metaclass=AttachmentStateManagerMeta):
         # Another thread might have initialised state while we were
         # waiting
         if self.state is None:
-            LOG.debug('Initialising _HostMountState')
+            LOG.debug('Initialising _AttachmentStateManager')
             self.state = _AttachmentState()
 
     @contextlib.contextmanager
