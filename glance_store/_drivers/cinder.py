@@ -558,6 +558,37 @@ class Store(glance_store.driver.Store):
             raise exceptions.BadStoreConfiguration(store_name="cinder",
                                                    reason=reason)
 
+    @staticmethod
+    def _get_device_size(device_file):
+        # The seek position is corrected after every extend operation
+        # with the bytes written (which is after this wait call) so we
+        # don't need to worry about setting it back to original position
+        device_file.seek(0, os.SEEK_END)
+        # There are other ways to determine the file size like os.stat
+        # or os.path.getsize but it requires file name attribute which
+        # we don't have for the RBD file wrapper RBDVolumeIOWrapper
+        device_size = device_file.tell()
+        device_size = int(math.ceil(float(device_size) / units.Gi))
+        return device_size
+
+    @staticmethod
+    def _wait_resize_device(volume, device_file):
+        timeout = 20
+        max_recheck_wait = 10
+        tries = 0
+        elapsed = 0
+        while Store._get_device_size(device_file) < volume.size:
+            wait = min(0.5 * 2 ** tries, max_recheck_wait)
+            time.sleep(wait)
+            tries += 1
+            elapsed += wait
+            if elapsed >= timeout:
+                msg = (_('Timeout while waiting while volume %(volume_id)s '
+                         'to resize the device in %(tries)s tries.')
+                       % {'volume_id': volume.id, 'tries': tries})
+                LOG.error(msg)
+                raise exceptions.BackendException(msg)
+
     def _wait_volume_status(self, volume, status_transition, status_expected):
         max_recheck_wait = 15
         timeout = self.store_conf.cinder_state_transition_timeout
@@ -865,6 +896,10 @@ class Store(glance_store.driver.Store):
         try:
             while need_extend:
                 with self._open_cinder_volume(client, volume, 'wb') as f:
+                    # Sometimes the extended LUN on storage side takes time
+                    # to reflect in the device so we wait until the device
+                    # size is equal to the extended volume size.
+                    Store._wait_resize_device(volume, f)
                     f.seek(bytes_written)
                     if buf:
                         f.write(buf)
