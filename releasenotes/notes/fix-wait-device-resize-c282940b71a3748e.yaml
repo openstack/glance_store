@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    `Bug #1959913 <https://bugs.launchpad.net/glance-store/+bug/1959913>`_:
+    Added wait between the volume being extended and
+    the new size being detected while opening the
+    volume device.

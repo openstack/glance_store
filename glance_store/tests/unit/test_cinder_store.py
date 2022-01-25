@@ -16,6 +16,8 @@
 import contextlib
 import errno
 import hashlib
+import io
+import math
 import os
 from unittest import mock
 
@@ -404,7 +406,7 @@ class TestCinderStore(base.StoreBaseTest,
             self.assertEqual(expected_image_size, image_size)
 
     def _test_cinder_add(self, fake_volume, volume_file, size_kb=5,
-                         verifier=None):
+                         verifier=None, fail_resize=False):
         expected_image_id = str(uuid.uuid4())
         expected_size = size_kb * units.Ki
         expected_file_contents = b"*" * expected_size
@@ -425,7 +427,11 @@ class TestCinderStore(base.StoreBaseTest,
 
         with mock.patch.object(cinder.Store, 'get_cinderclient') as mock_cc, \
                 mock.patch.object(self.store, '_open_cinder_volume',
-                                  side_effect=fake_open):
+                                  side_effect=fake_open), \
+                mock.patch.object(
+                    cinder.Store, '_wait_resize_device') as mock_wait_resize:
+            if fail_resize:
+                mock_wait_resize.side_effect = exceptions.BackendException()
             mock_cc.return_value = FakeObject(client=fake_client,
                                               volumes=fake_volumes)
             loc, size, checksum, multihash, _ = self.store.add(
@@ -507,3 +513,43 @@ class TestCinderStore(base.StoreBaseTest,
                 self.store.configure_add()
                 mock_log.warning.assert_called_with(
                     "Invalid `cinder_volume_type some_random_type`")
+
+    def test__get_device_size(self):
+        fake_data = b"fake binary data"
+        fake_len = int(math.ceil(float(len(fake_data)) / units.Gi))
+        fake_file = io.BytesIO(fake_data)
+        dev_size = cinder.Store._get_device_size(fake_file)
+        self.assertEqual(fake_len, dev_size)
+
+    @mock.patch.object(time, 'sleep')
+    def test__wait_resize_device_resized(self, mock_sleep):
+        fake_vol = mock.MagicMock()
+        fake_vol.size = 2
+        fake_file = io.BytesIO(b"fake binary data")
+        with mock.patch.object(
+                cinder.Store, '_get_device_size') as mock_get_dev_size:
+            mock_get_dev_size.side_effect = [1, 2]
+            cinder.Store._wait_resize_device(fake_vol, fake_file)
+
+    @mock.patch.object(time, 'sleep')
+    def test__wait_resize_device_fails(self, mock_sleep):
+        fake_vol = mock.MagicMock()
+        fake_vol.size = 2
+        fake_file = io.BytesIO(b"fake binary data")
+        with mock.patch.object(
+                cinder.Store, '_get_device_size',
+                return_value=1):
+            self.assertRaises(
+                exceptions.BackendException,
+                cinder.Store._wait_resize_device,
+                fake_vol, fake_file)
+
+    def test_cinder_add_fail_resize(self):
+        volume_file = io.BytesIO()
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
+                                     status='available',
+                                     size=1)
+        self.assertRaises(exceptions.BackendException,
+                          self._test_cinder_add, fake_volume, volume_file,
+                          fail_resize=True)
+        fake_volume.delete.assert_called_once()
