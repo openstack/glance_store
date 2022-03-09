@@ -44,12 +44,6 @@ sys.modules['glance_store.common.fs_mount'] = mock.Mock()
 from glance_store._drivers import cinder # noqa
 
 
-class FakeObject(object):
-    def __init__(self, **kwargs):
-        for name, value in kwargs.items():
-            setattr(self, name, value)
-
-
 class TestCinderStore(base.StoreBaseTest,
                       test_store_capabilities.TestStoreCapabilitiesChecking):
 
@@ -65,10 +59,10 @@ class TestCinderStore(base.StoreBaseTest,
                     u'endpoints_links': [],
                     u'name': u'cinder',
                     u'type': u'volumev3'}]
-        self.context = FakeObject(service_catalog=fake_sc,
-                                  user_id='fake_user',
-                                  auth_token='fake_token',
-                                  project_id='fake_project')
+        self.context = mock.MagicMock(service_catalog=fake_sc,
+                                      user_id='fake_user',
+                                      auth_token='fake_token',
+                                      project_id='fake_project')
         self.hash_algo = 'sha256'
         cinder._reset_cinder_session()
 
@@ -114,13 +108,13 @@ class TestCinderStore(base.StoreBaseTest,
 
     @mock.patch.object(time, 'sleep')
     def test_wait_volume_status(self, mock_sleep):
-        fake_manager = FakeObject(get=mock.Mock())
-        volume_available = FakeObject(manager=fake_manager,
-                                      id='fake-id',
-                                      status='available')
-        volume_in_use = FakeObject(manager=fake_manager,
-                                   id='fake-id',
-                                   status='in-use')
+        fake_manager = mock.MagicMock(get=mock.Mock())
+        volume_available = mock.MagicMock(manager=fake_manager,
+                                          id='fake-id',
+                                          status='available')
+        volume_in_use = mock.MagicMock(manager=fake_manager,
+                                       id='fake-id',
+                                       status='in-use')
         fake_manager.get.side_effect = [volume_available, volume_in_use]
         self.assertEqual(volume_in_use,
                          self.store._wait_volume_status(
@@ -130,10 +124,10 @@ class TestCinderStore(base.StoreBaseTest,
 
     @mock.patch.object(time, 'sleep')
     def test_wait_volume_status_unexpected(self, mock_sleep):
-        fake_manager = FakeObject(get=mock.Mock())
-        volume_available = FakeObject(manager=fake_manager,
-                                      id='fake-id',
-                                      status='error')
+        fake_manager = mock.MagicMock(get=mock.Mock())
+        volume_available = mock.MagicMock(manager=fake_manager,
+                                          id='fake-id',
+                                          status='error')
         fake_manager.get.return_value = volume_available
         self.assertRaises(exceptions.BackendException,
                           self.store._wait_volume_status,
@@ -142,10 +136,10 @@ class TestCinderStore(base.StoreBaseTest,
 
     @mock.patch.object(time, 'sleep')
     def test_wait_volume_status_timeout(self, mock_sleep):
-        fake_manager = FakeObject(get=mock.Mock())
-        volume_available = FakeObject(manager=fake_manager,
-                                      id='fake-id',
-                                      status='available')
+        fake_manager = mock.MagicMock(get=mock.Mock())
+        volume_available = mock.MagicMock(manager=fake_manager,
+                                          id='fake-id',
+                                          status='available')
         fake_manager.get.return_value = volume_available
         self.assertRaises(exceptions.BackendException,
                           self.store._wait_volume_status,
@@ -161,7 +155,7 @@ class TestCinderStore(base.StoreBaseTest,
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available',
                                      multiattach=multiattach)
         fake_volume.manager.get.return_value = fake_volume
-        fake_volumes = FakeObject(get=lambda id: fake_volume)
+        fake_volumes = mock.MagicMock(get=lambda id: fake_volume)
         fake_attachment_id = str(uuid.uuid4())
         fake_attachment_create = {'id': fake_attachment_id}
         if encrypted_nfs or qcow2_vol:
@@ -171,10 +165,10 @@ class TestCinderStore(base.StoreBaseTest,
         else:
             fake_attachment_update = mock.MagicMock(id=fake_attachment_id)
         fake_conn_info = mock.MagicMock(connector={})
-        fake_client = FakeObject(volumes=fake_volumes)
+        fake_client = mock.MagicMock(volumes=fake_volumes)
         _, fake_dev_path = tempfile.mkstemp(dir=self.test_dir)
         fake_devinfo = {'path': fake_dev_path}
-        fake_connector = FakeObject(
+        fake_connector = mock.MagicMock(
             connect_volume=mock.Mock(return_value=fake_devinfo),
             disconnect_volume=mock.Mock())
 
@@ -332,21 +326,21 @@ class TestCinderStore(base.StoreBaseTest,
 
         self.assertRaises(exceptions.BadStoreConfiguration,
                           self.store._check_context,
-                          FakeObject(service_catalog=None))
+                          mock.MagicMock(service_catalog=None))
 
-        self.store._check_context(FakeObject(service_catalog='fake'))
+        self.store._check_context(mock.MagicMock(service_catalog='fake'))
 
     def test_cinder_get(self):
         expected_size = 5 * units.Ki
         expected_file_contents = b"*" * expected_size
         volume_file = six.BytesIO(expected_file_contents)
-        fake_client = FakeObject(auth_token=None, management_url=None)
+        fake_client = mock.MagicMock(auth_token=None, management_url=None)
         fake_volume_uuid = str(uuid.uuid4())
         fake_volume = mock.MagicMock(id=fake_volume_uuid,
                                      metadata={'image_size': expected_size},
                                      status='available')
         fake_volume.manager.get.return_value = fake_volume
-        fake_volumes = FakeObject(get=lambda id: fake_volume)
+        fake_volumes = mock.MagicMock(get=lambda id: fake_volume)
 
         @contextlib.contextmanager
         def fake_open(client, volume, mode):
@@ -356,8 +350,8 @@ class TestCinderStore(base.StoreBaseTest,
         with mock.patch.object(cinder.Store, 'get_cinderclient') as mock_cc, \
                 mock.patch.object(self.store, '_open_cinder_volume',
                                   side_effect=fake_open):
-            mock_cc.return_value = FakeObject(client=fake_client,
-                                              volumes=fake_volumes)
+            mock_cc.return_value = mock.MagicMock(client=fake_client,
+                                                  volumes=fake_volumes)
             uri = "cinder://%s" % fake_volume_uuid
             loc = location.get_location_from_uri(uri, conf=self.conf)
             (image_file, image_size) = self.store.get(loc,
@@ -374,14 +368,14 @@ class TestCinderStore(base.StoreBaseTest,
             self.assertEqual(expected_file_contents, data)
 
     def test_cinder_get_size(self):
-        fake_client = FakeObject(auth_token=None, management_url=None)
+        fake_client = mock.MagicMock(auth_token=None, management_url=None)
         fake_volume_uuid = str(uuid.uuid4())
-        fake_volume = FakeObject(size=5, metadata={})
+        fake_volume = mock.MagicMock(size=5, metadata={})
         fake_volumes = {fake_volume_uuid: fake_volume}
 
         with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
-            mocked_cc.return_value = FakeObject(client=fake_client,
-                                                volumes=fake_volumes)
+            mocked_cc.return_value = mock.MagicMock(client=fake_client,
+                                                    volumes=fake_volumes)
 
             uri = 'cinder://%s' % fake_volume_uuid
             loc = location.get_location_from_uri(uri, conf=self.conf)
@@ -389,16 +383,16 @@ class TestCinderStore(base.StoreBaseTest,
             self.assertEqual(fake_volume.size * units.Gi, image_size)
 
     def test_cinder_get_size_with_metadata(self):
-        fake_client = FakeObject(auth_token=None, management_url=None)
+        fake_client = mock.MagicMock(auth_token=None, management_url=None)
         fake_volume_uuid = str(uuid.uuid4())
         expected_image_size = 4500 * units.Mi
-        fake_volume = FakeObject(size=5,
-                                 metadata={'image_size': expected_image_size})
+        fake_volume = mock.MagicMock(
+            size=5, metadata={'image_size': expected_image_size})
         fake_volumes = {fake_volume_uuid: fake_volume}
 
         with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
-            mocked_cc.return_value = FakeObject(client=fake_client,
-                                                volumes=fake_volumes)
+            mocked_cc.return_value = mock.MagicMock(client=fake_client,
+                                                    volumes=fake_volumes)
 
             uri = 'cinder://%s' % fake_volume_uuid
             loc = location.get_location_from_uri(uri, conf=self.conf)
@@ -415,9 +409,10 @@ class TestCinderStore(base.StoreBaseTest,
                                 usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
         expected_location = 'cinder://%s' % fake_volume.id
-        fake_client = FakeObject(auth_token=None, management_url=None)
+        fake_client = mock.MagicMock(auth_token=None, management_url=None)
         fake_volume.manager.get.return_value = fake_volume
-        fake_volumes = FakeObject(create=mock.Mock(return_value=fake_volume))
+        fake_volumes = mock.MagicMock(create=mock.Mock(
+            return_value=fake_volume))
         self.config(cinder_volume_type='some_type')
 
         @contextlib.contextmanager
@@ -432,8 +427,8 @@ class TestCinderStore(base.StoreBaseTest,
                     cinder.Store, '_wait_resize_device') as mock_wait_resize:
             if fail_resize:
                 mock_wait_resize.side_effect = exceptions.BackendException()
-            mock_cc.return_value = FakeObject(client=fake_client,
-                                              volumes=fake_volumes)
+            mock_cc.return_value = mock.MagicMock(client=fake_client,
+                                                  volumes=fake_volumes)
             loc, size, checksum, multihash, _ = self.store.add(
                 expected_image_id, image_file, expected_size, self.hash_algo,
                 self.context, verifier)
@@ -478,13 +473,13 @@ class TestCinderStore(base.StoreBaseTest,
         fake_volume.delete.assert_called_once_with()
 
     def test_cinder_delete(self):
-        fake_client = FakeObject(auth_token=None, management_url=None)
+        fake_client = mock.MagicMock(auth_token=None, management_url=None)
         fake_volume_uuid = str(uuid.uuid4())
-        fake_volumes = FakeObject(delete=mock.Mock())
+        fake_volumes = mock.MagicMock(delete=mock.Mock())
 
         with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
-            mocked_cc.return_value = FakeObject(client=fake_client,
-                                                volumes=fake_volumes)
+            mocked_cc.return_value = mock.MagicMock(client=fake_client,
+                                                    volumes=fake_volumes)
 
             uri = 'cinder://%s' % fake_volume_uuid
             loc = location.get_location_from_uri(uri, conf=self.conf)
@@ -501,8 +496,9 @@ class TestCinderStore(base.StoreBaseTest,
                 raise cinder.cinder_exception.NotFound(code=404)
 
         with mock.patch.object(self.store, 'get_cinderclient') as mocked_cc:
-            mocked_cc.return_value = FakeObject(volume_types=FakeObject(
-                find=fake_volume_type))
+            mocked_cc.return_value = mock.MagicMock(
+                volume_types=mock.MagicMock(
+                    find=fake_volume_type))
             self.config(cinder_volume_type='some_type')
             # If volume type exists, no exception is raised
             self.store.configure_add()
