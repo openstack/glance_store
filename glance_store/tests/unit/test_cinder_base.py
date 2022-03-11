@@ -47,6 +47,60 @@ class TestCinderStoreBase(object):
         self.assertEqual('fake_token', cc.client.auth.token)
         self.assertEqual('http://foo/public_url', cc.client.auth.endpoint)
 
+    def _get_cinderclient_with_user_overriden(self, group='glance_store',
+                                              **kwargs):
+
+        cinderclient_opts = {
+            'cinder_store_user_name': 'test_user',
+            'cinder_store_password': 'test_password',
+            'cinder_store_project_name': 'test_project',
+            'cinder_store_auth_address': 'test_address'}
+
+        cinderclient_opts.update(kwargs)
+        self.config(**cinderclient_opts, group=group)
+        cc = self.store.get_cinderclient(self.context)
+        return cc
+
+    def _test_get_cinderclient_with_user_overriden(
+            self, group='glance_store'):
+        cc = self._get_cinderclient_with_user_overriden(
+            group=group)
+        self.assertEqual('test_project',
+                         cc.client.session.auth.project_name)
+        self.assertEqual('Default',
+                         cc.client.session.auth.project_domain_name)
+
+    def _test_get_cinderclient_with_user_overriden_and_region(
+            self, group='glance_store'):
+        cc = self._get_cinderclient_with_user_overriden(
+            group=group, **{'cinder_os_region_name': 'test_region'})
+        self.assertEqual('test_region', cc.client.region_name)
+
+    def _test_get_cinderclient_with_api_insecure(
+            self, group='glance_store'):
+        self.config()
+        with mock.patch.object(
+            cinder.ksa_session, 'Session') as fake_session, \
+            mock.patch.object(
+                cinder.ksa_identity, 'V3Password') as fake_auth_method:
+            fake_auth = fake_auth_method()
+            self._get_cinderclient_with_user_overriden(
+                group=group, **{'cinder_api_insecure': True})
+            fake_session.assert_called_once_with(auth=fake_auth, verify=False)
+
+    def _test_get_cinderclient_with_ca_certificates(
+            self, group='glance_store'):
+        fake_cert_path = 'fake_cert_path'
+        with mock.patch.object(
+            cinder.ksa_session, 'Session') as fake_session, \
+            mock.patch.object(
+                cinder.ksa_identity, 'V3Password') as fake_auth_method:
+            fake_auth = fake_auth_method()
+            self._get_cinderclient_with_user_overriden(
+                group=group, **{'cinder_ca_certificates_file': fake_cert_path})
+            fake_session.assert_called_once_with(
+                auth=fake_auth, verify=fake_cert_path)
+
     def test_temporary_chown(self):
         fake_stat = mock.MagicMock(st_uid=1)
 

@@ -94,13 +94,17 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         self.assertEqual("cinder://cinder1", self.store.url_prefix)
 
     def test_get_cinderclient_with_user_overriden(self):
-        self.config(cinder_store_user_name='test_user', group="cinder1")
-        self.config(cinder_store_password='test_password', group="cinder1")
-        self.config(cinder_store_project_name='test_project', group="cinder1")
-        self.config(cinder_store_auth_address='test_address', group="cinder1")
-        cc = self.store.get_cinderclient(self.context)
-        self.assertEqual('Default', cc.client.session.auth.project_domain_name)
-        self.assertEqual('test_project', cc.client.session.auth.project_name)
+        self._test_get_cinderclient_with_user_overriden(group='cinder1')
+
+    def test_get_cinderclient_with_user_overriden_and_region(self):
+        self._test_get_cinderclient_with_user_overriden_and_region(
+            group='cinder1')
+
+    def test_get_cinderclient_with_api_insecure(self):
+        self._test_get_cinderclient_with_api_insecure(group='cinder1')
+
+    def test_get_cinderclient_with_ca_certificates(self):
+        self._test_get_cinderclient_with_ca_certificates(group='cinder1')
 
     def test_get_cinderclient_legacy_update(self):
         cc = self.store.get_cinderclient(self.fake_admin_context,

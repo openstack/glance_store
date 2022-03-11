@@ -56,23 +56,17 @@ class TestCinderStore(base.StoreBaseTest,
         cinder._reset_cinder_session()
         self.config(cinder_mount_point_base=None)
 
-    def _test_get_cinderclient_with_user_overriden(self):
-        self.config(cinder_store_user_name='test_user')
-        self.config(cinder_store_password='test_password')
-        self.config(cinder_store_project_name='test_project')
-        self.config(cinder_store_auth_address='test_address')
-        cc = self.store.get_cinderclient(self.context)
-        self.assertEqual('test_project', cc.client.session.auth.project_name)
-        self.assertEqual('Default', cc.client.session.auth.project_domain_name)
-        return cc
-
     def test_get_cinderclient_with_user_overriden(self):
         self._test_get_cinderclient_with_user_overriden()
 
     def test_get_cinderclient_with_user_overriden_and_region(self):
-        self.config(cinder_os_region_name='test_region')
-        cc = self._test_get_cinderclient_with_user_overriden()
-        self.assertEqual('test_region', cc.client.region_name)
+        self._test_get_cinderclient_with_user_overriden_and_region()
+
+    def test_get_cinderclient_with_api_insecure(self):
+        self._test_get_cinderclient_with_api_insecure()
+
+    def test_get_cinderclient_with_ca_certificates(self):
+        self._test_get_cinderclient_with_ca_certificates()
 
     def test_open_cinder_volume_multipath_enabled(self):
         self.config(cinder_use_multipath=True)
