@@ -17,7 +17,6 @@ import errno
 import io
 from unittest import mock
 
-import six
 import sys
 import uuid
 
@@ -227,14 +226,14 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
                                      status='available',
                                      size=1)
-        volume_file = six.BytesIO()
+        volume_file = io.BytesIO()
         self._test_cinder_add(fake_volume, volume_file, is_multi_store=True)
 
     def test_cinder_add_with_verifier(self):
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
                                      status='available',
                                      size=1)
-        volume_file = six.BytesIO()
+        volume_file = io.BytesIO()
         verifier = mock.MagicMock()
         self._test_cinder_add(fake_volume, volume_file, 1, verifier,
                               is_multi_store=True)
@@ -242,7 +241,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
 
     def test_cinder_add_volume_full(self):
         e = IOError()
-        volume_file = six.BytesIO()
+        volume_file = io.BytesIO()
         e.errno = errno.ENOSPC
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
                                      status='available',
@@ -261,7 +260,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
                                      status='available',
                                      size=1)
-        volume_file = six.BytesIO()
+        volume_file = io.BytesIO()
         self._test_cinder_add(fake_volume, volume_file, backend="cinder2",
                               is_multi_store=True)
 

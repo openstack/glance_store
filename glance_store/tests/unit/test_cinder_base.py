@@ -20,7 +20,6 @@ import math
 import os
 from unittest import mock
 
-import six
 import socket
 import sys
 import tempfile
@@ -304,7 +303,7 @@ class TestCinderStoreBase(object):
     def _test_cinder_get(self, is_multi_store=False):
         expected_size = 5 * units.Ki
         expected_file_contents = b"*" * expected_size
-        volume_file = six.BytesIO(expected_file_contents)
+        volume_file = io.BytesIO(expected_file_contents)
         fake_client = mock.MagicMock(auth_token=None, management_url=None)
         fake_volume_uuid = str(uuid.uuid4())
         fake_volume = mock.MagicMock(id=fake_volume_uuid,
@@ -380,7 +379,7 @@ class TestCinderStoreBase(object):
         expected_image_id = str(uuid.uuid4())
         expected_size = size_kb * units.Ki
         expected_file_contents = b"*" * expected_size
-        image_file = six.BytesIO(expected_file_contents)
+        image_file = io.BytesIO(expected_file_contents)
         expected_checksum = md5(expected_file_contents,
                                 usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
