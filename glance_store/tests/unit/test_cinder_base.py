@@ -513,3 +513,16 @@ class TestCinderStoreBase(object):
                 exceptions.BackendException,
                 cinder.Store._wait_resize_device,
                 fake_vol, fake_file)
+
+    def test_process_specs(self):
+        self.location.process_specs()
+        self.assertEqual('cinder', self.location.scheme)
+        self.assertEqual(self.volume_id, self.location.volume_id)
+
+    def _test_get_uri(self, expected_uri):
+        uri = self.location.get_uri()
+        self.assertEqual(expected_uri, uri)
+
+    def _test_parse_uri_invalid(self, uri):
+        self.assertRaises(
+            exceptions.BadStoreUri, self.location.parse_uri, uri)

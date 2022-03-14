@@ -55,6 +55,10 @@ class TestCinderStore(base.StoreBaseTest,
         self.hash_algo = 'sha256'
         cinder._reset_cinder_session()
         self.config(cinder_mount_point_base=None)
+        self.volume_id = str(uuid.uuid4())
+        specs = {'scheme': 'cinder',
+                 'volume_id': self.volume_id}
+        self.location = cinder.StoreLocation(specs, self.conf)
 
     def test_get_cinderclient_with_user_overriden(self):
         self._test_get_cinderclient_with_user_overriden()
@@ -168,3 +172,15 @@ class TestCinderStore(base.StoreBaseTest,
         # warning
         self.config(cinder_volume_type='some_random_type')
         self._test_configure_add_invalid_type()
+
+    def test_get_uri(self):
+        expected_uri = 'cinder://%s' % self.volume_id
+        self._test_get_uri(expected_uri)
+
+    def test_parse_uri_valid(self):
+        expected_uri = 'cinder://%s' % self.volume_id
+        self.location.parse_uri(expected_uri)
+
+    def test_parse_uri_invalid(self):
+        uri = 'cinder://%s' % 'fake_volume'
+        self._test_parse_uri_invalid(uri)

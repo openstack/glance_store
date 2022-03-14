@@ -89,6 +89,11 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
             project_id='admin_project')
         cinder._reset_cinder_session()
         self.config(cinder_mount_point_base=None, group='cinder1')
+        self.volume_id = str(uuid.uuid4())
+        specs = {'scheme': 'cinder',
+                 'volume_id': self.volume_id}
+        self.location = cinder.StoreLocation(specs, self.conf,
+                                             backend_group='cinder1')
 
     def test_location_url_prefix_is_set(self):
         self.assertEqual("cinder://cinder1", self.store.url_prefix)
@@ -293,3 +298,18 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                                                              conf=self.conf)
             self.store.delete(loc, context=self.context)
             fake_volumes.delete.assert_called_once_with(fake_volume_uuid)
+
+    def test_set_url_prefix(self):
+        self.assertEqual('cinder://cinder1', self.store._url_prefix)
+
+    def test_get_uri(self):
+        expected_uri = 'cinder://cinder1/%s' % self.volume_id
+        self._test_get_uri(expected_uri)
+
+    def test_parse_uri_valid(self):
+        expected_uri = 'cinder://cinder1/%s' % self.volume_id
+        self.location.parse_uri(expected_uri)
+
+    def test_parse_uri_invalid(self):
+        uri = 'cinder://cinder1/%s' % 'fake_volume'
+        self._test_parse_uri_invalid(uri)
