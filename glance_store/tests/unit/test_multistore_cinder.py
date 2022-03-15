@@ -313,3 +313,10 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
     def test_parse_uri_invalid(self):
         uri = 'cinder://cinder1/%s' % 'fake_volume'
         self._test_parse_uri_invalid(uri)
+
+    def test_get_root_helper(self):
+        self._test_get_root_helper(group='cinder1')
+
+    def test_get_cinderclient_cinder_endpoint_template(self):
+        self._test_get_cinderclient_cinder_endpoint_template(
+            group='cinder1')

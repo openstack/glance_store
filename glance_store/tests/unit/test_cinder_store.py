@@ -184,3 +184,9 @@ class TestCinderStore(base.StoreBaseTest,
     def test_parse_uri_invalid(self):
         uri = 'cinder://%s' % 'fake_volume'
         self._test_parse_uri_invalid(uri)
+
+    def test_get_root_helper(self):
+        self._test_get_root_helper()
+
+    def test_get_cinderclient_cinder_endpoint_template(self):
+        self._test_get_cinderclient_cinder_endpoint_template()

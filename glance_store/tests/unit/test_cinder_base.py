@@ -26,6 +26,7 @@ import tempfile
 import time
 import uuid
 
+from keystoneauth1 import exceptions as keystone_exc
 from os_brick.initiator import connector
 from oslo_concurrency import processutils
 from oslo_utils.secretutils import md5
@@ -100,6 +101,49 @@ class TestCinderStoreBase(object):
                 group=group, **{'cinder_ca_certificates_file': fake_cert_path})
             fake_session.assert_called_once_with(
                 auth=fake_auth, verify=fake_cert_path)
+
+    def _test_get_cinderclient_cinder_endpoint_template(self,
+                                                        group='glance_store'):
+        fake_endpoint = 'http://cinder.openstack.example.com/v2/fake_project'
+        self.config(cinder_endpoint_template=fake_endpoint, group=group)
+        with mock.patch.object(
+                cinder.ksa_token_endpoint, 'Token') as fake_token:
+            self.store.get_cinderclient(self.context)
+            fake_token.assert_called_once_with(endpoint=fake_endpoint,
+                                               token=self.context.auth_token)
+
+    def test_get_cinderclient_endpoint_exception(self):
+        with mock.patch.object(cinder.ksa_session, 'Session'), \
+            mock.patch.object(cinder.ksa_identity, 'V3Password'), \
+            mock.patch.object(
+                cinder.Store, 'is_user_overriden', return_value=False), \
+            mock.patch.object(
+                cinder.keystone_sc, 'ServiceCatalogV2') as service_catalog:
+            service_catalog.side_effect = keystone_exc.EndpointNotFound
+            self.assertRaises(
+                exceptions.BadStoreConfiguration, self.store.get_cinderclient,
+                self.context)
+
+    def test__check_context(self):
+        with mock.patch.object(cinder.Store, 'is_user_overriden',
+                               return_value=True) as fake_overriden:
+            self.store._check_context(self.context)
+            fake_overriden.assert_called_once()
+
+    def test__check_context_no_context(self):
+        with mock.patch.object(
+                cinder.Store, 'is_user_overriden', return_value=False):
+            self.assertRaises(
+                exceptions.BadStoreConfiguration, self.store._check_context,
+                None)
+
+    def test__check_context_no_service_catalog(self):
+        with mock.patch.object(
+                cinder.Store, 'is_user_overriden', return_value=False):
+            fake_context = mock.MagicMock(service_catalog=None)
+            self.assertRaises(
+                exceptions.BadStoreConfiguration, self.store._check_context,
+                fake_context)
 
     def test_temporary_chown(self):
         fake_stat = mock.MagicMock(st_uid=1)
@@ -526,3 +570,10 @@ class TestCinderStoreBase(object):
     def _test_parse_uri_invalid(self, uri):
         self.assertRaises(
             exceptions.BadStoreUri, self.location.parse_uri, uri)
+
+    def _test_get_root_helper(self, group='glance_store'):
+        fake_rootwrap = 'fake_rootwrap'
+        expected = 'sudo glance-rootwrap %s' % fake_rootwrap
+        self.config(rootwrap_config=fake_rootwrap, group=group)
+        res = self.store.get_root_helper()
+        self.assertEqual(expected, res)
