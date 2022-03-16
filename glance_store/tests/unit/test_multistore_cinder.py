@@ -284,20 +284,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         fake_volume.delete.assert_called_once()
 
     def test_cinder_delete(self):
-        fake_client = mock.MagicMock(auth_token=None, management_url=None)
-        fake_volume_uuid = str(uuid.uuid4())
-        fake_volumes = mock.MagicMock(delete=mock.Mock())
-
-        with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
-            mocked_cc.return_value = mock.MagicMock(client=fake_client,
-                                                    volumes=fake_volumes)
-
-            uri = 'cinder://cinder1/%s' % fake_volume_uuid
-            loc = location.get_location_from_uri_and_backend(uri,
-                                                             "cinder1",
-                                                             conf=self.conf)
-            self.store.delete(loc, context=self.context)
-            fake_volumes.delete.assert_called_once_with(fake_volume_uuid)
+        self._test_cinder_delete(is_multi_store=True)
 
     def test_set_url_prefix(self):
         self.assertEqual('cinder://cinder1', self.store._url_prefix)

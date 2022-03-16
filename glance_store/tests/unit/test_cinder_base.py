@@ -437,11 +437,42 @@ class TestCinderStoreBase(object):
             self.assertEqual(expected_num_chunks, num_chunks)
             self.assertEqual(expected_file_contents, data)
 
+    def _test_cinder_volume_not_found(self, method_call, mock_method):
+        fake_volume_uuid = str(uuid.uuid4())
+        loc = mock.MagicMock(volume_id=fake_volume_uuid)
+        mock_not_found = {mock_method: mock.MagicMock(
+            side_effect=cinder.cinder_exception.NotFound(code=404))}
+        fake_volumes = mock.MagicMock(**mock_not_found)
+
+        with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
+            mocked_cc.return_value = mock.MagicMock(volumes=fake_volumes)
+            self.assertRaises(exceptions.NotFound, method_call, loc,
+                              context=self.context)
+
+    def test_cinder_get_volume_not_found(self):
+        self._test_cinder_volume_not_found(self.store.get, 'get')
+
+    def test_cinder_get_size_volume_not_found(self):
+        self._test_cinder_volume_not_found(self.store.get_size, 'get')
+
+    def test_cinder_delete_volume_not_found(self):
+        self._test_cinder_volume_not_found(self.store.delete, 'delete')
+
+    def test_cinder_get_client_exception(self):
+        fake_volume_uuid = str(uuid.uuid4())
+        loc = mock.MagicMock(volume_id=fake_volume_uuid)
+
+        with mock.patch.object(cinder.Store, 'get_cinderclient') as mock_cc:
+            mock_cc.side_effect = (
+                cinder.cinder_exception.ClientException(code=500))
+            self.assertRaises(exceptions.BackendException, self.store.get, loc,
+                              context=self.context)
+
     def _test_cinder_get_size(self, is_multi_store=False):
         fake_client = mock.MagicMock(auth_token=None, management_url=None)
         fake_volume_uuid = str(uuid.uuid4())
         fake_volume = mock.MagicMock(size=5, metadata={})
-        fake_volumes = {fake_volume_uuid: fake_volume}
+        fake_volumes = mock.MagicMock(get=lambda fake_volume_uuid: fake_volume)
 
         with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
             mocked_cc.return_value = mock.MagicMock(client=fake_client,
@@ -470,6 +501,17 @@ class TestCinderStoreBase(object):
 
             image_size = self.store.get_size(loc, context=self.context)
             self.assertEqual(expected_image_size, image_size)
+
+    def test_cinder_get_size_generic_exception(self):
+        fake_volume_uuid = str(uuid.uuid4())
+        loc = mock.MagicMock(volume_id=fake_volume_uuid)
+        fake_volumes = mock.MagicMock(
+            get=mock.MagicMock(side_effect=Exception()))
+
+        with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
+            mocked_cc.return_value = mock.MagicMock(volumes=fake_volumes)
+            image_size = self.store.get_size(loc, context=self.context)
+            self.assertEqual(0, image_size)
 
     def _test_cinder_add(self, fake_volume, volume_file, size_kb=5,
                          verifier=None, backend='glance_store',
@@ -527,6 +569,32 @@ class TestCinderStoreBase(object):
                 volume_type='some_type')
             if is_multi_store:
                 self.assertEqual(backend, metadata["store"])
+
+    def _test_cinder_delete(self, is_multi_store=False):
+        fake_client = mock.MagicMock(auth_token=None, management_url=None)
+        fake_volume_uuid = str(uuid.uuid4())
+        fake_volumes = mock.MagicMock(delete=mock.Mock())
+
+        with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
+            mocked_cc.return_value = mock.MagicMock(client=fake_client,
+                                                    volumes=fake_volumes)
+
+            loc = self._get_uri_loc(fake_volume_uuid,
+                                    is_multi_store=is_multi_store)
+
+            self.store.delete(loc, context=self.context)
+            fake_volumes.delete.assert_called_once_with(fake_volume_uuid)
+
+    def test_cinder_delete_client_exception(self):
+        fake_volume_uuid = str(uuid.uuid4())
+        loc = mock.MagicMock(volume_id=fake_volume_uuid)
+        fake_volumes = mock.MagicMock(delete=mock.MagicMock(
+            side_effect=cinder.cinder_exception.ClientException(code=500)))
+
+        with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
+            mocked_cc.return_value = mock.MagicMock(volumes=fake_volumes)
+            self.assertRaises(exceptions.BackendException, self.store.delete,
+                              loc, context=self.context)
 
     def test__get_device_size(self):
         fake_data = b"fake binary data"
