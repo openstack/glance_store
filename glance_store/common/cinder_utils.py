@@ -71,7 +71,9 @@ class API(object):
         client.volumes.delete(volume_id)
 
     @retrying.retry(stop_max_attempt_number=5,
-                    retry_on_exception=_retry_on_bad_request)
+                    retry_on_exception=_retry_on_bad_request,
+                    wait_exponential_multiplier=1000,
+                    wait_exponential_max=10000)
     @handle_exceptions
     def attachment_create(self, client, volume_id, connector=None,
                           mountpoint=None, mode=None):
