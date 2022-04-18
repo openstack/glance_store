@@ -190,8 +190,8 @@ class _AttachmentState(object):
                 attachment = self.volume_api.attachment_create(
                     client, volume_id, mode=mode)
             except Exception:
-                LOG.exception(_LE('Error attaching volume %(volume_id)s',
-                              {'volume_id': volume_id}))
+                LOG.exception(_LE('Error attaching volume %(volume_id)s'),
+                              {'volume_id': volume_id})
                 del self.volumes[volume_id]
                 raise
 
