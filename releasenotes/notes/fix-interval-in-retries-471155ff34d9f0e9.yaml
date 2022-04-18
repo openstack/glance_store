@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    `Bug #1969373 <https://bugs.launchpad.net/glance-store/+bug/1969373>`_:
+    Cinder Driver: Correct the retry interval from fixed 1 second to
+    exponential backoff for attaching a volume during image create/save
+    operation.
