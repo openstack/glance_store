@@ -577,3 +577,36 @@ class TestCinderStoreBase(object):
         self.config(rootwrap_config=fake_rootwrap, group=group)
         res = self.store.get_root_helper()
         self.assertEqual(expected, res)
+
+    def test_get_hash_str(self):
+        test_str = 'test_str'
+        with mock.patch.object(cinder.hashlib, 'sha256') as fake_hashlib:
+            self.store.get_hash_str(test_str)
+            test_str = test_str.encode('utf-8')
+            fake_hashlib.assert_called_once_with(test_str)
+
+    def test__get_mount_path(self):
+        fake_hex = 'fake_hex_digest'
+        fake_share = 'fake_share'
+        fake_path = 'fake_mount_path'
+        expected_path = os.path.join(fake_path, fake_hex)
+        with mock.patch.object(self.store, 'get_hash_str') as fake_hash:
+            fake_hash.return_value = fake_hex
+            res = self.store._get_mount_path(fake_share, fake_path)
+            self.assertEqual(expected_path, res)
+
+    def test__get_host_ip_v6(self):
+        fake_ipv6 = '2001:0db8:85a3:0000:0000:8a2e:0370'
+        fake_socket_return = [[0, 1, 2, 3, [fake_ipv6]]]
+        with mock.patch.object(cinder.socket, 'getaddrinfo') as fake_socket:
+            fake_socket.return_value = fake_socket_return
+            res = self.store._get_host_ip('fake_host')
+            self.assertEqual(fake_ipv6, res)
+
+    def test__get_host_ip_v4(self):
+        fake_ip = '127.0.0.1'
+        fake_socket_return = [[0, 1, 2, 3, [fake_ip]]]
+        with mock.patch.object(cinder.socket, 'getaddrinfo') as fake_socket:
+            fake_socket.side_effect = [socket.gaierror, fake_socket_return]
+            res = self.store._get_host_ip('fake_host')
+            self.assertEqual(fake_ip, res)
