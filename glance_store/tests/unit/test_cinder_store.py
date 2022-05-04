@@ -145,6 +145,9 @@ class TestCinderStore(base.StoreBaseTest,
                           fail_resize=True)
         fake_volume.delete.assert_called_once()
 
+    def test_cinder_add_extend(self):
+        self._test_cinder_add_extend()
+
     def test_cinder_delete(self):
         self._test_cinder_delete()
 

@@ -283,6 +283,9 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                           fail_resize=True, is_multi_store=True)
         fake_volume.delete.assert_called_once()
 
+    def test_cinder_add_extend(self):
+        self._test_cinder_add_extend(is_multi_store=True)
+
     def test_cinder_delete(self):
         self._test_cinder_delete(is_multi_store=True)
 
