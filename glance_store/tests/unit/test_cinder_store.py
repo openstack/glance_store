@@ -23,7 +23,6 @@ import uuid
 from oslo_utils import units
 
 from glance_store import exceptions
-from glance_store import location
 from glance_store.tests import base
 from glance_store.tests.unit import test_cinder_base
 from glance_store.tests.unit import test_store_capabilities
@@ -147,18 +146,7 @@ class TestCinderStore(base.StoreBaseTest,
         fake_volume.delete.assert_called_once()
 
     def test_cinder_delete(self):
-        fake_client = mock.MagicMock(auth_token=None, management_url=None)
-        fake_volume_uuid = str(uuid.uuid4())
-        fake_volumes = mock.MagicMock(delete=mock.Mock())
-
-        with mock.patch.object(cinder.Store, 'get_cinderclient') as mocked_cc:
-            mocked_cc.return_value = mock.MagicMock(client=fake_client,
-                                                    volumes=fake_volumes)
-
-            uri = 'cinder://%s' % fake_volume_uuid
-            loc = location.get_location_from_uri(uri, conf=self.conf)
-            self.store.delete(loc, context=self.context)
-            fake_volumes.delete.assert_called_once_with(fake_volume_uuid)
+        self._test_cinder_delete()
 
     def test_set_url_prefix(self):
         self.assertEqual('cinder://', self.store._url_prefix)
