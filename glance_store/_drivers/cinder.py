@@ -962,17 +962,10 @@ class Store(glance_store.driver.Store):
             LOG.info(_LI("Since image size is zero, we will be doing "
                          "resize-before-write for each GB which "
                          "will be considerably slower than normal."))
-        try:
-            volume = self.volume_api.create(client, size_gb, name=name,
-                                            metadata=metadata,
-                                            volume_type=volume_type)
-        except cinder_exception.NotFound:
-            LOG.error(_LE("Invalid volume type %s configured. Please check "
-                          "the `cinder_volume_type` configuration parameter."
-                          % volume_type))
-            msg = (_("Failed to create image-volume due to invalid "
-                     "`cinder_volume_type` configured."))
-            raise exceptions.BackendException(msg)
+
+        volume = self.volume_api.create(client, size_gb, name=name,
+                                        metadata=metadata,
+                                        volume_type=volume_type)
 
         volume = self._wait_volume_status(volume, 'creating', 'available')
         size_gb = volume.size
