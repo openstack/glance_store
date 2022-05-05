@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    `Bug #1970698 <https://bugs.launchpad.net/glance-store/+bug/1970698>`_:
+    Cinder: Fixed exception logging when the image create operation fails
+    due to failing to attach volume to glance host.
