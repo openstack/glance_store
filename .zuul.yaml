@@ -54,13 +54,12 @@
       - name: openstack/python-cinderclient
 
 - job:
-    name: glance_store-tox-py36-cinder-tips
+    name: glance_store-tox-py3-cinder-tips
     parent: glance_store-tox-cinder-tips-base
     description: |
-      glance_store py36 unit tests vs. cinder masters
-    nodeset: ubuntu-bionic
+      glance_store py3 unit tests vs. cinder masters
     vars:
-      tox_envlist: py36
+      tox_envlist: py3
 
 - job:
     name: glance_store-tox-keystone-tips-base
@@ -73,13 +72,12 @@
       - name: openstack/python-keystoneclient
 
 - job:
-    name: glance_store-tox-py36-keystone-tips
+    name: glance_store-tox-py3-keystone-tips
     parent: glance_store-tox-keystone-tips-base
     description: |
-      glance_store py36 unit tests vs. keystone masters
-    nodeset: ubuntu-bionic
+      glance_store py3 unit tests vs. keystone masters
     vars:
-      tox_envlist: py36
+      tox_envlist: py3
 
 - job:
     name: glance_store-tox-oslo-tips-base
@@ -99,13 +97,12 @@
       - name: openstack/stevedore
 
 - job:
-    name: glance_store-tox-py36-oslo-tips
+    name: glance_store-tox-py3-oslo-tips
     parent: glance_store-tox-oslo-tips-base
     description: |
-      glance_store py36 unit tests vs. oslo masters
-    nodeset: ubuntu-bionic
+      glance_store py3 unit tests vs. oslo masters
     vars:
-      tox_envlist: py36
+      tox_envlist: py3
 
 - job:
     name: glance_store-tox-swift-tips-base
@@ -117,13 +114,12 @@
       - name: openstack/python-swiftclient
 
 - job:
-    name: glance_store-tox-py36-swift-tips
+    name: glance_store-tox-py3-swift-tips
     parent: glance_store-tox-swift-tips-base
     description: |
-      glance_store py36 unit tests vs. swift masters
-    nodeset: ubuntu-bionic
+      glance_store py3 unit tests vs. swift masters
     vars:
-      tox_envlist: py36
+      tox_envlist: py3
 
 - job:
     name: glance_store-src-ceph-tempest
@@ -153,7 +149,7 @@
     templates:
       - check-requirements
       - lib-forward-testing-python3
-      - openstack-python3-yoga-jobs
+      - openstack-python3-zed-jobs
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
     check:
@@ -186,11 +182,11 @@
         # to define these jobs in the openstack/project-config repo.
         # That would make us less agile in adjusting these tests, so we
         # aren't doing that either.
-        - glance_store-tox-py36-cinder-tips:
+        - glance_store-tox-py3-cinder-tips:
             branches: master
-        - glance_store-tox-py36-keystone-tips:
+        - glance_store-tox-py3-keystone-tips:
             branches: master
-        - glance_store-tox-py36-oslo-tips:
+        - glance_store-tox-py3-oslo-tips:
             branches: master
-        - glance_store-tox-py36-swift-tips:
+        - glance_store-tox-py3-swift-tips:
             branches: master
