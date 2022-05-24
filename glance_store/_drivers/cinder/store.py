@@ -14,7 +14,6 @@
 
 import contextlib
 import errno
-import hashlib
 import importlib
 import logging
 import math
@@ -33,6 +32,7 @@ from oslo_config import cfg
 from oslo_utils import strutils
 from oslo_utils import units
 
+from glance_store._drivers.cinder import base
 from glance_store import capabilities
 from glance_store.common import attachment_state_manager
 from glance_store.common import cinder_utils
@@ -644,37 +644,6 @@ class Store(glance_store.driver.Store):
             raise exceptions.BadStoreConfiguration(store_name="cinder",
                                                    reason=reason)
 
-    @staticmethod
-    def _get_device_size(device_file):
-        # The seek position is corrected after every extend operation
-        # with the bytes written (which is after this wait call) so we
-        # don't need to worry about setting it back to original position
-        device_file.seek(0, os.SEEK_END)
-        # There are other ways to determine the file size like os.stat
-        # or os.path.getsize but it requires file name attribute which
-        # we don't have for the RBD file wrapper RBDVolumeIOWrapper
-        device_size = device_file.tell()
-        device_size = int(math.ceil(float(device_size) / units.Gi))
-        return device_size
-
-    @staticmethod
-    def _wait_resize_device(volume, device_file):
-        timeout = 20
-        max_recheck_wait = 10
-        tries = 0
-        elapsed = 0
-        while Store._get_device_size(device_file) < volume.size:
-            wait = min(0.5 * 2 ** tries, max_recheck_wait)
-            time.sleep(wait)
-            tries += 1
-            elapsed += wait
-            if elapsed >= timeout:
-                msg = (_('Timeout while waiting while volume %(volume_id)s '
-                         'to resize the device in %(tries)s tries.')
-                       % {'volume_id': volume.id, 'tries': tries})
-                LOG.error(msg)
-                raise exceptions.BackendException(msg)
-
     def _wait_volume_status(self, volume, status_transition, status_expected):
         max_recheck_wait = 15
         timeout = self.store_conf.cinder_state_transition_timeout
@@ -703,22 +672,6 @@ class Store(glance_store.driver.Store):
             raise exceptions.BackendException(msg)
         return volume
 
-    def get_hash_str(self, base_str):
-        """Returns string that represents SHA256 hash of base_str (in hex format).
-
-        If base_str is a Unicode string, encode it to UTF-8.
-        """
-        if isinstance(base_str, str):
-            base_str = base_str.encode('utf-8')
-        return hashlib.sha256(base_str).hexdigest()
-
-    def _get_mount_path(self, share, mount_point_base):
-        """Returns the mount path prefix using the mount point base and share.
-
-        :returns: The mount path prefix.
-        """
-        return os.path.join(mount_point_base, self.get_hash_str(share))
-
     def _get_host_ip(self, host):
         try:
             return socket.getaddrinfo(host, None, socket.AF_INET6)[0][4][0]
@@ -735,7 +688,6 @@ class Store(glance_store.driver.Store):
         my_ip = self._get_host_ip(host)
         use_multipath = self.store_conf.cinder_use_multipath
         enforce_multipath = self.store_conf.cinder_enforce_multipath
-        mount_point_base = self.store_conf.cinder_mount_point_base
         volume_id = volume.id
 
         connector_prop = connector.get_connector_properties(
@@ -762,42 +714,16 @@ class Store(glance_store.driver.Store):
         connection_info = attachment.connection_info
 
         try:
-            conn = connector.InitiatorConnector.factory(
-                connection_info['driver_volume_type'], root_helper,
-                conn=connection_info, use_multipath=use_multipath)
-            if connection_info['driver_volume_type'] == 'nfs':
-                # The format info of nfs volumes is exposed via attachment_get
-                # API hence it is not available in the connection info of
-                # attachment object received from attachment_update and we
-                # need to do this call
-                vol_attachment = self.volume_api.attachment_get(
-                    client, attachment.id)
-                if (volume.encrypted or
-                        vol_attachment.connection_info['format'] == 'qcow2'):
-                    issue_type = 'Encrypted' if volume.encrypted else 'qcow2'
-                    msg = (_('%(issue_type)s volume creation for cinder nfs '
-                             'is not supported from glance_store. Failed to '
-                             'create volume %(volume_id)s')
-                           % {'issue_type': issue_type,
-                              'volume_id': volume_id})
-                    LOG.error(msg)
-                    raise exceptions.BackendException(msg)
-
-                @utils.synchronized(connection_info['export'])
-                def connect_volume_nfs():
-                    export = connection_info['export']
-                    vol_name = connection_info['name']
-                    mountpoint = self._get_mount_path(
-                        export,
-                        os.path.join(mount_point_base, 'nfs'))
-                    options = connection_info['options']
-                    self.mount.mount(
-                        'nfs', export, vol_name, mountpoint, host,
-                        root_helper, options)
-                    return {'path': os.path.join(mountpoint, vol_name)}
-                device = connect_volume_nfs()
-            else:
-                device = conn.connect_volume(connection_info)
+            conn = base.factory(
+                connection_info['driver_volume_type'],
+                volume=volume,
+                connection_info=connection_info,
+                root_helper=root_helper,
+                use_multipath=use_multipath,
+                mountpoint_base=self.store_conf.cinder_mount_point_base,
+                attachment_obj=attachment,
+                client=client)
+            device = conn.connect_volume(volume)
 
             # Complete the attachment (marking the volume "in-use") after
             # the connection with os-brick is complete
@@ -805,12 +731,12 @@ class Store(glance_store.driver.Store):
             LOG.debug('Attachment %(attachment_id)s completed successfully.',
                       {'attachment_id': attachment.id})
             if (connection_info['driver_volume_type'] == 'rbd' and
-               not conn.do_local_attach):
+               not conn.conn.do_local_attach):
                 yield device['path']
             else:
                 with self.temporary_chown(
                         device['path']), open(device['path'], mode) as f:
-                    yield f
+                    yield conn.yield_path(volume, f)
         except Exception:
             LOG.exception(_LE('Exception while accessing to cinder volume '
                               '%(volume_id)s.'), {'volume_id': volume.id})
@@ -818,20 +744,13 @@ class Store(glance_store.driver.Store):
         finally:
             if device:
                 try:
-                    if connection_info['driver_volume_type'] == 'nfs':
-                        @utils.synchronized(connection_info['export'])
-                        def disconnect_volume_nfs():
-                            path, vol_name = device['path'].rsplit('/', 1)
-                            self.mount.umount(vol_name, path, host,
-                                              root_helper)
-                        disconnect_volume_nfs()
+                    if volume.multiattach:
+                        attachment_state_manager.detach(
+                            client, attachment.id, volume_id, host, conn,
+                            connection_info, device)
                     else:
-                        if volume.multiattach:
-                            attachment_state_manager.detach(
-                                client, attachment.id, volume_id, host, conn,
-                                connection_info, device)
-                        else:
-                            conn.disconnect_volume(connection_info, device)
+                        conn.disconnect_volume(device)
+
                 except Exception:
                     LOG.exception(_LE('Failed to disconnect volume '
                                       '%(volume_id)s.'),
@@ -988,10 +907,6 @@ class Store(glance_store.driver.Store):
         try:
             while need_extend:
                 with self._open_cinder_volume(client, volume, 'wb') as f:
-                    # Sometimes the extended LUN on storage side takes time
-                    # to reflect in the device so we wait until the device
-                    # size is equal to the extended volume size.
-                    Store._wait_resize_device(volume, f)
                     f.seek(bytes_written)
                     if buf:
                         f.write(buf)

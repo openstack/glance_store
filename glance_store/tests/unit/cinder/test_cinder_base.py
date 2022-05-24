@@ -32,13 +32,15 @@ from oslo_concurrency import processutils
 from oslo_utils.secretutils import md5
 from oslo_utils import units
 
+from glance_store._drivers.cinder import scaleio
 from glance_store.common import attachment_state_manager
 from glance_store.common import cinder_utils
 from glance_store import exceptions
 from glance_store import location
 
 sys.modules['glance_store.common.fs_mount'] = mock.Mock()
-from glance_store._drivers import cinder # noqa
+from glance_store._drivers.cinder import store as cinder # noqa
+from glance_store._drivers.cinder import nfs # noqa
 
 
 class TestCinderStoreBase(object):
@@ -216,7 +218,9 @@ class TestCinderStoreBase(object):
                 id=fake_attachment_id,
                 connection_info={'driver_volume_type': 'nfs'})
         else:
-            fake_attachment_update = mock.MagicMock(id=fake_attachment_id)
+            fake_attachment_update = mock.MagicMock(
+                id=fake_attachment_id,
+                connection_info={'driver_volume_type': 'fake'})
         fake_conn_info = mock.MagicMock(connector={})
         fake_volumes = mock.MagicMock(get=lambda id: fake_volume)
         fake_client = mock.MagicMock(volumes=fake_volumes)
@@ -335,9 +339,6 @@ class TestCinderStoreBase(object):
                         host=fake_host)
                     fake_connector.connect_volume.assert_not_called()
                     fake_connector.disconnect_volume.assert_not_called()
-                    fake_conn_obj.assert_called_once_with(
-                        mock.ANY, root_helper, conn=mock.ANY,
-                        use_multipath=multipath_supported)
                     attach_create.assert_called_once_with(
                         fake_client, fake_volume.id, mode=attach_mode)
                     attach_update.assert_called_once_with(
@@ -516,7 +517,7 @@ class TestCinderStoreBase(object):
 
     def _test_cinder_add(self, fake_volume, volume_file, size_kb=5,
                          verifier=None, backend='glance_store',
-                         fail_resize=False, is_multi_store=False):
+                         is_multi_store=False):
         expected_image_id = str(uuid.uuid4())
         expected_size = size_kb * units.Ki
         expected_file_contents = b"*" * expected_size
@@ -547,11 +548,7 @@ class TestCinderStoreBase(object):
 
         with mock.patch.object(cinder.Store, 'get_cinderclient') as mock_cc, \
                 mock.patch.object(self.store, '_open_cinder_volume',
-                                  side_effect=fake_open), \
-                mock.patch.object(
-                    cinder.Store, '_wait_resize_device') as mock_wait_resize:
-            if fail_resize:
-                mock_wait_resize.side_effect = exceptions.BackendException()
+                                  side_effect=fake_open):
             mock_cc.return_value = mock.MagicMock(client=fake_client,
                                                   volumes=fake_volumes)
             loc, size, checksum, multihash, metadata = self.store.add(
@@ -636,7 +633,6 @@ class TestCinderStoreBase(object):
         with mock.patch.object(cinder.Store, 'get_cinderclient') as mock_cc, \
                 mock.patch.object(self.store, '_open_cinder_volume',
                                   side_effect=fake_open), \
-                mock.patch.object(cinder.Store, '_wait_resize_device'), \
                 mock.patch.object(cinder.utils, 'get_hasher') as fake_hasher, \
                 mock.patch.object(cinder.Store, '_wait_volume_status',
                                   return_value=fake_volume) as mock_wait:
@@ -693,7 +689,6 @@ class TestCinderStoreBase(object):
 
         with mock.patch.object(cinder.Store, 'get_cinderclient') as mock_cc, \
                 mock.patch.object(self.store, '_open_cinder_volume'), \
-                mock.patch.object(cinder.Store, '_wait_resize_device'), \
                 mock.patch.object(cinder.utils, 'get_hasher'), \
                 mock.patch.object(
                     cinder.Store, '_wait_volume_status') as mock_wait:
@@ -735,7 +730,6 @@ class TestCinderStoreBase(object):
 
         with mock.patch.object(cinder.Store, 'get_cinderclient') as mock_cc, \
                 mock.patch.object(self.store, '_open_cinder_volume'), \
-                mock.patch.object(cinder.Store, '_wait_resize_device'), \
                 mock.patch.object(cinder.utils, 'get_hasher'), \
                 mock.patch.object(
                     cinder.Store, '_wait_volume_status') as mock_wait:
@@ -780,7 +774,7 @@ class TestCinderStoreBase(object):
         fake_data = b"fake binary data"
         fake_len = int(math.ceil(float(len(fake_data)) / units.Gi))
         fake_file = io.BytesIO(fake_data)
-        dev_size = cinder.Store._get_device_size(fake_file)
+        dev_size = scaleio.ScaleIOBrickConnector._get_device_size(fake_file)
         self.assertEqual(fake_len, dev_size)
 
     @mock.patch.object(time, 'sleep')
@@ -789,9 +783,11 @@ class TestCinderStoreBase(object):
         fake_vol.size = 2
         fake_file = io.BytesIO(b"fake binary data")
         with mock.patch.object(
-                cinder.Store, '_get_device_size') as mock_get_dev_size:
+                scaleio.ScaleIOBrickConnector,
+                '_get_device_size') as mock_get_dev_size:
             mock_get_dev_size.side_effect = [1, 2]
-            cinder.Store._wait_resize_device(fake_vol, fake_file)
+            scaleio.ScaleIOBrickConnector._wait_resize_device(
+                fake_vol, fake_file)
 
     @mock.patch.object(time, 'sleep')
     def test__wait_resize_device_fails(self, mock_sleep):
@@ -799,11 +795,11 @@ class TestCinderStoreBase(object):
         fake_vol.size = 2
         fake_file = io.BytesIO(b"fake binary data")
         with mock.patch.object(
-                cinder.Store, '_get_device_size',
+                scaleio.ScaleIOBrickConnector, '_get_device_size',
                 return_value=1):
             self.assertRaises(
                 exceptions.BackendException,
-                cinder.Store._wait_resize_device,
+                scaleio.ScaleIOBrickConnector._wait_resize_device,
                 fake_vol, fake_file)
 
     def test_process_specs(self):
@@ -827,20 +823,23 @@ class TestCinderStoreBase(object):
         self.assertEqual(expected, res)
 
     def test_get_hash_str(self):
+        nfs_conn = nfs.NfsBrickConnector()
         test_str = 'test_str'
-        with mock.patch.object(cinder.hashlib, 'sha256') as fake_hashlib:
-            self.store.get_hash_str(test_str)
+        with mock.patch.object(nfs.hashlib, 'sha256') as fake_hashlib:
+            nfs_conn.get_hash_str(test_str)
             test_str = test_str.encode('utf-8')
             fake_hashlib.assert_called_once_with(test_str)
 
     def test__get_mount_path(self):
+        nfs_conn = nfs.NfsBrickConnector(mountpoint_base='fake_mount_path')
         fake_hex = 'fake_hex_digest'
         fake_share = 'fake_share'
         fake_path = 'fake_mount_path'
         expected_path = os.path.join(fake_path, fake_hex)
-        with mock.patch.object(self.store, 'get_hash_str') as fake_hash:
+        with mock.patch.object(
+                nfs.NfsBrickConnector, 'get_hash_str') as fake_hash:
             fake_hash.return_value = fake_hex
-            res = self.store._get_mount_path(fake_share, fake_path)
+            res = nfs_conn._get_mount_path(fake_share, fake_path)
             self.assertEqual(expected_path, res)
 
     def test__get_host_ip_v6(self):

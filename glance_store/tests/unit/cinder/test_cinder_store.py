@@ -24,11 +24,11 @@ from oslo_utils import units
 
 from glance_store import exceptions
 from glance_store.tests import base
-from glance_store.tests.unit import test_cinder_base
+from glance_store.tests.unit.cinder import test_cinder_base
 from glance_store.tests.unit import test_store_capabilities
 
 sys.modules['glance_store.common.fs_mount'] = mock.Mock()
-from glance_store._drivers import cinder # noqa
+from glance_store._drivers.cinder import store as cinder # noqa
 
 
 class TestCinderStore(base.StoreBaseTest,
@@ -134,16 +134,6 @@ class TestCinderStore(base.StoreBaseTest,
             self.assertRaises(exceptions.StorageFull,
                               self._test_cinder_add, fake_volume, volume_file)
         fake_volume.delete.assert_called_once_with()
-
-    def test_cinder_add_fail_resize(self):
-        volume_file = io.BytesIO()
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
-                                     status='available',
-                                     size=1)
-        self.assertRaises(exceptions.BackendException,
-                          self._test_cinder_add, fake_volume, volume_file,
-                          fail_resize=True)
-        fake_volume.delete.assert_called_once()
 
     def test_cinder_add_extend(self):
         self._test_cinder_add_extend()

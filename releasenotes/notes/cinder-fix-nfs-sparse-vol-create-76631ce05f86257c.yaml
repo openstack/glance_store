@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    `Bug #2000584 <https://bugs.launchpad.net/glance-store/+bug/2000584>`_:
+    Fixed image create with cinder NFS store when using sparse volumes.

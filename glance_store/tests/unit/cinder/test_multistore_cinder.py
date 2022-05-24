@@ -28,11 +28,11 @@ import glance_store as store
 from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
-from glance_store.tests.unit import test_cinder_base
+from glance_store.tests.unit.cinder import test_cinder_base
 from glance_store.tests.unit import test_store_capabilities as test_cap
 
 sys.modules['glance_store.common.fs_mount'] = mock.Mock()
-from glance_store._drivers import cinder # noqa
+from glance_store._drivers.cinder import store as cinder # noqa
 
 
 class TestMultiCinderStore(base.MultiStoreBaseTest,
@@ -272,16 +272,6 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         volume_file = io.BytesIO()
         self._test_cinder_add(fake_volume, volume_file, backend="cinder2",
                               is_multi_store=True)
-
-    def test_cinder_add_fail_resize(self):
-        volume_file = io.BytesIO()
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
-                                     status='available',
-                                     size=1)
-        self.assertRaises(exceptions.BackendException,
-                          self._test_cinder_add, fake_volume, volume_file,
-                          fail_resize=True, is_multi_store=True)
-        fake_volume.delete.assert_called_once()
 
     def test_cinder_add_extend(self):
         self._test_cinder_add_extend(is_multi_store=True)

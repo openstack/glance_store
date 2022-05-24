@@ -230,7 +230,7 @@ class _AttachmentState(object):
                             {'volume_id': volume_id, 'host': host})
 
             if not vol_attachment.in_use():
-                conn.disconnect_volume(connection_info, device)
+                conn.disconnect_volume(device)
                 del self.volumes[volume_id]
             self.volume_api.attachment_delete(client, attachment_id)
 

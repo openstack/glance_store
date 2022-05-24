@@ -59,8 +59,7 @@ class AttachmentStateTestCase(base.BaseTestCase):
         self.m = attach_manager._AttachmentState()
         self.attach_call_1 = [mock.sentinel.client, mock.sentinel.volume_id]
         self.attach_call_2 = {'mode': mock.sentinel.mode}
-        self.disconnect_vol_call = [mock.sentinel.connection_info,
-                                    mock.sentinel.device]
+        self.disconnect_vol_call = [mock.sentinel.device]
         self.detach_call = [mock.sentinel.client, mock.sentinel.attachment_id]
         self.attachment_dict = {'id': mock.sentinel.attachment_id}
 
