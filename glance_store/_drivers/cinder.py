@@ -45,6 +45,7 @@ try:
     from cinderclient import api_versions
     from cinderclient import exceptions as cinder_exception
     from cinderclient.v3 import client as cinderclient
+    import os_brick
     from os_brick.initiator import connector
     from oslo_privsep import priv_context
 except ImportError:
@@ -480,6 +481,7 @@ class Store(glance_store.driver.Store):
         else:
             self.store_conf = self.conf.glance_store
         self.volume_api = cinder_utils.API()
+        getattr(os_brick, 'setup', lambda x: None)(CONF)
 
     def _set_url_prefix(self):
         self._url_prefix = "cinder://"

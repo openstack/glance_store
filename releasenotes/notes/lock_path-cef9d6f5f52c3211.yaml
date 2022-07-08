@@ -1,0 +1,12 @@
+---
+features:
+  - |
+    When using the cinder backend, a custom os-brick file lock location can be
+    specified using the ``lock_path`` configuration option in the
+    ``[os_brick]`` configuration section.  Helpful when deploying on the same
+    host as the Cinder service.
+upgrade:
+  - |
+    When running Cinder and Glance with Cinder backend on the same host an
+    os-brick shared location can be configured using the ``lock_path`` in the
+    ``[os_brick]`` configuration section.
