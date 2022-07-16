@@ -322,11 +322,7 @@ class SubunitTestResult(testtools.TestResult):
 
 test = subunit.ProtocolTestCase(sys.stdin, passthrough=None)
 
-if sys.version_info[0:2] <= (2, 6):
-    runner = unittest.TextTestRunner(verbosity=2)
-else:
-    runner = unittest.TextTestRunner(
-        verbosity=2, resultclass=SubunitTestResult)
+runner = unittest.TextTestRunner(verbosity=2, resultclass=SubunitTestResult)
 
 if runner.run(test).wasSuccessful():
     exit_code = 0
