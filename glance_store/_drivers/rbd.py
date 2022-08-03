@@ -133,6 +133,13 @@ Related options:
 
 """),
     cfg.IntOpt('rados_connect_timeout', default=0,
+               deprecated_for_removal=True,
+               deprecated_since='Zed',
+               deprecated_reason="""
+This option has not had any effect in years. Users willing to set a timeout for
+connecting to the Ceph cluster should use 'client_mount_timeout' in Ceph's
+configuration file.
+""",
                help="""
 Timeout value for connecting to Ceph cluster.
 
@@ -288,7 +295,7 @@ class Store(driver.Store):
         client = rados.Rados(conffile=conffile, rados_id=rados_id)
 
         try:
-            client.connect(timeout=self.connect_timeout)
+            client.connect()
         except (rados.Error, rados.ObjectNotFound) as e:
             if self.backend_group and len(self.conf.enabled_backends) > 1:
                 reason = _("Error in store configuration: %s") % e
@@ -319,8 +326,6 @@ class Store(driver.Store):
                 user = getattr(self.conf, self.backend_group).rbd_store_user
                 conf_file = getattr(self.conf,
                                     self.backend_group).rbd_store_ceph_conf
-                connect_timeout = getattr(
-                    self.conf, self.backend_group).rados_connect_timeout
                 thin_provisioning = getattr(self.conf,
                                             self.backend_group).\
                     rbd_thin_provisioning
@@ -329,7 +334,6 @@ class Store(driver.Store):
                 pool = self.conf.glance_store.rbd_store_pool
                 user = self.conf.glance_store.rbd_store_user
                 conf_file = self.conf.glance_store.rbd_store_ceph_conf
-                connect_timeout = self.conf.glance_store.rados_connect_timeout
                 thin_provisioning = \
                     self.conf.glance_store.rbd_thin_provisioning
 
@@ -343,7 +347,6 @@ class Store(driver.Store):
             self.pool = str(pool)
             self.user = str(user)
             self.conf_file = str(conf_file)
-            self.connect_timeout = connect_timeout
         except cfg.ConfigFileValueError as e:
             reason = _("Error in store configuration: %s") % e
             LOG.error(reason)
