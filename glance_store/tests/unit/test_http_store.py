@@ -184,6 +184,15 @@ class TestHttpStore(base.StoreBaseTest,
             self.assertRaises(exceptions.BadStoreUri,
                               location.get_location_from_uri, uri)
 
+    def test_http_store_location_get_uri(self):
+        """Test for HTTP URI with and without query"""
+        uris = ["http://netloc/path/to/file.tar.gz"
+                "http://netloc/path/to/file.tar.gz?query=text",
+                ]
+        for uri in uris:
+            loc = location.get_location_from_uri(uri, conf=self.conf)
+            self.assertEqual(uri, loc.store_location.get_uri())
+
     def test_http_get_raises_remote_service_unavailable(self):
         """Test http store raises RemoteServiceUnavailable."""
         uri = "http://netloc/path/to/file.tar.gz"
