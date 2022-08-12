@@ -207,7 +207,8 @@ class TestCinderStoreBase(object):
                                  multipath_supported=False,
                                  enforce_multipath=False,
                                  encrypted_nfs=False, qcow2_vol=False,
-                                 multiattach=False):
+                                 multiattach=False,
+                                 update_attachment_error=None):
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available',
                                      multiattach=multiattach)
         fake_volume.manager.get.return_value = fake_volume
@@ -284,6 +285,9 @@ class TestCinderStoreBase(object):
                                   'getaddrinfo') as mock_get_host_ip, \
                 mock.patch.object(cinder.strutils, 'mask_dict_password'):
 
+            if update_attachment_error:
+                attach_update.side_effect = update_attachment_error
+
             fake_host = 'fake_host'
             fake_addr_info = [[0, 1, 2, 3, ['127.0.0.1']]]
             fake_ip = fake_addr_info[0][4][0]
@@ -309,9 +313,14 @@ class TestCinderStoreBase(object):
                     except exceptions.BackendException:
                         attach_delete.assert_called_once_with(
                             fake_client, fake_attachment_id)
+                elif update_attachment_error:
+                    self.assertRaises(type(update_attachment_error), do_open)
                 else:
                     do_open()
-                if not (encrypted_nfs or qcow2_vol):
+                if update_attachment_error:
+                    attach_delete.assert_called_once_with(
+                        fake_client, fake_attachment_id)
+                elif not (encrypted_nfs or qcow2_vol):
                     mock_conn.assert_called_once_with(
                         root_helper, fake_ip,
                         multipath_supported, enforce_multipath,
@@ -353,8 +362,10 @@ class TestCinderStoreBase(object):
     def test_open_cinder_volume_ro(self):
         self._test_open_cinder_volume('rb', 'ro', None)
 
-    def test_open_cinder_volume_error(self):
-        self._test_open_cinder_volume('wb', 'rw', IOError)
+    def test_open_cinder_volume_update_attachment_error(self):
+        err = Exception("update attachment fake error")
+        self._test_open_cinder_volume('rb', 'ro', None,
+                                      update_attachment_error=err)
 
     def test_open_cinder_volume_nfs_encrypted(self):
         self._test_open_cinder_volume('rb', 'ro', None, encrypted_nfs=True)
