@@ -106,6 +106,7 @@ class OptsTestCase(base.StoreBaseTest):
             's3_store_bucket_url_format',
             's3_store_create_bucket_on_put',
             's3_store_host',
+            's3_store_region_name',
             's3_store_secret_key',
             's3_store_large_object_size',
             's3_store_large_object_chunk_size',

@@ -65,6 +65,22 @@ Related Options:
     * s3_store_secret_key
 
 """),
+    cfg.StrOpt('s3_store_region_name',
+               default='',
+               help="""
+The S3 region name.
+
+This parameter will set the region_name used by boto.
+If this parameter is not set, we we will try to compute it from the
+s3_store_host.
+
+Possible values:
+    * A valid region name
+
+Related Options:
+    * s3_store_host
+
+"""),
     cfg.StrOpt('s3_store_access_key',
                secret=True,
                help="""
@@ -375,6 +391,7 @@ class Store(glance_store.driver.Store):
         itself, it should raise `exceptions.BadStoreConfiguration`
         """
         self.s3_host = self._option_get('s3_store_host')
+        self.region_name = self._option_get('s3_store_region_name')
         self.access_key = self._option_get('s3_store_access_key')
         self.secret_key = self._option_get('s3_store_secret_key')
         self.bucket = self._option_get('s3_store_bucket')
@@ -432,6 +449,8 @@ class Store(glance_store.driver.Store):
         if not result:
             if param == 's3_store_create_bucket_on_put':
                 return result
+            if param == 's3_store_region_name':
+                return result
             reason = _("Could not find %s in configuration options.") % param
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="s3",
@@ -460,7 +479,10 @@ class Store(glance_store.driver.Store):
             raise boto_exceptions.InvalidDNSNameError(bucket_name=bucket_name)
 
         region_name, endpoint_url = None, None
-        if location:
+        if self.region_name:
+            region_name = self.region_name
+            endpoint_url = s3_host
+        elif location:
             region_name = location
         else:
             endpoint_url = s3_host
@@ -578,7 +600,8 @@ class Store(glance_store.driver.Store):
             if self._option_get('s3_store_create_bucket_on_put'):
                 self._create_bucket(s3_client,
                                     self._option_get('s3_store_host'),
-                                    bucket)
+                                    bucket,
+                                    self._option_get('s3_store_region_name'))
             else:
                 msg = (_("The bucket %s does not exist in "
                          "S3. Please set the "
@@ -850,15 +873,20 @@ class Store(glance_store.driver.Store):
             return True
 
     @staticmethod
-    def _create_bucket(s3_client, s3_host, bucket):
+    def _create_bucket(s3_client, s3_host, bucket, region_name=None):
         """Create bucket into the S3.
 
         :param s3_client: An object with credentials to connect to S3
         :param s3_host: S3 endpoint url
         :param bucket: S3 bucket name
+        :param region_name: An optional region_name. If not provided, will try
+               to compute it from s3_host
         :raises: BadStoreConfiguration if cannot connect to S3 successfully
         """
-        region = get_s3_location(s3_host)
+        if region_name:
+            region = region_name
+        else:
+            region = get_s3_location(s3_host)
         try:
             s3_client.create_bucket(
                 Bucket=bucket,
@@ -901,6 +929,7 @@ def get_s3_location(s3_host):
               Amazon S3, and if user wants to use S3 compatible storage,
               returns ''
     """
+    # NOTE(arnaud): maybe get rid of hardcoded amazon stuff here?
     locations = {
         's3.amazonaws.com': '',
         's3-us-east-1.amazonaws.com': 'us-east-1',

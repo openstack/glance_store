@@ -41,6 +41,7 @@ FIVE_KB = 5 * units.Ki
 S3_CONF = {
     's3_store_access_key': 'user',
     's3_store_secret_key': 'key',
+    's3_store_region_name': '',
     's3_store_host': 'localhost',
     's3_store_bucket': 'glance',
     's3_store_large_object_size': 9,        # over 9MB is large
@@ -83,6 +84,29 @@ class TestStore(base.StoreBaseTest,
                 conf=self.conf)
             self.assertRaises(boto_exceptions.InvalidDNSNameError,
                               self.store.get, loc)
+
+    @mock.patch('glance_store.location.Location')
+    @mock.patch.object(boto3.session.Session, "client")
+    def test_client_custom_region_name(self, mock_client, mock_loc):
+        """Test a custom s3_store_region_name in config"""
+        self.config(s3_store_host='http://example.com')
+        self.config(s3_store_region_name='regionOne')
+        self.config(s3_store_bucket_url_format='path')
+        self.store.configure()
+
+        mock_loc.accesskey = 'abcd'
+        mock_loc.secretkey = 'efgh'
+        mock_loc.bucket = 'bucket1'
+
+        self.store._create_s3_client(mock_loc)
+
+        mock_client.assert_called_with(
+            config=mock.ANY,
+            endpoint_url='http://example.com',
+            region_name='regionOne',
+            service_name='s3',
+            use_ssl=False,
+        )
 
     @mock.patch.object(boto3.session.Session, "client")
     def test_get(self, mock_client):
