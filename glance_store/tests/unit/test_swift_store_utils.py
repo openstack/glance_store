@@ -98,6 +98,31 @@ class TestSwiftParams(base.StoreBaseTest):
                          swift_params['ref3']['auth_address']
                          )
 
+    def test_swift_store_config_without_domain(self):
+        swift_params = sutils.SwiftParams(self.conf).params
+        self.assertEqual('default', swift_params['ref1']['project_domain_id'])
+        self.assertIsNone(swift_params['ref1']['project_domain_name'])
+        self.assertEqual('default', swift_params['ref1']['user_domain_id'])
+        self.assertIsNone(swift_params['ref1']['user_domain_name'])
+
+    def test_swift_store_config_with_domain_ids(self):
+        swift_params = sutils.SwiftParams(self.conf).params
+        self.assertEqual('projdomainid',
+                         swift_params['ref4']['project_domain_id'])
+        self.assertIsNone(swift_params['ref4']['project_domain_name'])
+        self.assertEqual('userdomainid',
+                         swift_params['ref4']['user_domain_id'])
+        self.assertIsNone(swift_params['ref4']['user_domain_name'])
+
+    def test_swift_store_config_with_domain_names(self):
+        swift_params = sutils.SwiftParams(self.conf).params
+        self.assertIsNone(swift_params['ref5']['project_domain_id'])
+        self.assertEqual('projdomain',
+                         swift_params['ref5']['project_domain_name'])
+        self.assertIsNone(swift_params['ref5']['user_domain_id'])
+        self.assertEqual('userdomain',
+                         swift_params['ref5']['user_domain_name'])
+
 
 class TestSwiftConfigParser(base.StoreBaseTest):
 
