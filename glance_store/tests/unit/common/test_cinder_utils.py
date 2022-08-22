@@ -74,6 +74,7 @@ class CinderUtilsTestCase(base.BaseTestCase):
             self.volume_api.attachment_create,
             self.fake_client, self.fake_vol_id)
 
+    @mock.patch('time.sleep', new=mock.Mock())
     def test_attachment_create_retries(self):
 
         fake_attach_id = 'fake-attach-id'
