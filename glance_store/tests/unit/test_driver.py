@@ -75,7 +75,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertIn(self.img_id, x[0])
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
-        self.assertTrue(dict, type(x[3]))
+        self.assertIsInstance(x[3], dict)
         self.assertIsNone(x[3]['context_obj'])
         self.assertIsNone(x[3]['verifier_obj'])
 
@@ -87,7 +87,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertIn(self.img_id, x[0])
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
-        self.assertTrue(dict, type(x[3]))
+        self.assertIsInstance(x[3], dict)
         self.assertEqual('context', x[3]['context_obj'])
         self.assertIsNone(x[3]['verifier_obj'])
 
@@ -99,7 +99,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertIn(self.img_id, x[0])
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
-        self.assertTrue(dict, type(x[3]))
+        self.assertIsInstance(x[3], dict)
         self.assertEqual('context', x[3]['context_obj'])
         self.assertEqual('verifier', x[3]['verifier_obj'])
 
@@ -111,7 +111,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertIn(self.img_id, x[0])
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
-        self.assertTrue(dict, type(x[3]))
+        self.assertIsInstance(x[3], dict)
         self.assertEqual('context', x[3]['context_obj'])
         self.assertIsNone(x[3]['verifier_obj'])
 
@@ -123,7 +123,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertIn(self.img_id, x[0])
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
-        self.assertTrue(dict, type(x[3]))
+        self.assertIsInstance(x[3], dict)
         self.assertIsNone(x[3]['context_obj'])
         self.assertEqual('verifier', x[3]['verifier_obj'])
 
@@ -135,7 +135,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertIn(self.img_id, x[0])
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
-        self.assertTrue(dict, type(x[3]))
+        self.assertIsInstance(x[3], dict)
         self.assertEqual('context', x[3]['context_obj'])
         self.assertEqual('verifier', x[3]['verifier_obj'])
 
@@ -148,7 +148,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertIn(self.img_id, x[0])
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
-        self.assertTrue(dict, type(x[3]))
+        self.assertIsInstance(x[3], dict)
         self.assertEqual('context', x[3]['context_obj'])
         self.assertEqual('verifier', x[3]['verifier_obj'])
 
@@ -163,7 +163,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertIn(self.img_id, x[0])
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
-        self.assertTrue(dict, type(x[3]))
+        self.assertIsInstance(x[3], dict)
         self.assertEqual('context', x[3]['context_obj'])
         self.assertEqual('verifier', x[3]['verifier_obj'])
 
@@ -178,7 +178,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertIn(self.img_id, x[0])
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
-        self.assertTrue(dict, type(x[3]))
+        self.assertIsInstance(x[3], dict)
         self.assertEqual('context', x[3]['context_obj'])
         self.assertEqual('verifier', x[3]['verifier_obj'])
 
@@ -192,7 +192,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertEqual('context', x[4]['context_obj'])
         self.assertEqual('verifier', x[4]['verifier_obj'])
 
@@ -205,7 +205,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertIsNone(x[4]['context_obj'])
         self.assertIsNone(x[4]['verifier_obj'])
 
@@ -219,7 +219,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertEqual('context', x[4]['context_obj'])
         self.assertIsNone(x[4]['verifier_obj'])
 
@@ -233,7 +233,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertIsNone(x[4]['context_obj'])
         self.assertEqual('verifier', x[4]['verifier_obj'])
 
@@ -248,7 +248,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertEqual('context', x[4]['context_obj'])
         self.assertEqual('verifier', x[4]['verifier_obj'])
 
@@ -261,7 +261,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertIsNone(x[4]['context_obj'])
         self.assertIsNone(x[4]['verifier_obj'])
 
@@ -274,7 +274,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertEqual('context', x[4]['context_obj'])
         self.assertIsNone(x[4]['verifier_obj'])
 
@@ -289,7 +289,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertEqual('context', x[4]['context_obj'])
         self.assertEqual('verifier', x[4]['verifier_obj'])
 
@@ -303,7 +303,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertEqual('context', x[4]['context_obj'])
         self.assertEqual('verifier', x[4]['verifier_obj'])
 
@@ -317,7 +317,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertEqual('context', x[4]['context_obj'])
         self.assertEqual('verifier', x[4]['verifier_obj'])
 
@@ -334,7 +334,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertEqual('context', x[4]['context_obj'])
         self.assertEqual('verifier', x[4]['verifier_obj'])
 
@@ -351,7 +351,7 @@ class TestBackCompatWrapper(base.BaseTestCase):
         self.assertEqual(self.img_size, x[1])
         self.assertEqual(self.img_checksum, x[2])
         self.assertEqual(self.img_sha256, x[3])
-        self.assertTrue(dict, type(x[4]))
+        self.assertIsInstance(x[4], dict)
         self.assertEqual('context', x[4]['context_obj'])
         self.assertEqual('verifier', x[4]['verifier_obj'])
 

@@ -2181,7 +2181,7 @@ class TestBufferedReader(base.StoreBaseTest):
 
     def test_buffer(self):
         self.reader.read(4)
-        self.assertTrue(self.reader._buffered, True)
+        self.assertTrue(self.reader._buffered)
 
         # test buffer position
         self.assertEqual(4, self.reader.tell())
