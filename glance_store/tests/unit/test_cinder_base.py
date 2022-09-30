@@ -591,7 +591,11 @@ class TestCinderStoreBase(object):
         expected_multihash = 'fake_hash'
 
         fakebuffer = mock.MagicMock()
-        fakebuffer.__len__.return_value = expected_volume_size
+
+        # CPython implementation detail: __len__ cannot return > sys.maxsize,
+        # which on a 32-bit system is 2*units.Gi - 1
+        # https://docs.python.org/3/reference/datamodel.html#object.__len__
+        fakebuffer.__len__.return_value = int(expected_volume_size / 2)
 
         def get_fake_hash(type, secure=False):
             if type == 'md5':
@@ -603,7 +607,7 @@ class TestCinderStoreBase(object):
         expected_volume_id = str(uuid.uuid4())
         expected_size = 0
         image_file = mock.MagicMock(
-            read=mock.MagicMock(side_effect=[fakebuffer, None]))
+            read=mock.MagicMock(side_effect=[fakebuffer, fakebuffer, None]))
         fake_volume = mock.MagicMock(id=expected_volume_id, status='available',
                                      size=1)
         expected_checksum = 'fake_checksum'
@@ -667,13 +671,17 @@ class TestCinderStoreBase(object):
         expected_volume_size = 2 * units.Gi
 
         fakebuffer = mock.MagicMock()
-        fakebuffer.__len__.return_value = expected_volume_size
+
+        # CPython implementation detail: __len__ cannot return > sys.maxsize,
+        # which on a 32-bit system is 2*units.Gi - 1
+        # https://docs.python.org/3/reference/datamodel.html#object.__len__
+        fakebuffer.__len__.return_value = int(expected_volume_size / 2)
 
         expected_image_id = str(uuid.uuid4())
         expected_volume_id = str(uuid.uuid4())
         expected_size = 0
         image_file = mock.MagicMock(
-            read=mock.MagicMock(side_effect=[fakebuffer, None]))
+            read=mock.MagicMock(side_effect=[fakebuffer, fakebuffer, None]))
         fake_volume = mock.MagicMock(id=expected_volume_id, status='available',
                                      size=1)
         verifier = None
@@ -704,13 +712,17 @@ class TestCinderStoreBase(object):
         expected_volume_size = 2 * units.Gi
 
         fakebuffer = mock.MagicMock()
-        fakebuffer.__len__.return_value = expected_volume_size
+
+        # CPython implementation detail: __len__ cannot return > sys.maxsize,
+        # which on a 32-bit system is 2*units.Gi - 1
+        # https://docs.python.org/3/reference/datamodel.html#object.__len__
+        fakebuffer.__len__.return_value = int(expected_volume_size / 2)
 
         expected_image_id = str(uuid.uuid4())
         expected_volume_id = str(uuid.uuid4())
         expected_size = 0
         image_file = mock.MagicMock(
-            read=mock.MagicMock(side_effect=[fakebuffer, None]))
+            read=mock.MagicMock(side_effect=[fakebuffer, fakebuffer, None]))
         fake_volume = mock.MagicMock(
             id=expected_volume_id, status='available', size=1,
             delete=mock.MagicMock(side_effect=Exception()))
