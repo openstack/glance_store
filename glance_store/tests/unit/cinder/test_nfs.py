@@ -91,3 +91,6 @@ class TestNfsBrickConnector(
         nfs.mount.umount.assert_called_once_with(
             vol_name, mount_path, self.connector.host,
             self.connector.root_helper)
+
+    def test_extend_volume(self):
+        self.assertRaises(NotImplementedError, self.connector.extend_volume)

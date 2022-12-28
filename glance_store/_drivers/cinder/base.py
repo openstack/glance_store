@@ -52,6 +52,9 @@ class BaseBrickConnectorInterface(object):
     def disconnect_volume(self, device):
         self.conn.disconnect_volume(self.connection_info, device)
 
+    def extend_volume(self):
+        self.conn.extend_volume(self.connection_info)
+
     def yield_path(self, volume, volume_path):
         """
         This method returns the volume file path.

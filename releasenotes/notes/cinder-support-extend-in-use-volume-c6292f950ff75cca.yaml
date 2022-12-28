@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    Added support for extending in-use volumes in cinder store.
+    A new boolean config option ``cinder_do_extend_attached`` is
+    added which allows operators to enable/disable extending
+    in-use volume support when creating an image.
+    By default, ``cinder_do_extend_attached`` will be ``False``
+    i.e. old flow of detaching, extending and attaching will be
+    used.

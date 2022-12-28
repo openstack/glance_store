@@ -404,6 +404,19 @@ Possible values:
 
 * A string representing absolute path of mount point.
 """),
+    cfg.BoolOpt('cinder_do_extend_attached',
+                default=False,
+                help="""
+If this is set to True, glance will perform an extend operation
+on the attached volume. Only enable this option if the cinder
+backend driver supports the functionality of extending online
+(in-use) volumes. Supported from cinder microversion 3.42 and
+onwards. By default, it is set to False.
+
+Possible values:
+    * True or False
+
+"""),
 ]
 
 CINDER_SESSION = None
@@ -483,6 +496,13 @@ class Store(glance_store.driver.Store):
             self.store_conf = self.conf.glance_store
         self.volume_api = cinder_utils.API()
         getattr(os_brick, 'setup', lambda x: None)(CONF)
+        # The purpose of this map is to store the connector object for a
+        # particular volume as we will need to call os-brick extend_volume
+        # method for the kernel to realize the new size change after cinder
+        # extends the volume
+        # We only use it when creating the image so a volume will only have
+        # one mapping to a particular connector
+        self.volume_connector_map = {}
 
     def _set_url_prefix(self):
         self._url_prefix = "cinder://"
@@ -730,6 +750,8 @@ class Store(glance_store.driver.Store):
             self.volume_api.attachment_complete(client, attachment.id)
             LOG.debug('Attachment %(attachment_id)s completed successfully.',
                       {'attachment_id': attachment.id})
+
+            self.volume_connector_map[volume.id] = conn
             if (connection_info['driver_volume_type'] == 'rbd' and
                not conn.conn.do_local_attach):
                 yield device['path']
@@ -750,7 +772,8 @@ class Store(glance_store.driver.Store):
                             connection_info, device)
                     else:
                         conn.disconnect_volume(device)
-
+                        if self.volume_connector_map.get(volume.id):
+                            del self.volume_connector_map[volume.id]
                 except Exception:
                     LOG.exception(_LE('Failed to disconnect volume '
                                       '%(volume_id)s.'),
@@ -848,6 +871,100 @@ class Store(glance_store.driver.Store):
                               "internal error."))
             return 0
 
+    def _call_offline_extend(self, volume, size_gb):
+        size_gb += 1
+        LOG.debug("Extending (offline) volume %(volume_id)s to %(size)s GB.",
+                  {'volume_id': volume.id, 'size': size_gb})
+        volume.extend(volume, size_gb)
+        try:
+            volume = self._wait_volume_status(volume,
+                                              'extending',
+                                              'available')
+            size_gb = volume.size
+            return size_gb
+        except exceptions.BackendException:
+            raise exceptions.StorageFull()
+
+    def _call_online_extend(self, client, volume, size_gb):
+        size_gb += 1
+        LOG.debug("Extending (online) volume %(volume_id)s to %(size)s GB.",
+                  {'volume_id': volume.id, 'size': size_gb})
+        self.volume_api.extend_volume(client, volume, size_gb)
+        try:
+            volume = self._wait_volume_status(volume,
+                                              'extending',
+                                              'in-use')
+            size_gb = volume.size
+            return size_gb
+        except exceptions.BackendException:
+            raise exceptions.StorageFull()
+
+    def _write_data(self, f, write_props):
+        LOG.debug('Writing data to volume with write properties: '
+                  'bytes_written: %s, size_gb: %s, need_extend: %s, '
+                  'image_size: %s' %
+                  (write_props.bytes_written, write_props.size_gb,
+                   write_props.need_extend, write_props.image_size))
+        f.seek(write_props.bytes_written)
+        if write_props.buf:
+            f.write(write_props.buf)
+            write_props.bytes_written += len(write_props.buf)
+        while True:
+            write_props.buf = write_props.image_file.read(
+                self.WRITE_CHUNKSIZE)
+            if not write_props.buf:
+                write_props.need_extend = False
+                return
+            write_props.os_hash_value.update(write_props.buf)
+            write_props.checksum.update(write_props.buf)
+            if write_props.verifier:
+                write_props.verifier.update(write_props.buf)
+            if ((write_props.bytes_written + len(write_props.buf)) > (
+                write_props.size_gb * units.Gi) and
+                    (write_props.image_size == 0)):
+                return
+            f.write(write_props.buf)
+            write_props.bytes_written += len(write_props.buf)
+
+    def _offline_extend(self, client, volume, write_props):
+        while write_props.need_extend:
+            with self._open_cinder_volume(client, volume, 'wb') as f:
+                self._write_data(f, write_props)
+            if write_props.need_extend:
+                write_props.size_gb = self._call_offline_extend(
+                    volume, write_props.size_gb)
+
+    def _online_extend(self, client, volume, write_props):
+        with self._open_cinder_volume(client, volume, 'wb') as f:
+            # Th connector is initialized in _open_cinder_volume method
+            # and by mapping it with the volume ID, we are able to fetch
+            # it here
+            conn = self.volume_connector_map[volume.id]
+            while write_props.need_extend:
+                self._write_data(f, write_props)
+                if write_props.need_extend:
+                    # we already initialize a client with MV 3.54 and
+                    # we require 3.42 for online extend so we should
+                    # be good here.
+                    write_props.size_gb = self._call_online_extend(
+                        client, volume, write_props.size_gb)
+                    # Call os-brick to resize the LUN on the host
+                    conn.extend_volume()
+
+    # WriteProperties class is useful to allow us to modify immutable
+    # objects in the called methods
+    class WriteProperties:
+        def __init__(self, *args, **kwargs):
+            self.bytes_written = kwargs.get('bytes_written')
+            self.size_gb = kwargs.get('size_gb')
+            self.buf = kwargs.get('buf')
+            self.image_file = kwargs.get('image_file')
+            self.need_extend = kwargs.get('need_extend')
+            self.image_size = kwargs.get('image_size')
+            self.verifier = kwargs.get('verifier')
+            self.checksum = kwargs.get('checksum')
+            self.os_hash_value = kwargs.get('os_hash_value')
+
     @glance_store.driver.back_compat_add
     @capabilities.check
     def add(self, image_id, image_file, image_size, hashing_algo, context=None,
@@ -904,41 +1021,20 @@ class Store(glance_store.driver.Store):
         failed = True
         need_extend = True
         buf = None
+        online_extend = self.store_conf.cinder_do_extend_attached
+        write_props = self.WriteProperties(
+            bytes_written=bytes_written, size_gb=size_gb, buf=buf,
+            image_file=image_file, need_extend=need_extend,
+            image_size=image_size, verifier=verifier, checksum=checksum,
+            os_hash_value=os_hash_value)
         try:
-            while need_extend:
-                with self._open_cinder_volume(client, volume, 'wb') as f:
-                    f.seek(bytes_written)
-                    if buf:
-                        f.write(buf)
-                        bytes_written += len(buf)
-                    while True:
-                        buf = image_file.read(self.WRITE_CHUNKSIZE)
-                        if not buf:
-                            need_extend = False
-                            break
-                        os_hash_value.update(buf)
-                        checksum.update(buf)
-                        if verifier:
-                            verifier.update(buf)
-                        if (bytes_written + len(buf) > size_gb * units.Gi and
-                                image_size == 0):
-                            break
-                        f.write(buf)
-                        bytes_written += len(buf)
-
-                if need_extend:
-                    size_gb += 1
-                    LOG.debug("Extending volume %(volume_id)s to %(size)s GB.",
-                              {'volume_id': volume.id, 'size': size_gb})
-                    volume.extend(volume, size_gb)
-                    try:
-                        volume = self._wait_volume_status(volume,
-                                                          'extending',
-                                                          'available')
-                        size_gb = volume.size
-                    except exceptions.BackendException:
-                        raise exceptions.StorageFull()
-
+            if online_extend:
+                # we already initialize a client with MV 3.54 and
+                # we require 3.42 for online extend so we should
+                # be good here.
+                self._online_extend(client, volume, write_props)
+            else:
+                self._offline_extend(client, volume, write_props)
             failed = False
         except IOError as e:
             # Convert IOError reasons to Glance Store exceptions
@@ -957,17 +1053,17 @@ class Store(glance_store.driver.Store):
                                       '%(volume_id)s.'),
                                   {'volume_id': volume.id})
 
-        if image_size == 0:
-            metadata.update({'image_size': str(bytes_written)})
+        if write_props.image_size == 0:
+            metadata.update({'image_size': str(write_props.bytes_written)})
             volume.update_all_metadata(metadata)
         volume.update_readonly_flag(volume, True)
 
-        hash_hex = os_hash_value.hexdigest()
-        checksum_hex = checksum.hexdigest()
+        hash_hex = write_props.os_hash_value.hexdigest()
+        checksum_hex = write_props.checksum.hexdigest()
 
         LOG.debug("Wrote %(bytes_written)d bytes to volume %(volume_id)s "
                   "with checksum %(checksum_hex)s.",
-                  {'bytes_written': bytes_written,
+                  {'bytes_written': write_props.bytes_written,
                    'volume_id': volume.id,
                    'checksum_hex': checksum_hex})
 
@@ -979,7 +1075,7 @@ class Store(glance_store.driver.Store):
                                                volume.id)
 
         return (location_url,
-                bytes_written,
+                write_props.bytes_written,
                 checksum_hex,
                 hash_hex,
                 image_metadata)

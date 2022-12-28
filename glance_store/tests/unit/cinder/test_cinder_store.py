@@ -138,6 +138,9 @@ class TestCinderStore(base.StoreBaseTest,
     def test_cinder_add_extend(self):
         self._test_cinder_add_extend()
 
+    def test_cinder_add_extend_online(self):
+        self._test_cinder_add_extend(online=True)
+
     def test_cinder_delete(self):
         self._test_cinder_delete()
 

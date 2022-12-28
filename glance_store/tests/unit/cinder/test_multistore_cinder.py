@@ -276,6 +276,9 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
     def test_cinder_add_extend(self):
         self._test_cinder_add_extend(is_multi_store=True)
 
+    def test_cinder_add_extend_online(self):
+        self._test_cinder_add_extend(is_multi_store=True, online=True)
+
     def test_cinder_delete(self):
         self._test_cinder_delete(is_multi_store=True)
 
