@@ -101,3 +101,6 @@ class NfsBrickConnector(base.BaseBrickConnectorInterface):
             mount.umount(vol_name, path, self.host,
                          self.root_helper)
         disconnect_volume_nfs()
+
+    def extend_volume(self):
+        raise NotImplementedError

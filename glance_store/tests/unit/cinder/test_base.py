@@ -104,6 +104,12 @@ class TestBaseBrickConnectorInterface(test_base.StoreBaseTest):
         self.connector.conn.disconnect_volume.assert_called_once_with(
             self.connection_info, fake_device)
 
+    def test_extend_volume(self):
+        self.mock_object(self.connector.conn, 'extend_volume')
+        self.connector.extend_volume()
+        self.connector.conn.extend_volume.assert_called_once_with(
+            self.connection_info)
+
     def test_yield_path(self):
         fake_vol = mock.MagicMock()
         fake_device = 'fake_dev_path'

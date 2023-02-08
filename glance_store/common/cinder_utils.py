@@ -208,3 +208,21 @@ class API(object):
                           {'id': attachment_id,
                            'msg': str(ex),
                            'code': getattr(ex, 'code', None)})
+
+    @handle_exceptions
+    def extend_volume(self, client, volume, new_size):
+        """Extend volume
+
+        :param client: cinderclient object
+        :param volume: UUID of the volume to extend
+        :param new_size: new size of the volume after extend
+        """
+        try:
+            client.volumes.extend(volume, new_size)
+        except cinder_exception.ClientException as ex:
+            with excutils.save_and_reraise_exception():
+                LOG.error(_LE('Extend volume failed for volume '
+                              '%(id)s. Error: %(msg)s Code: %(code)s'),
+                          {'id': volume.id,
+                           'msg': str(ex),
+                           'code': getattr(ex, 'code', None)})

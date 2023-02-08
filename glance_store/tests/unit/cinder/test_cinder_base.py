@@ -582,7 +582,7 @@ class TestCinderStoreBase(object):
                 fake_image_id, image_file, expected_size, self.hash_algo,
                 self.context, None)
 
-    def _test_cinder_add_extend(self, is_multi_store=False):
+    def _test_cinder_add_extend(self, is_multi_store=False, online=False):
 
         expected_volume_size = 2 * units.Gi
         expected_multihash = 'fake_hash'
@@ -619,6 +619,11 @@ class TestCinderStoreBase(object):
             backend = 'cinder1'
             expected_location = 'cinder://%s/%s' % (backend, fake_volume.id)
         self.config(cinder_volume_type='some_type', group=backend)
+        if online:
+            self.config(cinder_do_extend_attached=True, group=backend)
+            fake_connector = mock.MagicMock()
+            fake_vol_connector_map = {expected_volume_id: fake_connector}
+            self.store.volume_connector_map = fake_vol_connector_map
 
         fake_client = mock.MagicMock(auth_token=None, management_url=None)
         fake_volume.manager.get.return_value = fake_volume
@@ -635,9 +640,12 @@ class TestCinderStoreBase(object):
                                   side_effect=fake_open), \
                 mock.patch.object(cinder.utils, 'get_hasher') as fake_hasher, \
                 mock.patch.object(cinder.Store, '_wait_volume_status',
-                                  return_value=fake_volume) as mock_wait:
-            mock_cc.return_value = mock.MagicMock(client=fake_client,
-                                                  volumes=fake_volumes)
+                                  return_value=fake_volume) as mock_wait, \
+                mock.patch.object(cinder_utils.API,
+                                  'extend_volume') as extend_vol:
+            mock_cc_return_val = mock.MagicMock(client=fake_client,
+                                                volumes=fake_volumes)
+            mock_cc.return_value = mock_cc_return_val
 
             fake_hasher.side_effect = get_fake_hash
             loc, size, checksum, multihash, metadata = self.store.add(
@@ -656,11 +664,19 @@ class TestCinderStoreBase(object):
                 volume_type='some_type')
             if is_multi_store:
                 self.assertEqual(backend, metadata["store"])
-            fake_volume.extend.assert_called_once_with(
-                fake_volume, expected_volume_size // units.Gi)
-            mock_wait.assert_has_calls(
-                [mock.call(fake_volume, 'creating', 'available'),
-                 mock.call(fake_volume, 'extending', 'available')])
+            if online:
+                extend_vol.assert_called_once_with(
+                    mock_cc_return_val, fake_volume,
+                    expected_volume_size // units.Gi)
+                mock_wait.assert_has_calls(
+                    [mock.call(fake_volume, 'creating', 'available'),
+                     mock.call(fake_volume, 'extending', 'in-use')])
+            else:
+                fake_volume.extend.assert_called_once_with(
+                    fake_volume, expected_volume_size // units.Gi)
+                mock_wait.assert_has_calls(
+                    [mock.call(fake_volume, 'creating', 'available'),
+                     mock.call(fake_volume, 'extending', 'available')])
 
     def test_cinder_add_extend_storage_full(self):
 
