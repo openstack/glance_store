@@ -1,0 +1,7 @@
+---
+deprecations:
+  - |
+    The 'rados_connect_timeout' config option for the RBD store has been
+    deprecated and will be removed in the future. It has been silently ignored
+    for multiple releases. Users willing to set a timeout for the connection to
+    the cluster can use Ceph's 'client_mount_timeout' option.
