@@ -21,10 +21,17 @@ import math
 import re
 import urllib
 
-from boto3 import session as boto_session
-from botocore import client as boto_client
-from botocore import exceptions as boto_exceptions
-from botocore import utils as boto_utils
+try:
+    from boto3 import session as boto_session
+    from botocore import client as boto_client
+    from botocore import exceptions as boto_exceptions
+    from botocore import utils as boto_utils
+except ImportError:
+    boto_session = None
+    boto_client = None
+    boto_exceptions = None
+    boto_utils = None
+
 import eventlet
 from oslo_config import cfg
 from oslo_utils import encodeutils
@@ -390,6 +397,12 @@ class Store(glance_store.driver.Store):
         this method. If the store was not able to successfully configure
         itself, it should raise `exceptions.BadStoreConfiguration`
         """
+        if boto_session is None:
+            reason = _("boto3 or botocore is not available.")
+            LOG.error(reason)
+            raise exceptions.BadStoreConfiguration(store_name="s3",
+                                                   reason=reason)
+
         self.s3_host = self._option_get('s3_store_host')
         self.region_name = self._option_get('s3_store_region_name')
         self.access_key = self._option_get('s3_store_access_key')
