@@ -514,6 +514,12 @@ class Store(glance_store.driver.Store):
         Check to verify if the volume types configured for the cinder store
         exist in deployment and if not, log a warning.
         """
+        if cinderclient is None:
+            reason = _("cinderclient is not available.")
+            LOG.error(reason)
+            raise exceptions.BadStoreConfiguration(store_name="cinder",
+                                                   reason=reason)
+
         cinder_volume_type = self.store_conf.cinder_volume_type
         if cinder_volume_type:
             # NOTE: `cinder_volume_type` is configured, check
