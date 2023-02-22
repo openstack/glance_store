@@ -318,6 +318,13 @@ class Store(driver.Store):
         this method. If the store was not able to successfully configure
         itself, it should raise `exceptions.BadStoreConfiguration`
         """
+        if rbd is None or rados is None:
+            reason = _("The required libraries(rbd and rados) are not "
+                       "available")
+            LOG.error(reason)
+            raise exceptions.BadStoreConfiguration(store_name='rbd',
+                                                   reason=reason)
+
         try:
             if self.backend_group:
                 chunk = getattr(self.conf,
