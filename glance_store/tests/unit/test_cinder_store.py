@@ -233,7 +233,7 @@ class TestCinderStore(base.StoreBaseTest,
                     fake_connector.connect_volume.assert_called_once_with(
                         mock.ANY)
                     fake_connector.disconnect_volume.assert_called_once_with(
-                        mock.ANY, fake_devinfo)
+                        mock.ANY, fake_devinfo, force=True)
                     fake_volume.attach.assert_called_once_with(
                         None, 'glance_store', attach_mode,
                         host_name=socket.gethostname())

@@ -723,7 +723,10 @@ class Store(glance_store.driver.Store):
                                               root_helper)
                         disconnect_volume_nfs()
                     else:
-                        conn.disconnect_volume(connection_info['data'], device)
+                        # Bug #2004555: use force so there aren't any
+                        # leftovers
+                        conn.disconnect_volume(connection_info['data'], device,
+                                               force=True)
                 except Exception:
                     LOG.exception(_LE('Failed to disconnect volume '
                                       '%(volume_id)s.'),
