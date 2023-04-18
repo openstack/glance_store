@@ -819,7 +819,10 @@ class Store(glance_store.driver.Store):
                                 client, attachment.id, volume_id, host, conn,
                                 connection_info, device)
                         else:
-                            conn.disconnect_volume(connection_info, device)
+                            # Bug #2004555: use force so there aren't any
+                            # leftovers
+                            conn.disconnect_volume(connection_info, device,
+                                                   force=True)
                 except Exception:
                     LOG.exception(_LE('Failed to disconnect volume '
                                       '%(volume_id)s.'),

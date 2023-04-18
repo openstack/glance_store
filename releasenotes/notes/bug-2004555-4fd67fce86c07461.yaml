@@ -1,0 +1,11 @@
+security:
+  - |
+    Cinder glance_store driver: in order to avoid a situation where a
+    leftover device could be mapped to a different volume than the one
+    intended, the cinder glance_store driver now instructs the os-brick
+    library to force detach volumes, which ensures that devices are
+    removed from the host.
+
+    See `Bug #2004555
+    <https://bugs.launchpad.net/glance-store/+bug/2004555>`_ for more
+    information about this issue.
