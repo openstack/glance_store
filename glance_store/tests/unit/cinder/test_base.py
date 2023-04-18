@@ -102,7 +102,7 @@ class TestBaseBrickConnectorInterface(test_base.StoreBaseTest):
         self.mock_object(self.connector.conn, 'disconnect_volume')
         self.connector.disconnect_volume(fake_device)
         self.connector.conn.disconnect_volume.assert_called_once_with(
-            self.connection_info, fake_device)
+            self.connection_info, fake_device, force=True)
 
     def test_extend_volume(self):
         self.mock_object(self.connector.conn, 'extend_volume')
