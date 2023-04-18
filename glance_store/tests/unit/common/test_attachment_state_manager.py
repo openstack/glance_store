@@ -90,7 +90,7 @@ class AttachmentStateTestCase(base.BaseTestCase):
         mock_attach_delete.side_effect = ex()
         self.assertRaises(ex, self._sentinel_detach, conn)
         conn.disconnect_volume.assert_called_once_with(
-            *self.disconnect_vol_call)
+            *self.disconnect_vol_call, force=True)
 
     @mock.patch.object(cinder_utils.API, 'attachment_create')
     @mock.patch.object(cinder_utils.API, 'attachment_delete')
@@ -103,6 +103,6 @@ class AttachmentStateTestCase(base.BaseTestCase):
             *self.attach_call_1, **self.attach_call_2)
         self.assertEqual(mock.sentinel.attachment_id, attachment['id'])
         conn.disconnect_volume.assert_called_once_with(
-            *self.disconnect_vol_call)
+            *self.disconnect_vol_call, force=True)
         mock_attach_delete.assert_called_once_with(
             *self.detach_call)
