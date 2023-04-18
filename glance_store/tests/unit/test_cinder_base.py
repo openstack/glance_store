@@ -315,7 +315,7 @@ class TestCinderStoreBase(object):
                     fake_connector.connect_volume.assert_called_once_with(
                         mock.ANY)
                     fake_connector.disconnect_volume.assert_called_once_with(
-                        mock.ANY, fake_devinfo)
+                        mock.ANY, fake_devinfo, force=True)
                     fake_conn_obj.assert_called_once_with(
                         mock.ANY, root_helper, conn=mock.ANY,
                         use_multipath=multipath_supported)
