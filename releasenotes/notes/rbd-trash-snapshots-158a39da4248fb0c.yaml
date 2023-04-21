@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    The RBD driver now moves images to the trash if they cannot be deleted
+    immediately due to having snapshots. This fixes the long-standing issue
+    where base images are unable to be deleted until/unless all snapshots of
+    it are also deleted. Moving the image to the trash allows Glance to
+    proceed with the deletion of the image (as far as it is concerned), mark
+    the RBD image for deletion, which will happen once the last snapshot that
+    uses it has been deleted.

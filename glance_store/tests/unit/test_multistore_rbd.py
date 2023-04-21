@@ -172,6 +172,9 @@ class MockRBD(object):
         def clone(self, *args, **kwargs):
             raise NotImplementedError()
 
+        def trash_move(self, *args, **kwargs):
+            pass
+
     RBD_FEATURE_LAYERING = 1
 
 
@@ -427,10 +430,9 @@ class TestMultiStore(base.MultiStoreBaseTest,
         with mock.patch.object(MockRBD.Image, 'list_children') as mocked:
             mocked.return_value = True
 
-            self.assertRaises(exceptions.InUseByStore,
-                              self.store._delete_image,
-                              'fake_pool', self.location.image,
-                              snapshot_name='snap')
+            self.store._delete_image('fake_pool',
+                                     self.location.image,
+                                     snapshot_name='snap')
 
     def test_delete_image_w_snap_exc_image_has_snap(self):
         def _fake_remove(*args, **kwargs):
@@ -439,8 +441,8 @@ class TestMultiStore(base.MultiStoreBaseTest,
 
         with mock.patch.object(MockRBD.RBD, 'remove') as remove:
             remove.side_effect = _fake_remove
-            self.assertRaises(exceptions.HasSnapshot, self.store._delete_image,
-                              'fake_pool', self.location.image)
+            self.store._delete_image('fake_pool',
+                                     self.location.image)
 
             self.called_commands_expected = ['remove']
 
