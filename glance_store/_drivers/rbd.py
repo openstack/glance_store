@@ -464,14 +464,6 @@ class Store(driver.Store):
                     if snapshot_name is not None:
                         with rbd.Image(ioctx, image_name) as image:
                             try:
-                                # NOTE(abhishekk): Check whether snapshot
-                                # has any external references
-                                if self._snapshot_has_external_reference(
-                                        image, snapshot_name):
-                                    raise rbd.ImageBusy(
-                                        "Image snapshot has external "
-                                        "references.")
-
                                 self._unprotect_snapshot(image, snapshot_name)
                                 image.remove_snap(snapshot_name)
                             except rbd.ImageNotFound as exc:
@@ -491,10 +483,19 @@ class Store(driver.Store):
                     # Then delete image.
                     rbd.RBD().remove(ioctx, image_name)
                 except rbd.ImageHasSnapshots:
-                    log_msg = (_LW("Remove image %(img_name)s failed. "
-                                   "It has snapshot(s) left.") %
+                    log_msg = (_LW("Unable to remove image %(img_name)s: it "
+                                   "has snapshot(s) left; trashing instead") %
                                {'img_name': image_name})
                     LOG.warning(log_msg)
+                    with rbd.Image(ioctx, image_name) as image:
+                        try:
+                            rbd.RBD().trash_move(ioctx, image_name)
+                            LOG.debug('Moved %s to trash', image_name)
+                        except rbd.ImageBusy:
+                            LOG.warning(_('Unable to move in-use image to '
+                                          'trash'))
+                            raise exceptions.InUseByStore()
+                        return
                     raise exceptions.HasSnapshot()
                 except rbd.ImageBusy:
                     log_msg = (_LW("Remove image %(img_name)s failed. "
