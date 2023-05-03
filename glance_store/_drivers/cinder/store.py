@@ -728,18 +728,20 @@ class Store(glance_store.driver.Store):
                                                            mode=attach_mode)
         LOG.debug('Attachment %(attachment_id)s created successfully.',
                   {'attachment_id': attachment['id']})
-        attachment = self.volume_api.attachment_update(
-            client, attachment['id'], connector_prop,
-            mountpoint='glance_store')
-        LOG.debug('Attachment %(attachment_id)s updated successfully with '
-                  'connection info %(conn_info)s',
-                  {'attachment_id': attachment.id,
-                   'conn_info': strutils.mask_dict_password(
-                       attachment.connection_info)})
-        volume = volume.manager.get(volume_id)
-        connection_info = attachment.connection_info
 
+        volume = volume.manager.get(volume_id)
+        attachment_id = attachment['id']
+        connection_info = None
         try:
+            attachment = self.volume_api.attachment_update(
+                client, attachment_id, connector_prop,
+                mountpoint='glance_store')
+            LOG.debug('Attachment %(attachment_id)s updated successfully with '
+                      'connection info %(conn_info)s',
+                      {'attachment_id': attachment_id,
+                       'conn_info': strutils.mask_dict_password(
+                           attachment.connection_info)})
+            connection_info = attachment.connection_info
             conn = base.factory(
                 connection_info['driver_volume_type'],
                 volume=volume,
@@ -753,9 +755,9 @@ class Store(glance_store.driver.Store):
 
             # Complete the attachment (marking the volume "in-use") after
             # the connection with os-brick is complete
-            self.volume_api.attachment_complete(client, attachment.id)
+            self.volume_api.attachment_complete(client, attachment_id)
             LOG.debug('Attachment %(attachment_id)s completed successfully.',
-                      {'attachment_id': attachment.id})
+                      {'attachment_id': attachment_id})
 
             self.volume_connector_map[volume.id] = conn
             if (connection_info['driver_volume_type'] == 'rbd' and
@@ -774,7 +776,7 @@ class Store(glance_store.driver.Store):
                 try:
                     if volume.multiattach:
                         attachment_state_manager.detach(
-                            client, attachment.id, volume_id, host, conn,
+                            client, attachment_id, volume_id, host, conn,
                             connection_info, device)
                     else:
                         conn.disconnect_volume(device)
@@ -786,7 +788,7 @@ class Store(glance_store.driver.Store):
                                   {'volume_id': volume.id})
 
             if not volume.multiattach:
-                self.volume_api.attachment_delete(client, attachment.id)
+                self.volume_api.attachment_delete(client, attachment_id)
 
     def _cinder_volume_data_iterator(self, client, volume, max_size, offset=0,
                                      chunk_size=None, partial_length=None):
