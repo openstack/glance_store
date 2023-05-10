@@ -50,7 +50,8 @@ class BaseBrickConnectorInterface(object):
         return device
 
     def disconnect_volume(self, device):
-        self.conn.disconnect_volume(self.connection_info, device)
+        # Bug #2004555: use force so there aren't any leftovers
+        self.conn.disconnect_volume(self.connection_info, device, force=True)
 
     def extend_volume(self):
         self.conn.extend_volume(self.connection_info)
