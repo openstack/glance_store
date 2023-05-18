@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    A recent change to the RBD driver introduced a potential threading lockup
+    when using native threads, and also a (process-)blocking call to an
+    external library when using greenthreads. That change has been reverted
+    until a better fix can be made.
