@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    A `weight` option has been added to the store configuration definition.
+    This allows configuring stores with *relative* weights to each other for
+    sorting when an image exists in multiple stores.

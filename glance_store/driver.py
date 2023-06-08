@@ -39,7 +39,15 @@ This option will be used to provide a constructive information about
 the store backend to end users. Using /v2/stores-info call user can
 seek more information on all available backends.
 
-"""))
+""")),
+    cfg.IntOpt('weight',
+               help=_("""
+This option is used to define a relative weight for this store over
+any others that are configured. The actual value of the weight is meaningless
+and only serves to provide a "sort order" compared to others. Any stores
+with the same weight will be treated as equivalent.
+"""),
+               default=0),
 ]
 
 
@@ -78,6 +86,15 @@ class Store(capabilities.StoreCapability):
     @property
     def url_prefix(self):
         return self._url_prefix
+
+    @property
+    def weight(self):
+        if self.backend_group is None:
+            # NOTE(danms): A backend with no config group can not have a
+            # weight set, so just return the default
+            return 0
+        else:
+            return getattr(self.conf, self.backend_group).weight
 
     def configure(self, re_raise_bsc=False):
         """
