@@ -213,10 +213,10 @@ class TestReSize(base.StoreBaseTest,
                 data_len_temp = data_len
                 resize_amount = self.store.WRITE_CHUNKSIZE
                 while data_len_temp > 0:
+                    resize_amount *= 2
                     expected_calls.append(resize_amount + (data_len -
                                                            data_len_temp))
                     data_len_temp -= resize_amount
-                    resize_amount *= 2
                     expected += 1
                 self.assertEqual(expected, resize.call_count)
                 resize.assert_has_calls([mock.call(call) for call in
@@ -244,7 +244,7 @@ class TestReSize(base.StoreBaseTest,
         # Current size is smaller than we need
         self.store.size = 8
         ret = self.store._resize_on_write(image, 0, 16, 16)
-        self.assertEqual(8 + self.store.WRITE_CHUNKSIZE, ret)
+        self.assertEqual(8 + self.store.WRITE_CHUNKSIZE * 2, ret)
         self.assertEqual(self.store.WRITE_CHUNKSIZE * 2,
                          self.store.resize_amount)
         image.resize.assert_called_once_with(ret)
@@ -253,47 +253,55 @@ class TestReSize(base.StoreBaseTest,
         image.resize.reset_mock()
         self.store.size = ret
         ret = self.store._resize_on_write(image, 0, 64, 16)
-        self.assertEqual(8 + self.store.WRITE_CHUNKSIZE, ret)
+        self.assertEqual(8 + self.store.WRITE_CHUNKSIZE * 2, ret)
         image.resize.assert_not_called()
 
         # Read past the limit triggers another resize
         ret = self.store._resize_on_write(image, 0, ret + 1, 16)
-        self.assertEqual(8 + self.store.WRITE_CHUNKSIZE * 3, ret)
+        self.assertEqual(8 + self.store.WRITE_CHUNKSIZE * 6, ret)
         image.resize.assert_called_once_with(ret)
         self.assertEqual(self.store.WRITE_CHUNKSIZE * 4,
                          self.store.resize_amount)
 
         # Check that we do not resize past the 8G ceiling.
 
-        # Start with resize_amount at 4G, 1G read so far
+        # Start with resize_amount at 2G, 1G read so far
         image.resize.reset_mock()
-        self.store.resize_amount = 4 * units.Gi
+        self.store.resize_amount = 2 * units.Gi
         self.store.size = 1 * units.Gi
 
-        # First resize happens and we get the 4G,
-        # resize_amount goes to limit of 8G
+        # First resize happens and we get to 5G,
+        # resize_amount goes to limit of 4G
         ret = self.store._resize_on_write(image, 0, 4097 * units.Mi, 16)
-        self.assertEqual(5 * units.Gi, ret)
-        self.assertEqual(8 * units.Gi, self.store.resize_amount)
+        self.assertEqual(4 * units.Gi, self.store.resize_amount)
+        self.assertEqual((1 + 4) * units.Gi, ret)
         self.store.size = ret
 
-        # Second resize happens and we get to 13G,
+        # Second resize happens and we stay at 13, no resize
         # resize amount stays at limit of 8G
         ret = self.store._resize_on_write(image, 0, 6144 * units.Mi, 16)
-        self.assertEqual((5 + 8) * units.Gi, ret)
         self.assertEqual(8 * units.Gi, self.store.resize_amount)
+        self.assertEqual((1 + 4 + 8) * units.Gi, ret)
         self.store.size = ret
 
-        # Third resize happens and we get to 21G,
+        # Third resize happens and we get to 21,
         # resize amount stays at limit of 8G
         ret = self.store._resize_on_write(image, 0, 14336 * units.Mi, 16)
-        self.assertEqual((5 + 8 + 8) * units.Gi, ret)
         self.assertEqual(8 * units.Gi, self.store.resize_amount)
+        self.assertEqual((1 + 4 + 8 + 8) * units.Gi, ret)
+        self.store.size = ret
+
+        # Fourth resize happens and we get to 29,
+        # resize amount stays at limit of 8G
+        ret = self.store._resize_on_write(image, 0, 22528 * units.Mi, 16)
+        self.assertEqual(8 * units.Gi, self.store.resize_amount)
+        self.assertEqual((1 + 4 + 8 + 8 + 8) * units.Gi, ret)
 
         image.resize.assert_has_calls([
             mock.call(5 * units.Gi),
             mock.call(13 * units.Gi),
-            mock.call(21 * units.Gi)])
+            mock.call(21 * units.Gi),
+            mock.call(29 * units.Gi)])
 
 
 class TestStore(base.StoreBaseTest,

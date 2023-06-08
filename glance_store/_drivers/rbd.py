@@ -535,12 +535,12 @@ class Store(driver.Store):
         """Handle the rbd resize when needed."""
         if image_size != 0 or self.size >= bytes_written + chunk_length:
             return self.size
-        new_size = self.size + self.resize_amount
-        LOG.debug("resizing image to %s KiB" % (new_size / units.Ki))
-        image.resize(new_size)
         # Note(jokke): We double how much we grow the image each time
         # up to 8gigs to avoid resizing for each write on bigger images
         self.resize_amount = min(self.resize_amount * 2, 8 * units.Gi)
+        new_size = self.size + self.resize_amount
+        LOG.debug("resizing image to %s KiB" % (new_size / units.Ki))
+        image.resize(new_size)
         return new_size
 
     @driver.back_compat_add
