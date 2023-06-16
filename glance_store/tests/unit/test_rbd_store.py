@@ -717,3 +717,67 @@ class TestStore(base.StoreBaseTest,
         self.assertEqual(self.called_commands_expected,
                          self.called_commands_actual)
         super(TestStore, self).tearDown()
+
+    @mock.patch('oslo_utils.eventletutils.is_monkey_patched')
+    def test_create_image_in_native_thread(self, mock_patched):
+        mock_patched.return_value = True
+        # Tests that we use non-0 features from ceph.conf and cast to int.
+        fsid = 'fake'
+        features = '3'
+        conf_get_mock = mock.Mock(return_value=features)
+        conn = mock.Mock(conf_get=conf_get_mock)
+        ioctxt = mock.sentinel.ioctxt
+        name = '1'
+        size = 1024
+        order = 3
+        fake_proxy = mock.MagicMock()
+        fake_rbd = mock.MagicMock()
+
+        with mock.patch.object(rbd_store.tpool, 'Proxy') as tpool_mock, \
+                mock.patch.object(rbd_store.rbd, 'RBD') as rbd_mock:
+            tpool_mock.return_value = fake_proxy
+            rbd_mock.return_value = fake_rbd
+            location = self.store._create_image(
+                fsid, conn, ioctxt, name, size, order)
+            self.assertEqual(fsid, location.specs['fsid'])
+            self.assertEqual(rbd_store.DEFAULT_POOL, location.specs['pool'])
+            self.assertEqual(name, location.specs['image'])
+            self.assertEqual(rbd_store.DEFAULT_SNAPNAME,
+                             location.specs['snapshot'])
+
+        tpool_mock.assert_called_once_with(fake_rbd)
+        fake_proxy.create.assert_called_once_with(ioctxt, name, size, order,
+                                                  old_format=False, features=3)
+
+    @mock.patch('oslo_utils.eventletutils.is_monkey_patched')
+    def test_delete_image_in_native_thread(self, mock_patched):
+        mock_patched.return_value = True
+        fake_proxy = mock.MagicMock()
+        fake_rbd = mock.MagicMock()
+        fake_ioctx = mock.MagicMock()
+
+        with mock.patch.object(rbd_store.tpool, 'Proxy') as tpool_mock, \
+                mock.patch.object(rbd_store.rbd, 'RBD') as rbd_mock, \
+                mock.patch.object(self.store, 'get_connection') as mock_conn:
+
+            mock_get_conn = mock_conn.return_value.__enter__.return_value
+            mock_ioctx = mock_get_conn.open_ioctx.return_value.__enter__
+            mock_ioctx.return_value = fake_ioctx
+            tpool_mock.return_value = fake_proxy
+            rbd_mock.return_value = fake_rbd
+
+            self.store._delete_image('fake_pool', self.location.image)
+
+            tpool_mock.assert_called_once_with(fake_rbd)
+            fake_proxy.remove.assert_called_once_with(fake_ioctx,
+                                                      self.location.image)
+
+    @mock.patch.object(rbd_store, 'rbd')
+    @mock.patch.object(rbd_store, 'tpool')
+    @mock.patch('oslo_utils.eventletutils.is_monkey_patched')
+    def test_rbd_proxy(self, mock_patched, mock_tpool, mock_rbd):
+        mock_patched.return_value = False
+        self.assertEqual(mock_rbd.RBD(), self.store.RBDProxy())
+
+        mock_patched.return_value = True
+        self.assertEqual(mock_tpool.Proxy.return_value, self.store.RBDProxy())
