@@ -360,6 +360,9 @@ class Store(glance_store.Store):
     def __init__(self, conf, backend=None):
         super(Store, self).__init__(conf, backend=backend)
         self.datastores = {}
+        LOG.warning("The VMWare Datastore has been deprecated because "
+                    "the vmwareapi driver in nova was marked experimental and "
+                    "may be removed in a future release.")
 
     def reset_session(self):
         self.session = api.VMwareAPISession(
