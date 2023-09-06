@@ -230,7 +230,18 @@ Related Options:
     * s3_store_large_object_size
     * s3_store_large_object_chunk_size
 
-""")
+"""),
+    cfg.StrOpt('s3_store_cacert',
+               default='',
+               help="""
+The path to the CA cert bundle to use. The default value (an empty string)
+forces the use of the default CA cert bundle used by botocore.
+
+Possible values:
+    * A path to the CA cert bundle to use
+    * An empty string to use the default CA cert bundle used by botocore
+
+"""),
 ]
 
 
@@ -464,6 +475,8 @@ class Store(glance_store.driver.Store):
                 return result
             if param == 's3_store_region_name':
                 return result
+            if param == 's3_store_cacert':
+                return result
             reason = _("Could not find %s in configuration options.") % param
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="s3",
@@ -500,11 +513,14 @@ class Store(glance_store.driver.Store):
         else:
             endpoint_url = s3_host
 
-        return session.client(service_name='s3',
-                              endpoint_url=endpoint_url,
-                              region_name=region_name,
-                              use_ssl=(loc.scheme == 's3+https'),
-                              config=config)
+        store_cacert = self._option_get('s3_store_cacert')
+        return session.client(
+            service_name='s3',
+            endpoint_url=endpoint_url,
+            region_name=region_name,
+            use_ssl=(loc.scheme == 's3+https'),
+            verify=None if store_cacert == '' else store_cacert,
+            config=config)
 
     def _operation_set(self, loc):
         """Objects and variables frequently used when operating S3 are
