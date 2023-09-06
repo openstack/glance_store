@@ -91,6 +91,7 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
                     s3_store_secret_key='key',
                     s3_store_host='https://s3-region1.com',
                     s3_store_region_name='custom_region_name',
+                    s3_store_cacert='path/to/cert/bundle.pem',
                     s3_store_bucket='glance',
                     s3_store_large_object_size=S3_CONF[
                         's3_store_large_object_size'
@@ -147,6 +148,24 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
             region_name='custom_region_name',
             service_name='s3',
             use_ssl=False,
+            verify='path/to/cert/bundle.pem',
+        )
+
+    @mock.patch('glance_store.location.Location')
+    @mock.patch.object(boto3.session.Session, "client")
+    def test_client_custom_ca_cert_bundle(self, mock_client, mock_loc):
+        """Test a custom s3_store_cacert in config"""
+        mock_loc.accesskey = 'abcd'
+        mock_loc.secretkey = 'efgh'
+        mock_loc.bucket = 'bucket1'
+        self.store._create_s3_client(mock_loc)
+        mock_client.assert_called_with(
+            config=mock.ANY,
+            endpoint_url='https://s3-region1.com',
+            region_name='custom_region_name',
+            service_name='s3',
+            use_ssl=False,
+            verify='path/to/cert/bundle.pem',
         )
 
     @mock.patch.object(boto3.session.Session, "client")
