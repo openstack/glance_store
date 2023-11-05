@@ -50,8 +50,10 @@ try:
     from os_brick.initiator import connector
     from oslo_privsep import priv_context
 except ImportError:
+    api_versions = None
     cinder_exception = None
     cinderclient = None
+    os_brick = None
     connector = None
     priv_context = None
 
@@ -495,7 +497,8 @@ class Store(glance_store.driver.Store):
         else:
             self.store_conf = self.conf.glance_store
         self.volume_api = cinder_utils.API()
-        getattr(os_brick, 'setup', lambda x: None)(CONF)
+        if os_brick:
+            os_brick.setup(CONF)
         # The purpose of this map is to store the connector object for a
         # particular volume as we will need to call os-brick extend_volume
         # method for the kernel to realize the new size change after cinder
@@ -514,11 +517,14 @@ class Store(glance_store.driver.Store):
         Check to verify if the volume types configured for the cinder store
         exist in deployment and if not, log a warning.
         """
-        if cinderclient is None:
-            reason = _("cinderclient is not available.")
-            LOG.error(reason)
-            raise exceptions.BadStoreConfiguration(store_name="cinder",
-                                                   reason=reason)
+        for module_name, module in [('cinderclient', cinderclient),
+                                    ('os-brick', os_brick),
+                                    ('oslo-privsep', priv_context)]:
+            if module is None:
+                reason = _("%s is not available." % module_name)
+                LOG.error(reason)
+                raise exceptions.BadStoreConfiguration(store_name="cinder",
+                                                       reason=reason)
 
         cinder_volume_type = self.store_conf.cinder_volume_type
         if cinder_volume_type:
