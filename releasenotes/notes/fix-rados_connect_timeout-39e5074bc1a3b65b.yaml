@@ -1,0 +1,19 @@
+---
+features:
+  - |
+    RBD driver: the ``rados_connect_timeout`` config option has been
+    un-deprecated and its behavior has been improved.  A value of ``0``
+    is now respected as disabling timeout in requests, while a value less
+    than zero indicates that glance_store will not set a timeout but
+    instead will use whatever timeouts are set in the Ceph configuration
+    file.
+
+upgrade:
+  - |
+    RBD driver: the default value of the ``rados_connect_timeout`` option
+    has been changed from 0 to -1, so that the RBD driver will by default
+    use the timeout values defined in ``ceph.conf``. Be aware that
+    setting this option to 0 disables timeouts (that is, the RBD driver
+    will make requests with a timeout of zero, and all requests wait forever),
+    thereby overriding any timeouts that are set in the Ceph configuration
+    file.
