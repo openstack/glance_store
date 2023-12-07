@@ -1,0 +1,6 @@
+---
+deprecations:
+  - |
+    The VMWare Datastore has been deprecated. The vmwareapi virt driver in nova
+    was marked as experimental due to lack of CI and maintainers and it may be
+    removed in a future release.
