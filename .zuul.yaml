@@ -12,15 +12,6 @@
     vars:
       devstack_localrc:
         LIBS_FROM_GIT: glance_store
-      devstack_services:
-        # turn off ceilometer
-        ceilometer-acentral: false
-        ceilometer-acompute: false
-        ceilometer-alarm-evaluator: false
-        ceilometer-alarm-notifier: false
-        ceilometer-anotification: false
-        ceilometer-api: false
-        ceilometer-collector: false
       # Hardcode glance_store path so the job can be run on glance patches
       zuul_work_dir: src/opendev.org/openstack/glance_store
 
