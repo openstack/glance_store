@@ -134,14 +134,7 @@ Related options:
     * rbd_store_user
 
 """),
-    cfg.IntOpt('rados_connect_timeout', default=0,
-               deprecated_for_removal=True,
-               deprecated_since='Zed',
-               deprecated_reason="""
-This option has not had any effect in years. Users willing to set a timeout for
-connecting to the Ceph cluster should use 'client_mount_timeout' in Ceph's
-configuration file.
-""",
+    cfg.IntOpt('rados_connect_timeout', default=-1,
                help="""
 Timeout value for connecting to Ceph cluster.
 
@@ -149,8 +142,8 @@ This configuration option takes in the timeout value in seconds used
 when connecting to the Ceph cluster i.e. it sets the time to wait for
 glance-api before closing the connection. This prevents glance-api
 hangups during the connection to RBD. If the value for this option
-is set to less than or equal to 0, no timeout is set and the default
-librados value is used.
+is set to less than 0, no timeout is set and the default librados value
+is used.
 
 Possible Values:
     * Any integer value
@@ -301,6 +294,18 @@ class Store(driver.Store):
     @contextlib.contextmanager
     def get_connection(self, conffile, rados_id):
         client = rados.Rados(conffile=conffile, rados_id=rados_id)
+
+        if self.backend_group:
+            timeout = getattr(self.conf,
+                              self.backend_group).rados_connect_timeout
+        else:
+            timeout = self.conf.glance_store.rados_connect_timeout
+
+        if timeout >= 0:
+            t = str(timeout)
+            client.conf_set('rados_osd_op_timeout', t)
+            client.conf_set('rados_mon_op_timeout', t)
+            client.conf_set('client_mount_timeout', t)
 
         try:
             client.connect()
