@@ -121,7 +121,7 @@
       * legacy-tempest-dsvm-full-ceph-plugin-src-glance_store
     required-projects:
       - opendev.org/openstack/glance_store
-    timeout: 9000
+    timeout: 10800
     vars:
       tempest_test_regex: (^tempest\.(api|scenario)|(^cinder_tempest_plugin))
 
