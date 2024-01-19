@@ -539,10 +539,8 @@ class Store(glance_store.driver.Store):
         key = s3_client.get_object(Bucket=bucket, Key=key)
 
         LOG.debug("Retrieved image object from S3 using s3_host=%(s3_host)s, "
-                  "access_key=%(accesskey)s, bucket=%(bucket)s, "
-                  "key=%(key)s)",
-                  {'s3_host': loc.s3serviceurl, 'accesskey': loc.accesskey,
-                   'bucket': bucket, 'key': key})
+                  "bucket=%(bucket)s key=%(key)s)",
+                  {'s3_host': loc.s3serviceurl, 'bucket': bucket, 'key': key})
 
         cs = self.READ_CHUNKSIZE
 
@@ -623,10 +621,8 @@ class Store(glance_store.driver.Store):
                 raise glance_store.BackendException(msg)
 
         LOG.debug("Adding image object to S3 using (s3_host=%(s3_host)s, "
-                  "access_key=%(access_key)s, bucket=%(bucket)s, "
-                  "key=%(key)s)",
-                  {'s3_host': self.s3_host, 'access_key': loc.accesskey,
-                   'bucket': bucket, 'key': key})
+                  "bucket=%(bucket)s, key=%(key)s)",
+                  {'s3_host': self.s3_host, 'bucket': bucket, 'key': key})
 
         if not self._object_exists(s3_client, bucket, key):
             if image_size < self.s3_store_large_object_size:
@@ -830,9 +826,8 @@ class Store(glance_store.driver.Store):
             raise exceptions.NotFound(image=key)
 
         LOG.debug("Deleting image object from S3 using s3_host=%(s3_host)s, "
-                  "accesskey=%(accesskey)s, bucket=%(bucket)s, key=%(key)s)",
-                  {'s3_host': loc.s3serviceurl, 'accesskey': loc.accesskey,
-                   'bucket': bucket, 'key': key})
+                  "bucket=%(bucket)s, key=%(key)s)",
+                  {'s3_host': loc.s3serviceurl, 'bucket': bucket, 'key': key})
 
         return s3_client.delete_object(Bucket=bucket, Key=key)
 
