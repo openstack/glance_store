@@ -623,10 +623,8 @@ class Store(glance_store.driver.Store):
                 raise glance_store.BackendException(msg)
 
         LOG.debug("Adding image object to S3 using (s3_host=%(s3_host)s, "
-                  "access_key=%(access_key)s, bucket=%(bucket)s, "
-                  "key=%(key)s)",
-                  {'s3_host': self.s3_host, 'access_key': loc.accesskey,
-                   'bucket': bucket, 'key': key})
+                  "bucket=%(bucket)s, key=%(key)s)",
+                  {'s3_host': self.s3_host, 'bucket': bucket, 'key': key})
 
         if not self._object_exists(s3_client, bucket, key):
             if image_size < self.s3_store_large_object_size:
