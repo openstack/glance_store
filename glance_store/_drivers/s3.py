@@ -539,10 +539,8 @@ class Store(glance_store.driver.Store):
         key = s3_client.get_object(Bucket=bucket, Key=key)
 
         LOG.debug("Retrieved image object from S3 using s3_host=%(s3_host)s, "
-                  "access_key=%(accesskey)s, bucket=%(bucket)s, "
-                  "key=%(key)s)",
-                  {'s3_host': loc.s3serviceurl, 'accesskey': loc.accesskey,
-                   'bucket': bucket, 'key': key})
+                  "bucket=%(bucket)s key=%(key)s)",
+                  {'s3_host': loc.s3serviceurl, 'bucket': bucket, 'key': key})
 
         cs = self.READ_CHUNKSIZE
 
@@ -828,9 +826,8 @@ class Store(glance_store.driver.Store):
             raise exceptions.NotFound(image=key)
 
         LOG.debug("Deleting image object from S3 using s3_host=%(s3_host)s, "
-                  "accesskey=%(accesskey)s, bucket=%(bucket)s, key=%(key)s)",
-                  {'s3_host': loc.s3serviceurl, 'accesskey': loc.accesskey,
-                   'bucket': bucket, 'key': key})
+                  "bucket=%(bucket)s, key=%(key)s)",
+                  {'s3_host': loc.s3serviceurl, 'bucket': bucket, 'key': key})
 
         return s3_client.delete_object(Bucket=bucket, Key=key)
 
