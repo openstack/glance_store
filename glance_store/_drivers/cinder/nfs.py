@@ -53,7 +53,7 @@ class NfsBrickConnector(base.BaseBrickConnectorInterface):
 
     @staticmethod
     def get_hash_str(base_str):
-        """Returns string that represents SHA256 hash of base_str (in hex format).
+        """Returns string representing SHA256 hash of base_str in hex format.
 
         If base_str is a Unicode string, encode it to UTF-8.
         """
