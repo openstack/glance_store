@@ -38,7 +38,7 @@ class TestConnectorBase(test_base.StoreBaseTest):
     def test_factory(self, protocol, expected_class):
         connector_class = base.factory(
             connection_info={'driver_volume_type': protocol})
-        self.assertTrue(isinstance(connector_class, expected_class))
+        self.assertIsInstance(connector_class, expected_class)
 
 
 class TestBaseBrickConnectorInterface(test_base.StoreBaseTest):

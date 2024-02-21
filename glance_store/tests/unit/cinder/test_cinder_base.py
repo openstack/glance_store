@@ -766,7 +766,7 @@ class TestCinderStoreBase(object):
 
             mock_wait.side_effect = [fake_volume, exceptions.BackendException]
             self.assertRaises(
-                Exception, self.store.add, expected_image_id,  # noqa
+                exceptions.StorageFull, self.store.add, expected_image_id,
                 image_file, expected_size, self.hash_algo, self.context,
                 verifier)
             fake_volume.delete.assert_called_once()
