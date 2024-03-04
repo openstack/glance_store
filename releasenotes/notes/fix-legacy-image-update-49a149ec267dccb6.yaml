@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    `Bug #2056179 <https://bugs.launchpad.net/glance-store/+bug/2056179>`_:
+    Cinder Store: Fix issue when updating legacy image location.
+    Previously we only used the user context's credentials to make request
+    to cinder which we have now updated to use the service credentials
+    configured in the config file else use the user context's credentials.

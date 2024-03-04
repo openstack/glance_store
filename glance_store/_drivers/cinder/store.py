@@ -555,10 +555,29 @@ class Store(glance_store.driver.Store):
         If above both conditions doesn't meet, it returns false.
         """
         try:
-            cinder_client = self.get_cinderclient(context=context,
-                                                  legacy_update=True)
+            # We will use either the service credentials defined in
+            # config file or the user context credentials
+            cinder_client = self.get_cinderclient(context=context)
             cinder_volume_type = self.store_conf.cinder_volume_type
-            volume = cinder_client.volumes.get(volume_id)
+            # Here we are assuming that the volume is stored in the
+            # service project or context user's project else this
+            # will return NotFound exception.
+            # Ideally we should be using service user's credentials
+            # defined in the config and the volume should be stored
+            # in the service (internal) project else we are opening the
+            # image-volume to modification by users which might lead
+            # to corruption of image.
+            try:
+                volume = cinder_client.volumes.get(volume_id)
+            except cinder_exception.NotFound:
+                reason = (_LW("Image-Volume %s not found. If you have "
+                              "upgraded your environment from single store "
+                              "to multi store, transfer all your "
+                              "Image-Volumes from user projects to service "
+                              "project."
+                          % volume_id))
+                LOG.warning(reason)
+                return False
             if cinder_volume_type and volume.volume_type == cinder_volume_type:
                 return True
             elif not cinder_volume_type:
@@ -584,17 +603,8 @@ class Store(glance_store.driver.Store):
                     for key in ['user_name', 'password',
                                 'project_name', 'auth_address']])
 
-    def get_cinderclient(self, context=None, legacy_update=False,
-                         version='3.0'):
-        # NOTE: For legacy image update from single store to multiple
-        # stores we need to use admin context rather than user provided
-        # credentials
-        if legacy_update:
-            user_overriden = False
-            context = context.elevated()
-        else:
-            user_overriden = self.is_user_overriden()
-
+    def get_cinderclient(self, context=None, version='3.0'):
+        user_overriden = self.is_user_overriden()
         session = get_cinder_session(self.store_conf)
 
         if user_overriden:
