@@ -27,14 +27,14 @@ below the table of supported drivers and maintainers:
      - openstack-glance
    * - RBD
      - Supported
-     - Fei Long Wang
-     - flwang@catalyst.net.nz
-     - flwang
+     - Glance Team
+     - openstack-discuss@lists.openstack.org
+     - openstack-glance
    * - Cinder
      - Supported
-     - Tomoki Sekiyama
-     - tomoki.sekiyama@gmail.com
-     -
+     - Rajat Dhasmana
+     - rajatdhasmana@gmail.com
+     - whoami-rajat
    * - Swift
      - Supported
      - Matthew Oliver
