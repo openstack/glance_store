@@ -41,12 +41,16 @@ below the table of supported drivers and maintainers:
      - matt@oliver.net.au
      - mattoliverau
    * - VMware
-     - Supported
-     - Sabari Murugesan
-     - smurugesan@vmware.com
-     - sabari
+     - Deprecated
+     - N/A
+     - N/A
+     -
    * - S3
      - Supported
      - Naohiro Sameshima
      - naohiro.sameshima@global.ntt
      - nao-shark
+
+.. note::
+  VMWare driver was deprecated in 2024.1 release, because of lack of CI and
+  active maintainers
