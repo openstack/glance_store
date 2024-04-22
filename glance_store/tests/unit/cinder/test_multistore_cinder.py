@@ -112,10 +112,12 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
         self._test_get_cinderclient_with_ca_certificates(group='cinder1')
 
     def test_get_cinderclient_legacy_update(self):
-        cc = self.store.get_cinderclient(self.fake_admin_context,
-                                         legacy_update=True)
-        self.assertEqual('admin_token', cc.client.auth.token)
-        self.assertEqual('http://foo/public_url', cc.client.auth.endpoint)
+        fake_endpoint = 'http://cinder.openstack.example.com/v2/fake_project'
+        self.config(cinder_endpoint_template=fake_endpoint, group='cinder1')
+        cc = self.store.get_cinderclient(self.context)
+        self.assertEqual(self.context.auth_token,
+                         cc.client.auth.token)
+        self.assertEqual(fake_endpoint, cc.client.auth.endpoint)
 
     def test_open_cinder_volume_multipath_enabled(self):
         self.config(cinder_use_multipath=True, group='cinder1')
@@ -220,6 +222,19 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                 default=lambda: {'name': 'random_type'})
             type_match = self.store.is_image_associated_with_store(
                 self.context, fake_vol_id)
+            self.assertFalse(type_match)
+            # When the Image-Volume is not found
+            mocked_cc.return_value.volumes.get = mock.MagicMock(
+                side_effect=cinder.cinder_exception.NotFound(code=404))
+            with mock.patch.object(cinder, 'LOG') as mock_log:
+                type_match = self.store.is_image_associated_with_store(
+                    self.context, fake_vol_id)
+                mock_log.warning.assert_called_with(
+                    "Image-Volume %s not found. If you have "
+                    "upgraded your environment from single store "
+                    "to multi store, transfer all your "
+                    "Image-Volumes from user projects to service "
+                    "project." % fake_vol_id)
             self.assertFalse(type_match)
 
     def test_cinder_get(self):
