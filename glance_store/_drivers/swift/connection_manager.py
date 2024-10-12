@@ -78,8 +78,8 @@ class SwiftConnectionManager(object):
             # we are refreshing token only and if only connection manager
             # re-authentication is allowed. Token refreshing is setup by
             # connection manager users. Also we disable re-authentication
-            # if there is not way to execute it (cannot initialize trusts for
-            # multi-tenant or auth_version is not 3)
+            # if there is no way to execute it (cannot initialize trusts for
+            # multi-tenant)
             auth_ref = self.client.session.auth.auth_ref
             # if connection token is going to expire soon (keystone checks
             # is token is going to expire or expired already)
@@ -153,29 +153,18 @@ class SingleTenantConnectionManager(SwiftConnectionManager):
         if self.store.conf_endpoint:
             return self.store.conf_endpoint
 
-        if self.store.auth_version == '3':
-            try:
-                return self.client.session.get_endpoint(
-                    service_type=self.store.service_type,
-                    interface=self.store.endpoint_type,
-                    region_name=self.store.region
-                )
-            except Exception as e:
-                # do the same that swift driver does
-                # when catching ClientException
-                msg = _("Cannot find swift service endpoint : "
-                        "%s") % encodeutils.exception_to_unicode(e)
-                raise exceptions.BackendException(msg)
-
-    def _init_connection(self):
-        if self.store.auth_version == '3':
-            return super(SingleTenantConnectionManager,
-                         self)._init_connection()
-        else:
-            # no re-authentication for v1 and v2
-            self.allow_reauth = False
-            # use good old connection initialization
-            return self.store.get_connection(self.location, self.context)
+        try:
+            return self.client.session.get_endpoint(
+                service_type=self.store.service_type,
+                interface=self.store.endpoint_type,
+                region_name=self.store.region
+            )
+        except Exception as e:
+            # do the same that swift driver does
+            # when catching ClientException
+            msg = _("Cannot find swift service endpoint : "
+                    "%s") % encodeutils.exception_to_unicode(e)
+            raise exceptions.BackendException(msg)
 
 
 class MultiTenantConnectionManager(SwiftConnectionManager):

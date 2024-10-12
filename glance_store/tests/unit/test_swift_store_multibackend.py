@@ -66,9 +66,18 @@ class SwiftTests(object):
 
     def mock_keystone_client(self):
         # mock keystone client functions to avoid dependency errors
-        swift.ks_v3 = mock.MagicMock()
-        swift.ks_session = mock.MagicMock()
-        swift.ks_client = mock.MagicMock()
+        ks_identity_patcher = mock.patch(
+            'glance_store._drivers.swift.store.ks_identity')
+        self.mock_identity = ks_identity_patcher.start()
+        self.addCleanup(ks_identity_patcher.stop)
+        ks_session_patcher = mock.patch(
+            'glance_store._drivers.swift.store.ks_session')
+        self.mock_session = ks_session_patcher.start()
+        self.addCleanup(ks_session_patcher.stop)
+        ks_client_patcher = mock.patch(
+            'glance_store._drivers.swift.store.ks_client')
+        self.mock_client = ks_client_patcher.start()
+        self.addCleanup(ks_client_patcher.stop)
 
     def stub_out_swiftclient(self, swift_store_auth_version):
         fixture_containers = ['glance']
@@ -1279,11 +1288,7 @@ class SwiftTests(object):
                               swift_store_auth_insecure=True,
                               swift_store_config_file=None)
 
-    @mock.patch("glance_store._drivers.swift.store.ks_identity")
-    @mock.patch("glance_store._drivers.swift.store.ks_session")
-    @mock.patch("glance_store._drivers.swift.store.ks_client")
-    def _init_client(self, mock_client, mock_session, mock_identity, verify,
-                     **kwargs):
+    def _init_client(self, verify, **kwargs):
         # initialize store and connection parameters
         self.config(group="swift1", **kwargs)
         store = Store(self.conf, backend="swift1")
@@ -1304,25 +1309,26 @@ class SwiftTests(object):
         trustor_client.trusts.create.return_value = mock.MagicMock(
             id='fake_trust')
         main_client = mock.MagicMock()
-        mock_session.Session.side_effect = [trustor_session, trustee_session,
-                                            main_session]
-        mock_client.Client.side_effect = [trustor_client, trustee_client,
-                                          main_client]
+        self.mock_session.Session.side_effect = [
+            trustor_session, trustee_session, main_session]
+        self.mock_client.Client.side_effect = [
+            trustor_client, trustee_client, main_client]
         # initialize client
         ctxt = mock.MagicMock()
         client = store.init_client(location=mock.MagicMock(), context=ctxt)
         # test trustor usage
-        mock_identity.V3Token.assert_called_once_with(
+        self.mock_identity.V3Token.assert_called_once_with(
             auth_url=default_swift_reference.get('auth_address'),
             token=ctxt.auth_token,
             project_id=ctxt.project_id
         )
-        mock_session.Session.assert_any_call(auth=mock_identity.V3Token(),
-                                             verify=verify)
-        mock_client.Client.assert_any_call(session=trustor_session)
+        self.mock_session.Session.assert_any_call(
+            auth=self.mock_identity.V3Token(),
+            verify=verify)
+        self.mock_client.Client.assert_any_call(session=trustor_session)
         # test trustee usage and trust creation
         tenant_name, user = default_swift_reference.get('user').split(':')
-        mock_identity.V3Password.assert_any_call(
+        self.mock_identity.V3Password.assert_any_call(
             auth_url=default_swift_reference.get('auth_address'),
             username=user,
             password=default_swift_reference.get('key'),
@@ -1333,15 +1339,16 @@ class SwiftTests(object):
             project_domain_name=default_swift_reference.get(
                 'project_domain_name')
         )
-        mock_session.Session.assert_any_call(auth=mock_identity.V3Password(),
-                                             verify=verify)
-        mock_client.Client.assert_any_call(session=trustee_session)
+        self.mock_session.Session.assert_any_call(
+            auth=self.mock_identity.V3Password(),
+            verify=verify)
+        self.mock_client.Client.assert_any_call(session=trustee_session)
         trustor_client.trusts.create.assert_called_once_with(
             trustee_user='fake_user', trustor_user=ctxt.user_id,
             project=ctxt.project_id, impersonation=True,
             role_names=['fake_role']
         )
-        mock_identity.V3Password.assert_any_call(
+        self.mock_identity.V3Password.assert_any_call(
             auth_url=default_swift_reference.get('auth_address'),
             username=user,
             password=default_swift_reference.get('key'),
@@ -1352,11 +1359,11 @@ class SwiftTests(object):
             project_domain_name=default_swift_reference.get(
                 'project_domain_name')
         )
-        mock_client.Client.assert_any_call(session=main_session)
+        self.mock_client.Client.assert_any_call(session=main_session)
         self.assertEqual(main_client, client)
 
 
-class TestStoreAuthV1(base.MultiStoreBaseTest, SwiftTests,
+class TestStoreAuthV3(base.MultiStoreBaseTest, SwiftTests,
                       test_store_capabilities.TestStoreCapabilitiesChecking):
 
     # NOTE(flaper87): temporary until we
@@ -1366,13 +1373,13 @@ class TestStoreAuthV1(base.MultiStoreBaseTest, SwiftTests,
 
     def getConfig(self):
         conf = SWIFT_CONF.copy()
-        conf['swift_store_auth_version'] = '1'
+        conf['swift_store_auth_version'] = '3'
         conf['swift_store_user'] = 'tenant:user1'
         return conf
 
     def setUp(self):
         """Establish a clean test environment."""
-        super(TestStoreAuthV1, self).setUp()
+        super(TestStoreAuthV3, self).setUp()
         enabled_backends = {
             "swift1": "swift",
             "swift2": "swift",
@@ -1407,48 +1414,7 @@ class TestStoreAuthV1(base.MultiStoreBaseTest, SwiftTests,
         self.register_store_backend_schemes(self.store, 'swift', 'swift1')
         self.addCleanup(self.conf.reset)
 
-
-class TestStoreAuthV2(TestStoreAuthV1):
-
-    def getConfig(self):
-        config = super(TestStoreAuthV2, self).getConfig()
-        config['swift_store_auth_version'] = '2'
-        config['swift_store_user'] = 'tenant:user1'
-        return config
-
-    def test_v2_with_no_tenant(self):
-        uri = "swift://failme:key@auth_address/glance/%s" % (FAKE_UUID)
-        loc = location.get_location_from_uri_and_backend(
-            uri, "swift1", conf=self.conf)
-        self.assertRaises(exceptions.BadStoreUri,
-                          self.store.get,
-                          loc)
-
-    def test_v2_multi_tenant_location(self):
-        config = self.getConfig()
-        config['swift_store_multi_tenant'] = True
-        self.config(group="swift1", **config)
-        uri = "swift://auth_address/glance/%s" % (FAKE_UUID)
-        loc = location.get_location_from_uri_and_backend(
-            uri, "swift1", conf=self.conf)
-        self.assertEqual('swift', loc.store_name)
-
-
-class TestStoreAuthV3(TestStoreAuthV1):
-
-    def getConfig(self):
-        config = super(TestStoreAuthV3, self).getConfig()
-        config['swift_store_auth_version'] = '3'
-        config['swift_store_user'] = 'tenant:user1'
-        return config
-
-    @mock.patch("glance_store._drivers.swift.store.ks_identity")
-    @mock.patch("glance_store._drivers.swift.store.ks_session")
-    @mock.patch("glance_store._drivers.swift.store.ks_client")
-    def test_init_client_single_tenant(self,
-                                       mock_client,
-                                       mock_session,
-                                       mock_identity):
+    def test_init_client_single_tenant(self):
         """Test that keystone client was initialized correctly"""
         # initialize client
         store = Store(self.conf, backend="swift1")
@@ -1459,24 +1425,18 @@ class TestStoreAuthV3(TestStoreAuthV1):
             uri, "swift1", conf=self.conf)
         ctxt = mock.MagicMock()
         store.init_client(location=loc.store_location, context=ctxt)
-        mock_identity.V3Password.assert_called_once_with(
+        self.mock_identity.V3Password.assert_called_once_with(
             auth_url=loc.store_location.swift_url + '/',
             username="user1", password="key",
             project_name="tenant",
             project_domain_id='default', project_domain_name=None,
             user_domain_id='default', user_domain_name=None,)
-        mock_session.Session.assert_called_once_with(
-            auth=mock_identity.V3Password(), verify=True)
-        mock_client.Client.assert_called_once_with(
-            session=mock_session.Session())
+        self.mock_session.Session.assert_called_once_with(
+            auth=self.mock_identity.V3Password(), verify=True)
+        self.mock_client.Client.assert_called_once_with(
+            session=self.mock_session.Session())
 
-    @mock.patch("glance_store._drivers.swift.store.ks_identity")
-    @mock.patch("glance_store._drivers.swift.store.ks_session")
-    @mock.patch("glance_store._drivers.swift.store.ks_client")
-    def test_init_client_single_tenant_with_domain_ids(self,
-                                                       mock_client,
-                                                       mock_session,
-                                                       mock_identity):
+    def test_init_client_single_tenant_with_domain_ids(self):
         """Test that keystone client was initialized correctly"""
         conf = self.getConfig()
         conf['default_swift_reference'] = 'ref4'
@@ -1489,24 +1449,18 @@ class TestStoreAuthV3(TestStoreAuthV1):
             uri, "swift1", conf=self.conf)
         ctxt = mock.MagicMock()
         store.init_client(location=loc.store_location, context=ctxt)
-        mock_identity.V3Password.assert_called_once_with(
+        self.mock_identity.V3Password.assert_called_once_with(
             auth_url=loc.store_location.swift_url + '/',
             username="user1", password="key",
             project_name="tenant",
             project_domain_id='projdomainid', project_domain_name=None,
             user_domain_id='userdomainid', user_domain_name=None)
-        mock_session.Session.assert_called_once_with(
-            auth=mock_identity.V3Password(), verify=True)
-        mock_client.Client.assert_called_once_with(
-            session=mock_session.Session())
+        self.mock_session.Session.assert_called_once_with(
+            auth=self.mock_identity.V3Password(), verify=True)
+        self.mock_client.Client.assert_called_once_with(
+            session=self.mock_session.Session())
 
-    @mock.patch("glance_store._drivers.swift.store.ks_identity")
-    @mock.patch("glance_store._drivers.swift.store.ks_session")
-    @mock.patch("glance_store._drivers.swift.store.ks_client")
-    def test_init_client_single_tenant_with_domain_names(self,
-                                                         mock_client,
-                                                         mock_session,
-                                                         mock_identity):
+    def test_init_client_single_tenant_with_domain_names(self):
         """Test that keystone client was initialized correctly"""
         conf = self.getConfig()
         conf['default_swift_reference'] = 'ref5'
@@ -1519,16 +1473,16 @@ class TestStoreAuthV3(TestStoreAuthV1):
             uri, "swift1", conf=self.conf)
         ctxt = mock.MagicMock()
         store.init_client(location=loc.store_location, context=ctxt)
-        mock_identity.V3Password.assert_called_once_with(
+        self.mock_identity.V3Password.assert_called_once_with(
             auth_url=loc.store_location.swift_url + '/',
             username="user1", password="key",
             project_name="tenant",
             project_domain_id=None, project_domain_name='projdomain',
             user_domain_id=None, user_domain_name='userdomain')
-        mock_session.Session.assert_called_once_with(
-            auth=mock_identity.V3Password(), verify=True)
-        mock_client.Client.assert_called_once_with(
-            session=mock_session.Session())
+        self.mock_session.Session.assert_called_once_with(
+            auth=self.mock_identity.V3Password(), verify=True)
+        self.mock_client.Client.assert_called_once_with(
+            session=self.mock_session.Session())
 
 
 class FakeConnection(object):
@@ -1584,7 +1538,7 @@ class TestSingleTenantStoreConnections(base.MultiStoreBaseTest):
         self.store = swift.SingleTenantStore(self.conf, backend="swift1")
         self.store.configure()
         specs = {'scheme': 'swift',
-                 'auth_or_store_url': 'example.com/v2/',
+                 'auth_or_store_url': 'example.com/v3/',
                  'user': 'tenant:user1',
                  'key': 'key1',
                  'container': 'cont',
@@ -1595,71 +1549,38 @@ class TestSingleTenantStoreConnections(base.MultiStoreBaseTest):
         self.register_store_backend_schemes(self.store, 'swift', 'swift1')
         self.addCleanup(self.conf.reset)
 
-    def test_basic_connection(self):
-        connection = self.store.get_connection(self.location)
-        self.assertEqual('https://example.com/v2/', connection.authurl)
-        self.assertEqual('2', connection.auth_version)
-        self.assertEqual('user1', connection.user)
-        self.assertEqual('tenant', connection.tenant_name)
-        self.assertEqual('key1', connection.key)
-        self.assertIsNone(connection.preauthurl)
-        self.assertFalse(connection.insecure)
-        self.assertEqual({'service_type': 'object-store',
-                          'endpoint_type': 'publicURL'},
-                         connection.os_options)
-
-    def test_connection_with_conf_endpoint(self):
-        ctx = mock.MagicMock(user='tenant:user1', tenant='tenant')
-        self.config(group="swift1",
-                    swift_store_endpoint='https://internal.com')
+    @mock.patch("keystoneauth1.session.Session.get_endpoint")
+    @mock.patch("keystoneauth1.session.Session.get_auth_headers",
+                new=mock.Mock())
+    def _test_connection_manager_authv3_conf_endpoint(
+            self, mock_ep, expected_endpoint="https://from-catalog.com"):
+        mock_ep.return_value = "https://from-catalog.com"
         self.store.configure()
-        connection = self.store.get_connection(self.location, context=ctx)
-        self.assertEqual('https://example.com/v2/', connection.authurl)
-        self.assertEqual('2', connection.auth_version)
-        self.assertEqual('user1', connection.user)
-        self.assertEqual('tenant', connection.tenant_name)
-        self.assertEqual('key1', connection.key)
-        self.assertEqual('https://internal.com', connection.preauthurl)
-        self.assertFalse(connection.insecure)
-        self.assertEqual({'service_type': 'object-store',
-                          'endpoint_type': 'publicURL'},
-                         connection.os_options)
+        connection_manager = manager.SingleTenantConnectionManager(
+            store=self.store,
+            store_location=self.location,
+        )
+        conn = connection_manager._init_connection()
+        self.assertEqual(expected_endpoint, conn.preauthurl)
 
-    def test_connection_with_conf_endpoint_no_context(self):
-        self.config(group="swift1",
-                    swift_store_endpoint='https://internal.com')
-        self.store.configure()
-        connection = self.store.get_connection(self.location)
-        self.assertEqual('https://example.com/v2/', connection.authurl)
-        self.assertEqual('2', connection.auth_version)
-        self.assertEqual('user1', connection.user)
-        self.assertEqual('tenant', connection.tenant_name)
-        self.assertEqual('key1', connection.key)
-        self.assertEqual('https://internal.com', connection.preauthurl)
-        self.assertFalse(connection.insecure)
-        self.assertEqual({'service_type': 'object-store',
-                          'endpoint_type': 'publicURL'},
-                         connection.os_options)
+    def test_connection_manager_without_conf_endpoint(self):
+        self._test_connection_manager_authv3_conf_endpoint()
+
+    def test_connection_manager_with_conf_endpoint(self):
+        self.config(group="swift1", swift_store_endpoint='http://localhost')
+        self._test_connection_manager_authv3_conf_endpoint(
+            expected_endpoint='http://localhost')
 
     def test_connection_with_no_trailing_slash(self):
-        self.location.auth_or_store_url = 'example.com/v2'
+        self.location.auth_or_store_url = 'example.com/v3'
         connection = self.store.get_connection(self.location)
-        self.assertEqual('https://example.com/v2/', connection.authurl)
+        self.assertEqual('https://example.com/v3/', connection.authurl)
 
     def test_connection_insecure(self):
         self.config(group="swift1", swift_store_auth_insecure=True)
         self.store.configure()
         connection = self.store.get_connection(self.location)
         self.assertTrue(connection.insecure)
-
-    def test_connection_with_auth_v1(self):
-        self.config(group="swift1", swift_store_auth_version='1')
-        self.store.configure()
-        self.location.user = 'auth_v1_user'
-        connection = self.store.get_connection(self.location)
-        self.assertEqual('1', connection.auth_version)
-        self.assertEqual('auth_v1_user', connection.user)
-        self.assertIsNone(connection.tenant_name)
 
     def test_connection_invalid_user(self):
         self.store.configure()
@@ -1720,7 +1641,7 @@ class TestSingleTenantStoreConnections(base.MultiStoreBaseTest):
                           self.location.uri)
 
     def test_ref_overrides_defaults(self):
-        self.config(group="swift1", swift_store_auth_version='2',
+        self.config(group="swift1",
                     swift_store_user='testuser',
                     swift_store_key='testpass',
                     swift_store_auth_address='testaddress',

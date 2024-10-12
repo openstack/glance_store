@@ -42,8 +42,7 @@ class TestConnectionManager(base.StoreBaseTest):
                                          service_type="swift",
                                          endpoint_type="internal",
                                          region=None,
-                                         conf=self.conf,
-                                         auth_version='3')
+                                         conf=self.conf)
 
         store.backend_group = None
         store.conf_endpoint = None

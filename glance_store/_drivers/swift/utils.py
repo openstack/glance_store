@@ -14,6 +14,7 @@
 
 import configparser
 import logging
+import warnings
 
 from oslo_config import cfg
 
@@ -40,14 +41,14 @@ Related options:
     * None
 
 """),
-    cfg.StrOpt('swift_store_auth_version', default='2',
-               help='Version of the authentication service to use. '
-                    'Valid versions are 2 and 3 for keystone and 1 '
-                    '(deprecated) for swauth and rackspace.',
+    cfg.StrOpt('swift_store_auth_version', default='3',
+               choices=['3'],
+               help='The authentication version to be used. Currently '
+                    'The only valid version is 3.',
                deprecated_for_removal=True,
                deprecated_reason="""
-The option 'auth_version' in the Swift back-end configuration file is
-used instead.
+This option is kept for backword-compatibility reasons but is no longer
+required, because only the single version (3) is supported now.
 """),
     cfg.StrOpt('swift_store_auth_address',
                help='The address where the Swift authentication '
@@ -209,6 +210,11 @@ class SwiftParams(object):
 
                 try:
                     reference['auth_version'] = CONFIG.get(ref, 'auth_version')
+                    warnings.warn(
+                        'The auth_version option is deprecated. It is kept '
+                        'for backword-compatibility reasons but will be '
+                        'removed in a future release.',
+                        DeprecationWarning)
                 except configparser.NoOptionError:
                     if self.backend_group:
                         av = getattr(
@@ -217,6 +223,9 @@ class SwiftParams(object):
                     else:
                         av = self.conf.glance_store.swift_store_auth_version
                     reference['auth_version'] = av
+
+                if reference['auth_version'] != '3':
+                    raise ValueError('Unsupported auth_version')
 
                 account_params[ref] = reference
             except (ValueError, SyntaxError, configparser.NoOptionError):
