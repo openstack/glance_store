@@ -25,10 +25,7 @@ import uuid
 from oslo_concurrency import lockutils
 from oslo_utils.secretutils import md5
 
-try:
-    from eventlet import sleep
-except ImportError:
-    from time import sleep
+from time import sleep
 
 from glance_store.i18n import _
 
