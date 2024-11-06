@@ -14,8 +14,14 @@
 #    under the License.
 
 import io
+import math
+import time
 from unittest import mock
 
+from oslo_utils import units
+
+from glance_store._drivers.cinder import scaleio
+from glance_store import exceptions
 from glance_store.tests.unit.cinder import test_base as test_base_connector
 
 
@@ -42,8 +48,48 @@ class TestScaleioBrickConnector(
             'attachment_id': '22914c3a-5818-4840-9188-2ac9833b9f7b'}
         super().setUp(connection_info=connection_info)
 
+    def test__get_device_size(self):
+        fake_data = b"fake binary data"
+        fake_len = int(math.ceil(float(len(fake_data)) / units.Gi))
+        fake_file = io.BytesIO(fake_data)
+        # Get current file pointer
+        original_pos = fake_file.tell()
+        dev_size = scaleio.ScaleIOBrickConnector._get_device_size(fake_file)
+        self.assertEqual(fake_len, dev_size)
+        # Verify that file pointer points to the original location
+        self.assertEqual(original_pos, fake_file.tell())
+
+    @mock.patch.object(time, 'sleep')
+    def test__wait_resize_device_resized(self, mock_sleep):
+        fake_vol = mock.MagicMock()
+        fake_vol.size = 2
+        fake_file = io.BytesIO(b"fake binary data")
+        with mock.patch.object(
+                scaleio.ScaleIOBrickConnector,
+                '_get_device_size') as mock_get_dev_size:
+            mock_get_dev_size.side_effect = [1, 2]
+            scaleio.ScaleIOBrickConnector._wait_resize_device(
+                fake_vol, fake_file)
+
+    @mock.patch.object(time, 'sleep')
+    def test__wait_resize_device_fails(self, mock_sleep):
+        fake_vol = mock.MagicMock()
+        fake_vol.size = 2
+        fake_file = io.BytesIO(b"fake binary data")
+        with mock.patch.object(
+                scaleio.ScaleIOBrickConnector, '_get_device_size',
+                return_value=1):
+            self.assertRaises(
+                exceptions.BackendException,
+                scaleio.ScaleIOBrickConnector._wait_resize_device,
+                fake_vol, fake_file)
+
     def test_yield_path(self):
         fake_vol = mock.MagicMock(size=1)
         fake_device = io.BytesIO(b"fake binary data")
+        # Get current file pointer
+        original_pos = fake_device.tell()
         fake_dev_path = self.connector.yield_path(fake_vol, fake_device)
         self.assertEqual(fake_device, fake_dev_path)
+        # Verify that file pointer points to the original location
+        self.assertEqual(original_pos, fake_device.tell())
