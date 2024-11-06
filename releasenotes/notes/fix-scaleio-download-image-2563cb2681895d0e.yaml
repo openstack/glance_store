@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    Cinder (Dell PowerFlex) `bug #2086759
+    <https://bugs.launchpad.net/glance-store/+bug/2086759>`_:
+    Fixed issue when downloading an image.
+    Previously, we used to fail trying to download an image when using
+    Glance -> Cinder -> Dell PowerFlex configuration which is now fixed
+    with better file handling for the volume device.
