@@ -33,15 +33,19 @@ class ScaleIOBrickConnector(base.BaseBrickConnectorInterface):
 
     @staticmethod
     def _get_device_size(device_file):
-        # The seek position is corrected after every extend operation
-        # with the bytes written (which is after this wait call) so we
-        # don't need to worry about setting it back to original position
+        # os.fstat doesn't work with the block devices exported by
+        # the ScaleIO/PowerFlex protocol and returns 0 as st_size
+        # so we use the seek/tell logic.
+        # Get the current position
+        current_pos = device_file.tell()
+        # Seek to the end of the file
         device_file.seek(0, os.SEEK_END)
-        # There are other ways to determine the file size like os.stat
-        # or os.path.getsize but it requires file name attribute which
-        # we don't have for the RBD file wrapper RBDVolumeIOWrapper
+        # Get the size of file (in bytes)
         device_size = device_file.tell()
+        # Convert the bytes size into GB
         device_size = int(math.ceil(float(device_size) / units.Gi))
+        # Restore the file pointer to original position
+        device_file.seek(current_pos, os.SEEK_SET)
         return device_size
 
     @staticmethod

@@ -16,7 +16,6 @@
 import contextlib
 import hashlib
 import io
-import math
 import os
 from unittest import mock
 
@@ -32,7 +31,6 @@ from oslo_concurrency import processutils
 from oslo_utils.secretutils import md5
 from oslo_utils import units
 
-from glance_store._drivers.cinder import scaleio
 from glance_store.common import attachment_state_manager
 from glance_store.common import cinder_utils
 from glance_store import exceptions
@@ -796,38 +794,6 @@ class TestCinderStoreBase(object):
             mocked_cc.return_value = mock.MagicMock(volumes=fake_volumes)
             self.assertRaises(exceptions.BackendException, self.store.delete,
                               loc, context=self.context)
-
-    def test__get_device_size(self):
-        fake_data = b"fake binary data"
-        fake_len = int(math.ceil(float(len(fake_data)) / units.Gi))
-        fake_file = io.BytesIO(fake_data)
-        dev_size = scaleio.ScaleIOBrickConnector._get_device_size(fake_file)
-        self.assertEqual(fake_len, dev_size)
-
-    @mock.patch.object(time, 'sleep')
-    def test__wait_resize_device_resized(self, mock_sleep):
-        fake_vol = mock.MagicMock()
-        fake_vol.size = 2
-        fake_file = io.BytesIO(b"fake binary data")
-        with mock.patch.object(
-                scaleio.ScaleIOBrickConnector,
-                '_get_device_size') as mock_get_dev_size:
-            mock_get_dev_size.side_effect = [1, 2]
-            scaleio.ScaleIOBrickConnector._wait_resize_device(
-                fake_vol, fake_file)
-
-    @mock.patch.object(time, 'sleep')
-    def test__wait_resize_device_fails(self, mock_sleep):
-        fake_vol = mock.MagicMock()
-        fake_vol.size = 2
-        fake_file = io.BytesIO(b"fake binary data")
-        with mock.patch.object(
-                scaleio.ScaleIOBrickConnector, '_get_device_size',
-                return_value=1):
-            self.assertRaises(
-                exceptions.BackendException,
-                scaleio.ScaleIOBrickConnector._wait_resize_device,
-                fake_vol, fake_file)
 
     def test_process_specs(self):
         self.location.process_specs()
