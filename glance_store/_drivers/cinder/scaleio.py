@@ -38,14 +38,16 @@ class ScaleIOBrickConnector(base.BaseBrickConnectorInterface):
         # so we use the seek/tell logic.
         # Get the current position
         current_pos = device_file.tell()
-        # Seek to the end of the file
-        device_file.seek(0, os.SEEK_END)
-        # Get the size of file (in bytes)
-        device_size = device_file.tell()
-        # Convert the bytes size into GB
-        device_size = int(math.ceil(float(device_size) / units.Gi))
-        # Restore the file pointer to original position
-        device_file.seek(current_pos, os.SEEK_SET)
+        try:
+            # Seek to the end of the file
+            device_file.seek(0, os.SEEK_END)
+            # Get the size of file (in bytes)
+            device_size = device_file.tell()
+            # Convert the bytes size into GB
+            device_size = int(math.ceil(float(device_size) / units.Gi))
+        finally:
+            # Restore the file pointer to original position
+            device_file.seek(current_pos, os.SEEK_SET)
         return device_size
 
     @staticmethod
