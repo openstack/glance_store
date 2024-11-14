@@ -112,6 +112,7 @@ class OptsTestCase(base.StoreBaseTest):
             's3_store_large_object_size',
             's3_store_large_object_chunk_size',
             's3_store_thread_pools',
+            's3_store_cacert',
             'swift_store_expire_soon_interval',
             'swift_store_admin_tenants',
             'swift_store_auth_address',
