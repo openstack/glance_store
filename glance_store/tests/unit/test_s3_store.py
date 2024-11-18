@@ -106,6 +106,31 @@ class TestStore(base.StoreBaseTest,
             region_name='regionOne',
             service_name='s3',
             use_ssl=False,
+            verify=None,
+        )
+
+    @mock.patch('glance_store.location.Location')
+    @mock.patch.object(boto3.session.Session, "client")
+    def test_client_custom_ca_cert_bundle(self, mock_client, mock_loc):
+        """Test a custom s3_store_cacert in config"""
+        self.config(s3_store_host='http://example.com')
+        self.config(s3_store_cacert='path/to/cert/bundle.pem')
+        self.config(s3_store_bucket_url_format='path')
+        self.store.configure()
+
+        mock_loc.accesskey = 'abcd'
+        mock_loc.secretkey = 'efgh'
+        mock_loc.bucket = 'bucket1'
+
+        self.store._create_s3_client(mock_loc)
+
+        mock_client.assert_called_with(
+            config=mock.ANY,
+            endpoint_url='http://example.com',
+            region_name=None,
+            service_name='s3',
+            use_ssl=False,
+            verify='path/to/cert/bundle.pem',
         )
 
     @mock.patch.object(boto3.session.Session, "client")
