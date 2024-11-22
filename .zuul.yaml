@@ -39,7 +39,7 @@
     parent: tox
     abstract: true
     description: Abstract job for glance_store vs. cinder
-    nodeset: ubuntu-focal
+    nodeset: ubuntu-jammy
     required-projects:
       - name: openstack/os-brick
       - name: openstack/python-cinderclient
@@ -57,7 +57,7 @@
     parent: tox
     abstract: true
     description: Abstract job for glance_store vs. keystone
-    nodeset: ubuntu-focal
+    nodeset: ubuntu-jammy
     required-projects:
       - name: openstack/keystoneauth
       - name: openstack/python-keystoneclient
@@ -75,7 +75,7 @@
     parent: tox
     abstract: true
     description: Abstract job for glance_store vs. oslo
-    nodeset: ubuntu-focal
+    nodeset: ubuntu-jammy
     required-projects:
       - name: openstack/oslo.concurrency
       - name: openstack/oslo.config
@@ -100,7 +100,7 @@
     parent: tox
     abstract: true
     description: Abstract job for glance_store vs. swift
-    nodeset: ubuntu-focal
+    nodeset: ubuntu-jammy
     required-projects:
       - name: openstack/python-swiftclient
 
