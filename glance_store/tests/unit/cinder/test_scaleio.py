@@ -46,6 +46,7 @@ class TestScaleioBrickConnector(
             'cacheable': False,
             'driver_volume_type': 'scaleio',
             'attachment_id': '22914c3a-5818-4840-9188-2ac9833b9f7b'}
+        self.scaleio_connector = scaleio.ScaleIOBrickConnector
         super().setUp(connection_info=connection_info)
 
     def test__get_device_size(self):
@@ -54,8 +55,21 @@ class TestScaleioBrickConnector(
         fake_file = io.BytesIO(fake_data)
         # Get current file pointer
         original_pos = fake_file.tell()
-        dev_size = scaleio.ScaleIOBrickConnector._get_device_size(fake_file)
+        dev_size = self.scaleio_connector._get_device_size(fake_file)
         self.assertEqual(fake_len, dev_size)
+        # Verify that file pointer points to the original location
+        self.assertEqual(original_pos, fake_file.tell())
+
+    def test__get_device_size_exception(self):
+        fake_data = b"fake binary data"
+        fake_file = io.BytesIO(fake_data)
+        # Get current file pointer
+        original_pos = fake_file.tell()
+        with mock.patch.object(
+                math, 'ceil', side_effect=exceptions.BackendException):
+            self.assertRaises(
+                exceptions.BackendException,
+                self.scaleio_connector._get_device_size, fake_file)
         # Verify that file pointer points to the original location
         self.assertEqual(original_pos, fake_file.tell())
 
@@ -65,10 +79,10 @@ class TestScaleioBrickConnector(
         fake_vol.size = 2
         fake_file = io.BytesIO(b"fake binary data")
         with mock.patch.object(
-                scaleio.ScaleIOBrickConnector,
+                self.scaleio_connector,
                 '_get_device_size') as mock_get_dev_size:
             mock_get_dev_size.side_effect = [1, 2]
-            scaleio.ScaleIOBrickConnector._wait_resize_device(
+            self.scaleio_connector._wait_resize_device(
                 fake_vol, fake_file)
 
     @mock.patch.object(time, 'sleep')
@@ -77,11 +91,11 @@ class TestScaleioBrickConnector(
         fake_vol.size = 2
         fake_file = io.BytesIO(b"fake binary data")
         with mock.patch.object(
-                scaleio.ScaleIOBrickConnector, '_get_device_size',
+                self.scaleio_connector, '_get_device_size',
                 return_value=1):
             self.assertRaises(
                 exceptions.BackendException,
-                scaleio.ScaleIOBrickConnector._wait_resize_device,
+                self.scaleio_connector._wait_resize_device,
                 fake_vol, fake_file)
 
     def test_yield_path(self):
