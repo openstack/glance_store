@@ -23,7 +23,6 @@ import logging
 import uuid
 
 from oslo_concurrency import lockutils
-from oslo_utils.secretutils import md5
 
 from time import sleep
 
@@ -115,7 +114,7 @@ def get_hasher(hash_algo, usedforsecurity=True):
     :param usedforsecurity: whether the hashes are used in a security context
     """
     if str(hash_algo) == 'md5':
-        return md5(usedforsecurity=usedforsecurity)
+        return hashlib.md5(usedforsecurity=usedforsecurity)
     else:
         return hashlib.new(str(hash_algo))
 

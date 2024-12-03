@@ -25,7 +25,6 @@ import botocore
 from botocore import exceptions as boto_exceptions
 from botocore import stub
 from oslo_config import cfg
-from oslo_utils.secretutils import md5
 from oslo_utils import units
 
 import glance_store as store
@@ -247,8 +246,8 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
         # 5KiB is smaller than WRITE_CHUNKSIZE
         expected_s3_size = FIVE_KB
         expected_s3_contents = b"*" * expected_s3_size
-        expected_checksum = md5(expected_s3_contents,
-                                usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(expected_s3_contents,
+                                        usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
         expected_location = format_s3_location(
             S3_CONF['s3_store_access_key'],
@@ -300,8 +299,8 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
         # but smaller than s3_store_large_object_size
         expected_s3_size = 8 * units.Mi
         expected_s3_contents = b"*" * expected_s3_size
-        expected_checksum = md5(expected_s3_contents,
-                                usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(expected_s3_contents,
+                                        usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
         expected_location = format_s3_location(
             S3_CONF['s3_store_access_key'],
@@ -354,8 +353,8 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_s3_size = FIVE_KB
         expected_s3_contents = b"*" * expected_s3_size
-        expected_checksum = md5(expected_s3_contents,
-                                usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(expected_s3_contents,
+                                        usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
         expected_location = format_s3_location(
             S3_CONF['s3_store_access_key'],
@@ -428,8 +427,8 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
         expected_image_id = str(uuid.uuid4())
         expected_s3_size = 16 * units.Mi
         expected_s3_contents = b"*" * expected_s3_size
-        expected_checksum = md5(expected_s3_contents,
-                                usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(expected_s3_contents,
+                                        usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
         expected_location = format_s3_location(
             S3_CONF['s3_store_access_key'],

@@ -28,7 +28,6 @@ import uuid
 
 from oslo_config import cfg
 from oslo_utils import encodeutils
-from oslo_utils.secretutils import md5
 from oslo_utils import units
 import requests_mock
 import swiftclient
@@ -120,7 +119,7 @@ class SwiftTests(object):
                 if kwargs.get('headers'):
                     manifest = kwargs.get('headers').get('X-Object-Manifest')
                     etag = kwargs.get('headers') \
-                                 .get('ETag', md5(
+                                 .get('ETag', hashlib.md5(
                                      b'', usedforsecurity=False).hexdigest())
                     fixture_headers[fixture_key] = {
                         'manifest': True,
@@ -133,7 +132,7 @@ class SwiftTests(object):
                     fixture_object = io.BytesIO()
                     read_len = 0
                     chunk = contents.read(CHUNKSIZE)
-                    checksum = md5(usedforsecurity=False)
+                    checksum = hashlib.md5(usedforsecurity=False)
                     while chunk:
                         fixture_object.write(chunk)
                         read_len += len(chunk)
@@ -143,8 +142,8 @@ class SwiftTests(object):
                 else:
                     fixture_object = io.BytesIO(contents)
                     read_len = len(contents)
-                    etag = md5(fixture_object.getvalue(),
-                               usedforsecurity=False).hexdigest()
+                    etag = hashlib.md5(fixture_object.getvalue(),
+                                       usedforsecurity=False).hexdigest()
                 if read_len > MAX_SWIFT_OBJECT_SIZE:
                     msg = ('Image size:%d exceeds Swift max:%d' %
                            (read_len, MAX_SWIFT_OBJECT_SIZE))
@@ -422,8 +421,8 @@ class SwiftTests(object):
         self.store.configure()
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
-        expected_checksum = md5(expected_swift_contents,
-                                usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(expected_swift_contents,
+                                        usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(
             expected_swift_contents).hexdigest()
         expected_image_id = str(uuid.uuid4())
@@ -571,7 +570,8 @@ class SwiftTests(object):
             expected_swift_size = FIVE_KB
             expected_swift_contents = b"*" * expected_swift_size
             expected_checksum = \
-                md5(expected_swift_contents, usedforsecurity=False).hexdigest()
+                hashlib.md5(expected_swift_contents,
+                            usedforsecurity=False).hexdigest()
             expected_multihash = \
                 hashlib.sha256(expected_swift_contents).hexdigest()
 
@@ -647,8 +647,8 @@ class SwiftTests(object):
         """
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
-        expected_checksum = md5(expected_swift_contents,
-                                usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(expected_swift_contents,
+                                        usedforsecurity=False).hexdigest()
         expected_multihash = \
             hashlib.sha256(expected_swift_contents).hexdigest()
         expected_image_id = str(uuid.uuid4())
@@ -694,8 +694,8 @@ class SwiftTests(object):
         """
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
-        expected_checksum = md5(expected_swift_contents,
-                                usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(expected_swift_contents,
+                                        usedforsecurity=False).hexdigest()
         expected_multihash = \
             hashlib.sha256(expected_swift_contents).hexdigest()
         expected_image_id = str(uuid.uuid4())
@@ -916,8 +916,8 @@ class SwiftTests(object):
         """
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
-        expected_checksum = md5(expected_swift_contents,
-                                usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(expected_swift_contents,
+                                        usedforsecurity=False).hexdigest()
         expected_multihash = \
             hashlib.sha256(expected_swift_contents).hexdigest()
         expected_image_id = str(uuid.uuid4())
@@ -971,8 +971,8 @@ class SwiftTests(object):
         # Set up a 'large' image of 5KB
         expected_swift_size = FIVE_KB
         expected_swift_contents = b"*" * expected_swift_size
-        expected_checksum = md5(expected_swift_contents,
-                                usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(expected_swift_contents,
+                                        usedforsecurity=False).hexdigest()
         expected_multihash = \
             hashlib.sha256(expected_swift_contents).hexdigest()
         expected_image_id = str(uuid.uuid4())
@@ -2037,14 +2037,15 @@ class TestChunkReader(base.StoreBaseTest):
         """
         CHUNKSIZE = 100
         data = b'*' * units.Ki
-        expected_checksum = md5(data, usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(data,
+                                        usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(data).hexdigest()
         data_file = tempfile.NamedTemporaryFile()
         data_file.write(data)
         data_file.flush()
         infile = open(data_file.name, 'rb')
         bytes_read = 0
-        checksum = md5(usedforsecurity=False)
+        checksum = hashlib.md5(usedforsecurity=False)
         os_hash_value = hashlib.sha256()
         while True:
             cr = swift.ChunkReader(infile, checksum, os_hash_value, CHUNKSIZE)
@@ -2066,10 +2067,10 @@ class TestChunkReader(base.StoreBaseTest):
         Replicate what goes on in the Swift driver with the
         repeated creation of the ChunkReader object
         """
-        expected_checksum = md5(b'', usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(b'', usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(b'').hexdigest()
         CHUNKSIZE = 100
-        checksum = md5(usedforsecurity=False)
+        checksum = hashlib.md5(usedforsecurity=False)
         os_hash_value = hashlib.sha256()
         data_file = tempfile.NamedTemporaryFile()
         infile = open(data_file.name, 'rb')
@@ -2165,7 +2166,7 @@ class TestBufferedReader(base.StoreBaseTest):
         self.infile = io.BytesIO(s)
         self.infile.seek(0)
 
-        self.checksum = md5(usedforsecurity=False)
+        self.checksum = hashlib.md5(usedforsecurity=False)
         self.hash_algo = HASH_ALGO
         self.os_hash_value = hashlib.sha256()
         self.verifier = mock.MagicMock(name='mock_verifier')
@@ -2225,7 +2226,7 @@ class TestBufferedReader(base.StoreBaseTest):
 
     def test_checksums(self):
         # checksums are updated only once on a full segment read
-        expected_csum = md5(usedforsecurity=False)
+        expected_csum = hashlib.md5(usedforsecurity=False)
         expected_csum.update(b'1234567')
         expected_multihash = hashlib.sha256()
         expected_multihash.update(b'1234567')
@@ -2237,7 +2238,7 @@ class TestBufferedReader(base.StoreBaseTest):
     def test_checksum_updated_only_once_w_full_segment_read(self):
         # Test that checksums are updated only once when a full segment read
         # is followed by a seek and partial reads.
-        expected_csum = md5(usedforsecurity=False)
+        expected_csum = hashlib.md5(usedforsecurity=False)
         expected_csum.update(b'1234567')
         expected_multihash = hashlib.sha256()
         expected_multihash.update(b'1234567')
@@ -2252,7 +2253,7 @@ class TestBufferedReader(base.StoreBaseTest):
     def test_checksum_updates_during_partial_segment_reads(self):
         # Test to check that checksums are updated with only the bytes
         # not seen when the number of bytes being read is changed
-        expected_csum = md5(usedforsecurity=False)
+        expected_csum = hashlib.md5(usedforsecurity=False)
         expected_multihash = hashlib.sha256()
         self.reader.read(4)
         expected_csum.update(b'1234')
@@ -2275,7 +2276,7 @@ class TestBufferedReader(base.StoreBaseTest):
 
     def test_checksum_rolling_calls(self):
         # Test that the checksum continues on to the next segment
-        expected_csum = md5(usedforsecurity=False)
+        expected_csum = hashlib.md5(usedforsecurity=False)
         expected_multihash = hashlib.sha256()
         self.reader.read(7)
         expected_csum.update(b'1234567')
@@ -2344,7 +2345,7 @@ class TestBufferedReader(base.StoreBaseTest):
         infile = io.BytesIO(s)
         infile.seek(0)
         total = 7
-        checksum = md5(usedforsecurity=False)
+        checksum = hashlib.md5(usedforsecurity=False)
         os_hash_value = hashlib.sha256()
         self.reader = buffered.BufferedReader(
             infile, checksum, os_hash_value, total)
@@ -2369,14 +2370,15 @@ class TestBufferedReader(base.StoreBaseTest):
         """
         CHUNKSIZE = 100
         data = b'*' * units.Ki
-        expected_checksum = md5(data, usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(data,
+                                        usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(data).hexdigest()
         data_file = tempfile.NamedTemporaryFile()
         data_file.write(data)
         data_file.flush()
         infile = open(data_file.name, 'rb')
         bytes_read = 0
-        checksum = md5(usedforsecurity=False)
+        checksum = hashlib.md5(usedforsecurity=False)
         os_hash_value = hashlib.sha256()
         while True:
             cr = buffered.BufferedReader(infile, checksum, os_hash_value,
