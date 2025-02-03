@@ -21,7 +21,6 @@ from functools import wraps
 import logging
 
 from oslo_config import cfg
-from oslo_utils import encodeutils
 from oslo_utils import importutils
 from oslo_utils import units
 
@@ -112,9 +111,8 @@ class Store(capabilities.StoreCapability):
             self.configure_add()
         except exceptions.BadStoreConfiguration as e:
             self.unset_capabilities(capabilities.BitMasks.WRITE_ACCESS)
-            msg = (_("Failed to configure store correctly: %s "
-                     "Disabling add method.")
-                   % encodeutils.exception_to_unicode(e))
+            msg = _("Failed to configure store correctly: %s "
+                    "Disabling add method.") % e
             LOG.warning(msg)
             if re_raise_bsc:
                 raise

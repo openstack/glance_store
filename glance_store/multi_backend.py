@@ -18,7 +18,6 @@ import hashlib
 import logging
 
 from oslo_config import cfg
-from oslo_utils import encodeutils
 from oslo_utils import units
 from stevedore import driver
 from stevedore import extension
@@ -438,9 +437,9 @@ def _check_metadata(store, metadata):
     except exceptions.BackendException as e:
         e_msg = (_("A bad metadata structure was returned from the "
                    "%(driver)s storage driver: %(metadata)s.  %(e)s.") %
-                 dict(driver=encodeutils.exception_to_unicode(store),
-                      metadata=encodeutils.exception_to_unicode(metadata),
-                      e=encodeutils.exception_to_unicode(e)))
+                 dict(driver=store,
+                      metadata=metadata,
+                      e=e))
         LOG.error(e_msg)
         raise exceptions.BackendException(e_msg)
 

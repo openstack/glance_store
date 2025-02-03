@@ -26,7 +26,6 @@ from keystoneauth1 import identity as ks_identity
 from keystoneauth1 import session as ks_session
 from keystoneclient.v3 import client as ks_client
 from oslo_config import cfg
-from oslo_utils import encodeutils
 from oslo_utils import excutils
 from oslo_utils import units
 try:
@@ -496,8 +495,7 @@ def swift_retry_iter(resp_iter, length, store, location, manager):
                 yield chunk
                 bytes_read += len(chunk)
         except swiftclient.ClientException as e:
-            LOG.warning("Swift exception raised %s"
-                        % encodeutils.exception_to_unicode(e))
+            LOG.warning("Swift exception raised %s" % e)
 
         if bytes_read != length:
             if retries == rcount:
@@ -1086,9 +1084,8 @@ class BaseStore(driver.Store):
                 elif e.http_status == http.client.REQUEST_ENTITY_TOO_LARGE:
                     raise exceptions.StorageFull(message=e.msg)
 
-                msg = (_("Failed to add object to Swift.\n"
-                         "Got error from Swift: %s.")
-                       % encodeutils.exception_to_unicode(e))
+                msg = _("Failed to add object to Swift.\n"
+                        "Got error from Swift: %s.") % e
                 LOG.error(msg)
                 raise glance_store.BackendException(msg)
 
@@ -1172,9 +1169,8 @@ class BaseStore(driver.Store):
                         LOG.info(msg)
                         connection.put_container(container)
                     except swiftclient.ClientException as e:
-                        msg = (_("Failed to add container to Swift.\n"
-                                 "Got error from Swift: %s.")
-                               % encodeutils.exception_to_unicode(e))
+                        msg = _("Failed to add container to Swift.\n"
+                                "Got error from Swift: %s.") % e
                         raise glance_store.BackendException(msg)
                 else:
                     msg = (_("The container %(container)s does not exist in "

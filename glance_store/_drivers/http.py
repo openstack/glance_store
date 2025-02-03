@@ -17,9 +17,6 @@ import logging
 import urllib
 
 from oslo_config import cfg
-from oslo_utils import encodeutils
-
-
 import requests
 
 from glance_store import capabilities
@@ -254,8 +251,7 @@ class Store(glance_store.driver.Store):
         try:
             conn, resp, size = self._query(location, 'HEAD')
         except requests.exceptions.ConnectionError as exc:
-            err_msg = encodeutils.exception_to_unicode(exc)
-            reason = _("The HTTP URL is invalid: %s") % err_msg
+            reason = _("The HTTP URL is invalid: %s") % exc
             LOG.info(reason)
             raise exceptions.BadStoreUri(message=reason)
         finally:

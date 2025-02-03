@@ -15,7 +15,6 @@ import socket
 import tempfile
 
 from oslo_config import cfg
-from oslo_utils import encodeutils
 
 from glance_store import exceptions
 from glance_store.i18n import _
@@ -65,9 +64,8 @@ def validate_buffering(buffer_dir):
     try:
         _tmpfile = tempfile.TemporaryFile(dir=buffer_dir)
     except OSError as err:
-        msg = (_('Unable to use buffer directory set with '
-                 '"swift_upload_buffer_dir". Error: %s') %
-               encodeutils.exception_to_unicode(err))
+        msg = _('Unable to use buffer directory set with '
+                '"swift_upload_buffer_dir". Error: %s') % err
         raise exceptions.BadStoreConfiguration(store_name='swift',
                                                reason=msg)
     else:

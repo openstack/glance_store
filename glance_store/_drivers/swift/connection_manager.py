@@ -18,8 +18,6 @@ connection with valid credentials and updated token"""
 
 import logging
 
-from oslo_utils import encodeutils
-
 from glance_store import exceptions
 from glance_store.i18n import _, _LI
 
@@ -162,8 +160,7 @@ class SingleTenantConnectionManager(SwiftConnectionManager):
         except Exception as e:
             # do the same that swift driver does
             # when catching ClientException
-            msg = _("Cannot find swift service endpoint : "
-                    "%s") % encodeutils.exception_to_unicode(e)
+            msg = _("Cannot find swift service endpoint : %s") % e
             raise exceptions.BackendException(msg)
 
 

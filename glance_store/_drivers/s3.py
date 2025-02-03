@@ -34,7 +34,6 @@ except ImportError:
     boto_utils = None
 
 from oslo_config import cfg
-from oslo_utils import encodeutils
 from oslo_utils import units
 
 import glance_store
@@ -907,8 +906,7 @@ class Store(glance_store.driver.Store):
             error_code = e.response['Error']['Code']
             if error_code == '404':
                 return False
-            msg = ("Failed to get bucket info: %s" %
-                   encodeutils.exception_to_unicode(e))
+            msg = "Failed to get bucket info: %s" % e
             LOG.error(msg)
             raise glance_store.BadStoreConfiguration(store_name='s3',
                                                      reason=msg)
@@ -932,8 +930,7 @@ class Store(glance_store.driver.Store):
             error_code = e.response['Error']['Code']
             if error_code == '404':
                 return False
-            msg = ("Failed to get object info: %s" %
-                   encodeutils.exception_to_unicode(e))
+            msg = "Failed to get object info: %s" % e
             LOG.error(msg)
             raise glance_store.BadStoreConfiguration(store_name='s3',
                                                      reason=msg)
@@ -965,8 +962,7 @@ class Store(glance_store.driver.Store):
                 }
             )
         except boto_exceptions.ClientError as e:
-            msg = ("Failed to add bucket to S3: %s" %
-                   encodeutils.exception_to_unicode(e))
+            msg = "Failed to add bucket to S3: %s" % e
             LOG.error(msg)
             raise glance_store.BadStoreConfiguration(store_name='s3',
                                                      reason=msg)
