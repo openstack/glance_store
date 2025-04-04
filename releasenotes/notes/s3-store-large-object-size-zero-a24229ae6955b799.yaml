@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    Support setting ``s3_store_large_object_size`` to ``0`` to force multipart
+    upload when ``image_size`` is unknown.
+fixes:
+  - |
+    `Bug #2043740 <https://bugs.launchpad.net/glance-store/+bug/2043740>`_:
+    ``s3_store_large_object_size`` can be set to ``0`` to force multipart
+    upload when creating an image in the S3 backend from a Cinder volume.
