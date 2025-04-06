@@ -285,6 +285,13 @@ class Store(glance_store.driver.Store):
     OPTIONS = _FILESYSTEM_CONFIGS
     FILESYSTEM_STORE_METADATA = None
 
+    def __init__(self, *args, **kargs):
+        super(Store, self).__init__(*args, **kargs)
+        if self.backend_group:
+            self.store_conf = getattr(self.conf, self.backend_group)
+        else:
+            self.store_conf = self.conf.glance_store
+
     def get_schemes(self):
         return ('file', 'filesystem')
 
@@ -311,11 +318,7 @@ class Store(glance_store.driver.Store):
         :datadir is a directory path in which glance writes image files.
         """
 
-        if self.backend_group:
-            fstore_perm = getattr(
-                self.conf, self.backend_group).filesystem_store_file_perm
-        else:
-            fstore_perm = self.conf.glance_store.filesystem_store_file_perm
+        fstore_perm = self.store_conf.filesystem_store_file_perm
 
         if fstore_perm <= 0:
             return
@@ -421,19 +424,14 @@ class Store(glance_store.driver.Store):
         this method. If the store was not able to successfully configure
         itself, it should raise `exceptions.BadStoreConfiguration`
         """
-        if self.backend_group:
-            store_conf = getattr(self.conf, self.backend_group)
-        else:
-            store_conf = self.conf.glance_store
+        fdir = self.store_conf.filesystem_store_datadir
+        fdirs = self.store_conf.filesystem_store_datadirs
+        fstore_perm = self.store_conf.filesystem_store_file_perm
+        meta_file = self.store_conf.filesystem_store_metadata_file
 
-        fdir = store_conf.filesystem_store_datadir
-        fdirs = store_conf.filesystem_store_datadirs
-        fstore_perm = store_conf.filesystem_store_file_perm
-        meta_file = store_conf.filesystem_store_metadata_file
-
-        self.thin_provisioning = store_conf.\
+        self.thin_provisioning = self.store_conf.\
             filesystem_thin_provisioning
-        self.chunk_size = store_conf.filesystem_store_chunk_size
+        self.chunk_size = self.store_conf.filesystem_store_chunk_size
         self.READ_CHUNKSIZE = self.chunk_size
         self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
 
@@ -777,11 +775,7 @@ class Store(glance_store.driver.Store):
                    'checksum_hex': checksum_hex,
                    'hash_hex': hash_hex})
 
-        if self.backend_group:
-            fstore_perm = getattr(
-                self.conf, self.backend_group).filesystem_store_file_perm
-        else:
-            fstore_perm = self.conf.glance_store.filesystem_store_file_perm
+        fstore_perm = self.store_conf.filesystem_store_file_perm
 
         if fstore_perm > 0:
             perm = int(str(fstore_perm), 8)
