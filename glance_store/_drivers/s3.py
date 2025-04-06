@@ -465,7 +465,8 @@ class Store(glance_store.driver.Store):
 
     def _option_get(self, param):
         if self.backend_group:
-            store_conf = getattr(self.conf, self.backend_group)
+            store_conf = glance_store.driver.BackendGroupConfiguration(
+                self.OPTIONS, self.backend_group, conf=self.conf)
         else:
             store_conf = self.conf.glance_store
 

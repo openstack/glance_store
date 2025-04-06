@@ -450,6 +450,9 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.conf.set_override('filesystem_store_datadir',
                                override=None,
                                group='file1')
+        self.conf.set_override('filesystem_store_datadir',
+                               override=None,
+                               group='backend_defaults')
         self.conf.set_override('filesystem_store_datadirs',
                                [store_map[0] + ":100",
                                 store_map[1] + ":200"],
@@ -568,6 +571,9 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.conf.set_override('filesystem_store_datadir',
                                override=None,
                                group='file1')
+        self.conf.set_override('filesystem_store_datadir',
+                               override=None,
+                               group='backend_defaults')
         self.conf.set_override('filesystem_store_datadirs',
                                [store_map[0] + ":100",
                                 store_map[1] + ":200",
@@ -618,6 +624,9 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.conf.set_override('filesystem_store_datadir',
                                override=None,
                                group='file1')
+        self.conf.set_override('filesystem_store_datadir',
+                               override=None,
+                               group='backend_defaults')
 
         self.conf.set_override('filesystem_store_datadirs',
                                [store_map[0] + ":100",
@@ -670,6 +679,9 @@ class TestMultiStore(base.MultiStoreBaseTest,
         self.conf.set_override('filesystem_store_datadir',
                                override=None,
                                group='file1')
+        self.conf.set_override('filesystem_store_datadir',
+                               override=None,
+                               group='backend_defaults')
         self.conf.set_override('filesystem_store_datadirs',
                                [store_map[0] + ":100",
                                 store_map[1] + ":200"],

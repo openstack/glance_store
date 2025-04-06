@@ -493,7 +493,8 @@ class Store(glance_store.driver.Store):
         self.mount = importlib.import_module('glance_store.common.fs_mount')
         self._set_url_prefix()
         if self.backend_group:
-            self.store_conf = getattr(self.conf, self.backend_group)
+            self.store_conf = glance_store.driver.BackendGroupConfiguration(
+                self.OPTIONS, self.backend_group, conf=self.conf)
         else:
             self.store_conf = self.conf.glance_store
         self.volume_api = cinder_utils.API()
