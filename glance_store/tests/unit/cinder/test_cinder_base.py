@@ -28,7 +28,6 @@ import uuid
 from keystoneauth1 import exceptions as keystone_exc
 from os_brick.initiator import connector
 from oslo_concurrency import processutils
-from oslo_utils.secretutils import md5
 from oslo_utils import units
 
 from glance_store.common import attachment_state_manager
@@ -531,8 +530,9 @@ class TestCinderStoreBase(object):
         expected_size = size_kb * units.Ki
         expected_file_contents = b"*" * expected_size
         image_file = io.BytesIO(expected_file_contents)
-        expected_checksum = md5(expected_file_contents,
-                                usedforsecurity=False).hexdigest()
+        expected_checksum = hashlib.md5(
+            expected_file_contents,
+            usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
 
         expected_location = 'cinder://%s' % fake_volume.id
