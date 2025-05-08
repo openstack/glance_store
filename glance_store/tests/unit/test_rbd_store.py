@@ -84,6 +84,9 @@ class MockRBD(object):
     class ImageHasSnapshots(Exception):
         pass
 
+    class IncompleteWriteError(Exception):
+        pass
+
     class ImageBusy(Exception):
         pass
 
@@ -342,6 +345,49 @@ class TestStore(base.StoreBaseTest,
                 self.assertTrue(resize.called)
                 self.assertTrue(write.called)
                 self.assertEqual(ret[1], self.data_len)
+
+    @mock.patch.object(rbd_store.Store, '_delete_image')
+    def test_add_image_exceeding_max_size_raises_exception(self, mock_delete):
+        self.store.chunk_size = units.Ki
+        self.store.WRITE_CHUNKSIZE = 1024
+        total_bytes = units.Ki * 5
+        # actual data size
+        image_size = total_bytes
+        # Create data larger than image_size to simulate mismatch at end
+        data = b'a' * (total_bytes + 1024)
+        image_file = io.BytesIO(data)
+        with mock.patch.object(rbd_store.rbd.Image, 'write'):
+            try:
+                self.store.add('fake_image_id', image_file, image_size,
+                               self.hash_algo)
+            except exceptions.Invalid as e:
+                self.assertIn('Size exceeds: expected', e.msg)
+
+            # Confirm that image deletion was called due to size mismatch
+            mock_delete.assert_called()
+            # The position should be equal to total input size
+            self.assertEqual(image_file.tell(), len(data))
+
+    @mock.patch.object(rbd_store.Store, '_delete_image')
+    def test_write_less_than_declared_raises_exception(self, mock_delete):
+        self.store.chunk_size = units.Ki
+        total_bytes = units.Ki * 5
+        # actual data size
+        image_size = total_bytes
+        # Create data larger than image_size to simulate mismatch at end
+        data = b'a' * (total_bytes - 100)
+        image_file = io.BytesIO(data)
+        with mock.patch.object(rbd_store.rbd.Image, 'write'):
+            try:
+                self.store.add('fake_image_id', image_file, image_size,
+                               self.hash_algo)
+            except exceptions.Invalid as e:
+                self.assertIn('Size mismatch: expected', e.msg)
+
+            # Confirm that image deletion was called due to size mismatch
+            mock_delete.assert_called()
+            # The position should be less than total input size
+            self.assertEqual(image_file.tell(), len(data))
 
     @mock.patch.object(MockRBD.Image, '__enter__')
     @mock.patch.object(rbd_store.Store, '_create_image')

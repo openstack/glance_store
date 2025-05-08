@@ -604,6 +604,14 @@ class Store(driver.Store):
                                                               bytes_written,
                                                               chunk_length)
                             bytes_written += chunk_length
+                            # Check if writing this chunk exceeds the
+                            # image_size
+                            if image_size != 0 and bytes_written > image_size:
+                                raise exceptions.Invalid(
+                                    _("Size exceeds: expected %(expected)d "
+                                      "bytes, got %(actual)d bytes") %
+                                    {'expected': image_size,
+                                     'actual': bytes_written})
                             if not (self.thin_provisioning and not any(chunk)):
                                 image.write(chunk, offset)
                             offset += chunk_length
@@ -634,6 +642,23 @@ class Store(driver.Store):
                         pass
 
                     raise exceptions.StorageFull(message=log_msg)
+                except rbd.IncompleteWriteError as exc:
+                    log_msg = (_LE("Failed to store image %(img_name)s "
+                                   "image data exceeded the expected size. "
+                                   "Store Exception %(store_exc)s") %
+                               {'img_name': image_name,
+                                'store_exc': exc})
+                    LOG.error(log_msg)
+
+                    # Delete image if one was created
+                    try:
+                        target_pool = loc.pool or self.pool
+                        self._delete_image(target_pool, loc.image,
+                                           loc.snapshot)
+                    except exceptions.NotFound:
+                        pass
+
+                    raise exceptions.Invalid(message=log_msg)
                 except Exception as exc:
                     log_msg = (_LE("Failed to store image %(img_name)s "
                                    "Store Exception %(store_exc)s") %
@@ -651,9 +676,20 @@ class Store(driver.Store):
 
                     raise exc
 
-        # Make sure we send back the image size whether provided or inferred.
-        if image_size == 0:
-            image_size = bytes_written
+        # If actual bytes written are less than image_size
+        # (when image_size != 0), update accordingly
+        if image_size != 0 and bytes_written != image_size:
+            # Delete image if one was created
+            try:
+                self._delete_image(loc.pool or self.pool, loc.image,
+                                   loc.snapshot)
+            except exceptions.NotFound:
+                pass
+
+            raise exceptions.Invalid(_(
+                "Size mismatch: expected %(expected)d "
+                "bytes, got %(actual)d bytes") % {
+                'expected': image_size, 'actual': bytes_written})
 
         # Add store backend information to location metadata
         metadata = {}
@@ -661,7 +697,7 @@ class Store(driver.Store):
             metadata['store'] = self.backend_group
 
         return (loc.get_uri(),
-                image_size,
+                bytes_written,
                 checksum.hexdigest(),
                 os_hash_value.hexdigest(),
                 metadata)
