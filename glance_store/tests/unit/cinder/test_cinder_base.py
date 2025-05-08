@@ -577,6 +577,56 @@ class TestCinderStoreBase(object):
             if is_multi_store:
                 self.assertEqual(backend, metadata["store"])
 
+    def _test_cinder_add_size_validation(
+            self, fake_volume, volume_file, verifier=None, size_kb=5,
+            backend='glance_store', is_multi_store=False, oversized=False):
+        expected_image_id = str(uuid.uuid4())
+        expected_size = size_kb * units.Ki
+        if oversized:
+            # 1 KB over
+            self.store.WRITE_CHUNKSIZE = 1024
+            expected_file_contents = b"*" * (expected_size + 1024)
+            image_file = io.BytesIO(expected_file_contents)
+            expected_error = "Size exceeds: expected"
+        else:
+            # 1 KB less
+            expected_file_contents = b"*" * (expected_size - 1024)
+            image_file = io.BytesIO(expected_file_contents)
+            expected_error = "Size mismatch: expected"
+
+        if is_multi_store:
+            # Default backend is 'glance_store' for single store but in case
+            # of multi store, if the backend option is not passed, we should
+            # assign it to the default i.e. 'cinder1'
+            if backend == 'glance_store':
+                backend = 'cinder1'
+        self.config(cinder_volume_type='some_type', group=backend)
+
+        fake_client = mock.MagicMock(auth_token=None, management_url=None)
+        fake_volume.manager.get.return_value = fake_volume
+        fake_volumes = mock.MagicMock(create=mock.Mock(
+            return_value=fake_volume))
+
+        @contextlib.contextmanager
+        def fake_open(client, volume, mode):
+            self.assertEqual('wb', mode)
+            yield volume_file
+
+        with mock.patch.object(cinder.Store, 'get_cinderclient') as mock_cc, \
+                mock.patch.object(self.store, '_open_cinder_volume',
+                                  side_effect=fake_open):
+            mock_cc.return_value = mock.MagicMock(client=fake_client,
+                                                  volumes=fake_volumes)
+            try:
+                self.store.add(expected_image_id, image_file, expected_size,
+                               self.hash_algo, self.context, verifier)
+            except exceptions.Invalid as e:
+                self.assertIn(expected_error, e.msg)
+
+            fake_volume.delete.assert_called_once()
+            self.assertEqual(image_file.tell(),
+                             len(expected_file_contents))
+
     def test_cinder_add_volume_not_found(self):
         image_file = mock.MagicMock()
         fake_image_id = str(uuid.uuid4())
