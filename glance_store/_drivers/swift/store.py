@@ -977,14 +977,18 @@ class BaseStore(driver.Store):
                         if image_size == 0:
                             content_length = None
                         else:
-                            left = image_size - combined_chunks_size
-                            if left == 0:
-                                break
-                            if chunk_size > left:
-                                chunk_size = left
                             content_length = chunk_size
-
                         chunk_name = "%s-%05d" % (location.obj, chunk_id)
+                        # Check if actual data exceeds the specified
+                        # image_size
+                        if (image_size != 0 and
+                                combined_chunks_size > image_size):
+                            raise glance_store.Invalid(
+                                _("Size exceeds: expected "
+                                  "%(expected)d "
+                                  "bytes, got %(actual)d bytes") %
+                                {'expected': image_size,
+                                 'actual': combined_chunks_size})
 
                         with self.reader_class(
                                 image_file, checksum, os_hash_value,
@@ -1026,10 +1030,17 @@ class BaseStore(driver.Store):
 
                         chunk_id += 1
                         combined_chunks_size += bytes_read
-                    # In the case we have been given an unknown image size,
-                    # set the size to the total size of the combined chunks.
-                    if image_size == 0:
-                        image_size = combined_chunks_size
+
+                    # Validate total size after all chunks are uploaded
+                    if image_size != 0 and combined_chunks_size != image_size:
+                        message = (_("Size mismatch: expected %(expected)d "
+                                     "bytes, got %(actual)d bytes") %
+                                   {'expected': image_size,
+                                    'actual': combined_chunks_size})
+                        raise glance_store.Invalid(message=message)
+
+                    # Assign actual written data size
+                    image_size = combined_chunks_size
 
                     # Now we write the object manifest in X-Object-Manifest
                     # header as defined for Dynamic Large Objects (DLO) Mode.
@@ -1066,6 +1077,15 @@ class BaseStore(driver.Store):
                 return (location.get_uri(credentials_included=include_creds),
                         image_size, obj_etag, os_hash_value.hexdigest(),
                         metadata)
+            except exceptions.Invalid:
+                with excutils.save_and_reraise_exception():
+                    LOG.error(_("Error during chunked upload "
+                                "to backend, deleting stale "
+                                "chunks."))
+                    self._delete_stale_chunks(
+                        manager.get_connection(),
+                        location.container,
+                        written_chunks)
             except swiftclient.ClientException as e:
                 if e.http_status == http.client.CONFLICT:
                     msg = _("Swift already has an image at this location")
