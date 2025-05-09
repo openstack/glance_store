@@ -124,6 +124,11 @@
     timeout: 10800
     vars:
       tempest_test_regex: (^tempest\.(api|scenario)|(^cinder_tempest_plugin))
+      devstack_local_conf:
+        post-config:
+          $GLANCE_API_CONF:
+            DEFAULT:
+              do_secure_hash: False
 
 - job:
     name: cross-glance-tox-functional
