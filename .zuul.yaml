@@ -153,13 +153,20 @@
       jobs:
         - cross-glance-tox-functional
         - glance_store-src-ceph-tempest:
-            irrelevant-files: &tempest-irrelevant-files
+            irrelevant-files:
               - ^doc/.*$
               - ^releasenotes/.*$
               - ^.*\.rst$
               - ^(test-|)requirements.txt$
               - ^setup.cfg$
               - ^tox.ini$
+              - ^glance_store/_drivers/cinder/.*$
+              - ^glance_store/_drivers/swift/.*$
+              - ^glance_store/_drivers/filesystem*$
+              - ^glance_store/_drivers/http.*$
+              - ^glance_store/_drivers/s3.*$
+              - ^glance_store/tests/.*$
+
     experimental:
       jobs:
         - glance_store-dsvm-functional-filesystem
