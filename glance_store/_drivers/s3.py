@@ -648,7 +648,8 @@ class Store(glance_store.driver.Store):
                                             key=key,
                                             loc=loc,
                                             hashing_algo=hashing_algo,
-                                            verifier=verifier)
+                                            verifier=verifier,
+                                            image_size=image_size)
 
             return self._add_multipart(s3_client=s3_client,
                                        image_file=image_file,
@@ -663,7 +664,7 @@ class Store(glance_store.driver.Store):
         raise exceptions.Duplicate(image=key)
 
     def _add_singlepart(self, s3_client, image_file, bucket, key, loc,
-                        hashing_algo, verifier):
+                        hashing_algo, verifier, image_size):
         """Stores an image file with a single part upload to S3 backend.
 
         :param s3_client: An object with credentials to connect to S3
@@ -674,6 +675,8 @@ class Store(glance_store.driver.Store):
                     from glance_store.location.get_location_from_uri()
         :param hashing_algo: A hashlib algorithm identifier (string)
         :param verifier: An object used to verify signatures for images
+        :param image_size: The size of the image data to write,
+                           in bytes
         :returns: tuple of: (1) URL in backing store, (2) bytes written,
                   (3) checksum, (4) multihash value, and (5) a dictionary
                   with storage system specific information
@@ -681,14 +684,27 @@ class Store(glance_store.driver.Store):
         os_hash_value = utils.get_hasher(hashing_algo, False)
         checksum = utils.get_hasher('md5', False)
         image_data = b''
-        image_size = 0
+        total_bytes = 0
         for chunk in utils.chunkreadable(image_file, self.WRITE_CHUNKSIZE):
+            total_bytes += len(chunk)
+            if image_size != 0 and total_bytes > image_size:
+                # Size exceeded, abort upload
+                raise glance_store.Invalid(
+                    _("Size exceeds: expected %(expected)d bytes, "
+                      "got %(actual)d bytes") %
+                    {'expected': image_size, 'actual': total_bytes})
             image_data += chunk
-            image_size += len(chunk)
             os_hash_value.update(chunk)
             checksum.update(chunk)
             if verifier:
                 verifier.update(chunk)
+
+        # Final size check after reading all chunks
+        if image_size != 0 and total_bytes != image_size:
+            raise glance_store.Invalid(
+                _("Size mismatch: expected %(expected)d bytes, "
+                  "got %(actual)d bytes") %
+                {'expected': image_size, 'actual': total_bytes})
 
         s3_client.put_object(Body=image_data,
                              Bucket=bucket,
@@ -703,9 +719,9 @@ class Store(glance_store.driver.Store):
 
         LOG.debug("Wrote %(size)d bytes to S3 key named %(key)s "
                   "with checksum %(checksum)s",
-                  {'size': image_size, 'key': key, 'checksum': checksum_hex})
+                  {'size': total_bytes, 'key': key, 'checksum': checksum_hex})
 
-        return loc.get_uri(), image_size, checksum_hex, hash_hex, metadata
+        return loc.get_uri(), total_bytes, checksum_hex, hash_hex, metadata
 
     def _add_multipart(self, s3_client, image_file, image_size, bucket,
                        key, loc, hashing_algo, verifier):
@@ -743,6 +759,7 @@ class Store(glance_store.driver.Store):
                                    chunk_size)
             it = utils.chunkreadable(image_file, self.WRITE_CHUNKSIZE)
             buffered_chunk = b''
+            total_bytes = 0
             while True:
                 try:
                     buffered_clen = len(buffered_chunk)
@@ -754,6 +771,17 @@ class Store(glance_store.driver.Store):
                     else:
                         write_chunk = buffered_chunk[:write_chunk_size]
                         remained_data = buffered_chunk[write_chunk_size:]
+                        total_bytes += len(write_chunk)
+                        if image_size != 0 and total_bytes > image_size:
+                            # Abort multipart upload immediately
+                            s3_client.abort_multipart_upload(
+                                Bucket=bucket, Key=key, UploadId=upload_id)
+                            raise glance_store.Invalid(
+                                _("Size exceeds: expected "
+                                  "%(expected)d "
+                                  "bytes, got %(actual)d bytes") %
+                                {'expected': image_size,
+                                 'actual': total_bytes})
                         os_hash_value.update(write_chunk)
                         checksum.update(write_chunk)
                         if verifier:
@@ -772,6 +800,7 @@ class Store(glance_store.driver.Store):
                     if len(buffered_chunk) > 0:
                         # Write the last chunk data
                         write_chunk = buffered_chunk
+                        total_bytes += len(write_chunk)
                         os_hash_value.update(write_chunk)
                         checksum.update(write_chunk)
                         if verifier:
@@ -787,6 +816,16 @@ class Store(glance_store.driver.Store):
 
         # Wait for all uploads to finish
         futures.wait(futures_list)
+
+        # Final size validation after all parts uploaded
+        if image_size != 0 and total_bytes != image_size:
+            # Abort upload if mismatch (redundant check)
+            s3_client.abort_multipart_upload(
+                Bucket=bucket, Key=key, UploadId=upload_id)
+            raise glance_store.Invalid(
+                _("Size mismatch: expected %(expected)d "
+                  "bytes, got %(actual)d bytes") %
+                {'expected': image_size, 'actual': total_bytes})
 
         # Check success status
         success = all(p.success for p in plist)
