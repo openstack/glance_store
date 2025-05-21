@@ -1,0 +1,10 @@
+---
+deprecations:
+  - |
+    The ``filesystem_store_datadirs`` option has been deprecated in this
+    release and is subject to removal at the beginning of the `H` (2026.2)
+    development cycle, following the `OpenStack standard deprecation policy
+    <https://governance.openstack.org/reference/tags/assert_follows-standard-deprecation.html>`_.
+
+    Users should configure multiple filesystem stores instead of using this
+    option.

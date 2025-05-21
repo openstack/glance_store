@@ -70,6 +70,14 @@ Related options:
 
 """),
     cfg.MultiStrOpt('filesystem_store_datadirs',
+                    deprecated_for_removal=True,
+                    deprecated_since='Flamingo',
+                    deprecated_reason="""
+Users willing to use multiple data directories should configure multiple
+filesystem stores instead of using filesystem_store_datadirs.
+
+This option is scheduled for removal in the H development cycle.
+""",
                     help="""
 List of directories and their priorities to which the filesystem
 backend store writes images.
