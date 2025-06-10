@@ -282,6 +282,13 @@ class Store(driver.Store):
 
     EXAMPLE_URL = "rbd://<FSID>/<POOL>/<IMAGE>/<SNAP>"
 
+    def __init__(self, *args, **kargs):
+        super(Store, self).__init__(*args, **kargs)
+        if self.backend_group:
+            self.store_conf = getattr(self.conf, self.backend_group)
+        else:
+            self.store_conf = self.conf.glance_store
+
     def get_schemes(self):
         return ('rbd',)
 
@@ -295,11 +302,7 @@ class Store(driver.Store):
     def get_connection(self, conffile, rados_id):
         client = rados.Rados(conffile=conffile, rados_id=rados_id)
 
-        if self.backend_group:
-            timeout = getattr(self.conf,
-                              self.backend_group).rados_connect_timeout
-        else:
-            timeout = self.conf.glance_store.rados_connect_timeout
+        timeout = self.store_conf.rados_connect_timeout
 
         if timeout >= 0:
             t = str(timeout)
@@ -339,23 +342,11 @@ class Store(driver.Store):
                                                    reason=reason)
 
         try:
-            if self.backend_group:
-                chunk = getattr(self.conf,
-                                self.backend_group).rbd_store_chunk_size
-                pool = getattr(self.conf, self.backend_group).rbd_store_pool
-                user = getattr(self.conf, self.backend_group).rbd_store_user
-                conf_file = getattr(self.conf,
-                                    self.backend_group).rbd_store_ceph_conf
-                thin_provisioning = getattr(self.conf,
-                                            self.backend_group).\
-                    rbd_thin_provisioning
-            else:
-                chunk = self.conf.glance_store.rbd_store_chunk_size
-                pool = self.conf.glance_store.rbd_store_pool
-                user = self.conf.glance_store.rbd_store_user
-                conf_file = self.conf.glance_store.rbd_store_ceph_conf
-                thin_provisioning = \
-                    self.conf.glance_store.rbd_thin_provisioning
+            chunk = self.store_conf.rbd_store_chunk_size
+            pool = self.store_conf.rbd_store_pool
+            user = self.store_conf.rbd_store_user
+            conf_file = self.store_conf.rbd_store_ceph_conf
+            thin_provisioning = self.store_conf.rbd_thin_provisioning
 
             self.thin_provisioning = thin_provisioning
             self.chunk_size = chunk * units.Mi
