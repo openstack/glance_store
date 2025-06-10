@@ -363,6 +363,10 @@ class Store(glance_store.Store):
         LOG.warning("The VMWare Datastore has been deprecated because "
                     "the vmwareapi driver in nova was marked experimental and "
                     "may be removed in a future release.")
+        if self.backend_group:
+            self.store_conf = getattr(self.conf, self.backend_group)
+        else:
+            self.store_conf = self.conf.glance_store
 
     def reset_session(self):
         self.session = api.VMwareAPISession(
@@ -376,18 +380,13 @@ class Store(glance_store.Store):
         return (STORE_SCHEME,)
 
     def _sanity_check(self):
-        if self.backend_group:
-            store_conf = getattr(self.conf, self.backend_group)
-        else:
-            store_conf = self.conf.glance_store
-
-        if store_conf.vmware_api_retry_count <= 0:
+        if self.store_conf.vmware_api_retry_count <= 0:
             msg = _('vmware_api_retry_count should be greater than zero')
             LOG.error(msg)
             raise exceptions.BadStoreConfiguration(
                 store_name='vmware_datastore', reason=msg)
 
-        if store_conf.vmware_task_poll_interval <= 0:
+        if self.store_conf.vmware_task_poll_interval <= 0:
             msg = _('vmware_task_poll_interval should be greater than zero')
             LOG.error(msg)
             raise exceptions.BadStoreConfiguration(
@@ -400,15 +399,10 @@ class Store(glance_store.Store):
         self.server_username = self._option_get('vmware_server_username')
         self.server_password = self._option_get('vmware_server_password')
 
-        if self.backend_group:
-            store_conf = getattr(self.conf, self.backend_group)
-        else:
-            store_conf = self.conf.glance_store
-
-        self.api_retry_count = store_conf.vmware_api_retry_count
-        self.tpoll_interval = store_conf.vmware_task_poll_interval
-        self.ca_file = store_conf.vmware_ca_file
-        self.api_insecure = store_conf.vmware_insecure
+        self.api_retry_count = self.store_conf.vmware_api_retry_count
+        self.tpoll_interval = self.store_conf.vmware_task_poll_interval
+        self.ca_file = self.store_conf.vmware_ca_file
+        self.api_insecure = self.store_conf.vmware_insecure
         if api is None:
             msg = _("Missing dependencies: oslo_vmware")
             raise exceptions.BadStoreConfiguration(
@@ -506,12 +500,7 @@ class Store(glance_store.Store):
         datastores = self._option_get('vmware_datastores')
         self.datastores = self._build_datastore_weighted_map(datastores)
 
-        if self.backend_group:
-            store_conf = getattr(self.conf, self.backend_group)
-        else:
-            store_conf = self.conf.glance_store
-
-        self.store_image_dir = store_conf.vmware_store_image_dir
+        self.store_image_dir = self.store_conf.vmware_store_image_dir
         if self.backend_group:
             self._set_url_prefix()
 
@@ -545,12 +534,7 @@ class Store(glance_store.Store):
         raise exceptions.StorageFull()
 
     def _option_get(self, param):
-        if self.backend_group:
-            store_conf = getattr(self.conf, self.backend_group)
-        else:
-            store_conf = self.conf.glance_store
-
-        result = getattr(store_conf, param)
+        result = getattr(self.store_conf, param)
         if result is None:
             reason = (_("Could not find %(param)s in configuration "
                         "options.") % {'param': param})
