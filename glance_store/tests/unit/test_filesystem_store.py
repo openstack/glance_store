@@ -141,6 +141,56 @@ class TestStore(base.StoreBaseTest,
                           self.store.get,
                           loc)
 
+    def test_add_image_exceeding_max_size_raises_exception(self):
+        # Setup
+        expected_image_id = str(uuid.uuid4())
+        path = os.path.join(self.test_dir, expected_image_id)
+        # expected total size
+        expected_file_size = 1020
+        # simulate input with extra data
+        image_file = io.BytesIO(b'a' * (expected_file_size + 100))
+
+        # Call method and assert exception
+        try:
+            self.store.add(expected_image_id, image_file,
+                           expected_file_size, self.hash_algo)
+        except exceptions.Invalid as e:
+            self.assertIn("Size exceeds: expected", str(e))
+
+        # Verify partial data is deleted from backend
+        self.assertFalse(os.path.exists(path))
+
+        # Verify that the stream's position reflects the number of bytes read,
+        # which should be exactly at expected_file_size plus the last buffer
+        # size read.
+        expected_read = expected_file_size + self.store.WRITE_CHUNKSIZE
+        self.assertEqual(expected_read, image_file.tell(),
+                         "The stream was not read only up to the expected "
+                         "size.")
+
+    def test_write_less_than_declared_raises_exception(self):
+        # Setup
+        expected_image_id = str(uuid.uuid4())
+        path = os.path.join(self.test_dir, expected_image_id)
+        # expected total size
+        actual_data_size = 800
+        # declared size larger than actual data
+        declared_size = 1000
+        image_file = io.BytesIO(b'b' * actual_data_size)
+
+        # Call method and assert exception
+        try:
+            self.store.add(expected_image_id, image_file,
+                           declared_size, self.hash_algo)
+        except exceptions.Invalid as e:
+            self.assertIn("Size mismatch: expected", str(e))
+
+        # Verify partial data is deleted from backend
+        self.assertFalse(os.path.exists(path))
+        # The input buffer should be fully read
+        self.assertEqual(actual_data_size, image_file.tell(),
+                         "Input stream was not fully read as expected")
+
     def _do_test_add(self, enable_thin_provisoning):
         """Test that we can add an image via the filesystem backend."""
         self.config(filesystem_store_chunk_size=units.Ki,

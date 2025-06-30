@@ -744,6 +744,14 @@ class Store(glance_store.driver.Store):
             with open(filepath, 'wb') as f:
                 for buf in utils.chunkreadable(image_file,
                                                self.WRITE_CHUNKSIZE):
+                    actual_to_write = bytes_written + len(buf)
+                    if image_size != 0 and actual_to_write > image_size:
+                        raise glance_store.Invalid(
+                            _("Size exceeds: expected "
+                              "%(expected)d "
+                              "bytes, got %(actual)d bytes") %
+                            {'expected': image_size,
+                             'actual': actual_to_write})
                     bytes_written += len(buf)
                     os_hash_value.update(buf)
                     checksum.update(buf)
@@ -764,6 +772,15 @@ class Store(glance_store.driver.Store):
         except Exception:
             with excutils.save_and_reraise_exception():
                 self._delete_partial(filepath, image_id)
+
+        # Final size check after reading all chunks
+        if image_size != 0 and bytes_written != image_size:
+            # Cleanup and raise exception after write size mismatch
+            self._delete_partial(filepath, image_id)
+            message = (_("Size mismatch: expected %(expected)d bytes, "
+                         "got %(actual)d bytes") %
+                       {'expected': image_size, 'actual': bytes_written})
+            raise glance_store.Invalid(message=message)
 
         hash_hex = os_hash_value.hexdigest()
         checksum_hex = checksum.hexdigest()
