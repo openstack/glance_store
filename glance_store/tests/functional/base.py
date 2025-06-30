@@ -17,7 +17,7 @@ import io
 from os import environ
 
 import glance_store
-import os_client_config
+from openstack import config as occ
 from oslo_config import cfg
 import testtools
 
@@ -39,8 +39,7 @@ class Base(testtools.TestCase):
         # check whether a particular cloud should be used
         cloud = environ.get('OS_TEST_GLANCE_STORE_FUNC_TEST_CLOUD',
                             'devstack-admin')
-        creds = os_client_config.OpenStackConfig().get_one_cloud(
-            cloud=cloud)
+        creds = occ.OpenStackConfig().get_one(cloud=cloud)
         auth = creds.get_auth_args()
         self.username = auth["username"]
         self.password = auth["password"]
