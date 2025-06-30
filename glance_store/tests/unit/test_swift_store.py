@@ -452,6 +452,64 @@ class SwiftTests(object):
         self.assertEqual(expected_swift_contents, new_image_contents)
         self.assertEqual(expected_swift_size, new_image_swift_size)
 
+    def test_add_image_exceeding_max_size_raises_exception(self):
+        """Test that we can add an image via the swift backend."""
+        importlib.reload(swift)
+        self.mock_keystone_client()
+        self.config()
+        self.store = Store(self.conf)
+        self.store.configure()
+        expected_swift_size = FIVE_KB
+        # 1KB more data than actual expected size
+        expected_swift_contents = b"*" * (expected_swift_size + units.Ki)
+        expected_image_id = str(uuid.uuid4())
+        custom_size = units.Ki
+        self.store.large_object_size = custom_size
+        self.store.large_object_chunk_size = custom_size
+
+        image_swift = io.BytesIO(expected_swift_contents)
+
+        with mock.patch.object(self.store,
+                               '_delete_stale_chunks') as mock_delete:
+            try:
+                self.store.add(expected_image_id, image_swift,
+                               expected_swift_size, HASH_ALGO)
+            except exceptions.Invalid as e:
+                self.assertIn("Size exceeds: expected", e.msg)
+
+        # The position should be equal to total input size
+        self.assertEqual(image_swift.tell(), len(expected_swift_contents))
+        mock_delete.assert_called_once()
+
+    def test_write_less_than_declared_raises_exception(self):
+        """Test that we can add an image via the swift backend."""
+        importlib.reload(swift)
+        self.mock_keystone_client()
+        self.config()
+        self.store = Store(self.conf)
+        self.store.configure()
+        expected_swift_size = FIVE_KB
+        # 1KB fewer data than actual expected size
+        expected_swift_contents = b"*" * (expected_swift_size - units.Ki)
+        expected_image_id = str(uuid.uuid4())
+        custom_size = units.Ki
+        self.store.large_object_size = custom_size
+        self.store.large_object_chunk_size = custom_size
+
+        image_swift = io.BytesIO(expected_swift_contents)
+
+        with mock.patch.object(self.store,
+                               '_delete_stale_chunks') as mock_delete:
+            try:
+                self.store.add(expected_image_id, image_swift,
+                               expected_swift_size, HASH_ALGO)
+            except exceptions.Invalid as e:
+                self.assertIn("Size mismatch: expected", e.msg)
+
+        # The position should be equal to actual data size
+        self.assertEqual(image_swift.tell(), len(expected_swift_contents))
+        mock_delete.assert_called_once()
+
     def test_add_multi_store(self):
 
         conf = copy.deepcopy(SWIFT_CONF)
