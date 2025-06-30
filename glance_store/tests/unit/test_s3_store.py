@@ -253,6 +253,106 @@ class TestStore(base.StoreBaseTest,
             self.assertEqual(expected_multihash, multihash)
 
     @mock.patch.object(boto3.session.Session, "client")
+    def test_add_singlepart_size_exceeding_max_size(self, mock_client):
+        """Test size validation during add for singlepart upload."""
+        self.store.WRITE_CHUNKSIZE = 1024
+        expected_image_id = str(uuid.uuid4())
+        # Provide a smaller expected size than actual data to trigger
+        # size mismatch
+        expected_s3_size = FIVE_KB
+        # 5KB more than expected
+        actual_s3_contents = b"*" * (expected_s3_size * 2)
+        image_s3 = io.BytesIO(actual_s3_contents)
+
+        fake_s3_client = botocore.session.get_session().create_client('s3')
+
+        with stub.Stubber(fake_s3_client) as stubber:
+            stubber.add_response(method='head_bucket',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket']
+                                 })
+            stubber.add_client_error(method='head_object',
+                                     service_error_code='404',
+                                     service_message='',
+                                     expected_params={
+                                         'Bucket': S3_CONF['s3_store_bucket'],
+                                         'Key': expected_image_id
+                                     })
+            stubber.add_response(method='put_object',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket'],
+                                     'Key': expected_image_id,
+                                     'Body': botocore.stub.ANY
+                                 })
+
+            mock_client.return_value = fake_s3_client
+
+            # Expect an exception due to size mismatch
+            self.assertRaisesRegex(exceptions.Invalid,
+                                   'Size exceeds: expected',
+                                   self.store.add,
+                                   expected_image_id, image_s3,
+                                   expected_s3_size, self.hash_algo)
+            # Verify that the stream's position reflects the number of bytes
+            # read, which should be exactly at expected_file_size plus the
+            # last buffer size read.
+            actual_read_size = image_s3.tell()
+            expected_read = expected_s3_size + self.store.WRITE_CHUNKSIZE
+            self.assertEqual(actual_read_size, expected_read,
+                             "The stream was not read only up to the expected "
+                             "size.")
+
+    @mock.patch.object(boto3.session.Session, "client")
+    def test_add_singlepart_write_less_than_declared(self, mock_client):
+        """Test size validation during add for singlepart upload."""
+        expected_image_id = str(uuid.uuid4())
+        # Provide a smaller expected size than actual data to trigger
+        # size mismatch
+        expected_s3_size = FIVE_KB
+        # 100 bytes smaller than expected
+        actual_s3_contents = b"*" * (FIVE_KB - 100)
+        image_s3 = io.BytesIO(actual_s3_contents)
+
+        fake_s3_client = botocore.session.get_session().create_client('s3')
+
+        with stub.Stubber(fake_s3_client) as stubber:
+            stubber.add_response(method='head_bucket',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket']
+                                 })
+            stubber.add_client_error(method='head_object',
+                                     service_error_code='404',
+                                     service_message='',
+                                     expected_params={
+                                         'Bucket': S3_CONF['s3_store_bucket'],
+                                         'Key': expected_image_id
+                                     })
+            stubber.add_response(method='put_object',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket'],
+                                     'Key': expected_image_id,
+                                     'Body': botocore.stub.ANY
+                                 })
+
+            mock_client.return_value = fake_s3_client
+
+            # Expect an exception due to size mismatch
+            self.assertRaisesRegex(exceptions.Invalid,
+                                   'Size mismatch: expected',
+                                   self.store.add,
+                                   expected_image_id, image_s3,
+                                   expected_s3_size, self.hash_algo)
+
+            # The input buffer should be fully read
+            # depending on implementation
+            total_input_size = len(actual_s3_contents)
+            self.assertEqual(image_s3.tell(), total_input_size)
+
+    @mock.patch.object(boto3.session.Session, "client")
     def test_add_singlepart_bigger_than_write_chunk(self, mock_client):
         """Test that we can add a large image via the s3 backend."""
         expected_image_id = str(uuid.uuid4())
@@ -417,6 +517,138 @@ class TestStore(base.StoreBaseTest,
             self.assertEqual(expected_s3_size, size)
             self.assertEqual(expected_checksum, checksum)
             self.assertEqual(expected_multihash, multihash)
+
+    @mock.patch.object(boto3.session.Session, "client")
+    def test_add_multipart_size_exceeding_max_size(self, mock_client):
+        """Test size validation during multipart upload."""
+        expected_image_id = str(uuid.uuid4())
+        expected_s3_size = 15 * units.Mi
+        self.store.WRITE_CHUNKSIZE = 5 * units.Mi
+        # Actual data is larger than expected to trigger size validation
+        # failure, 5MB larger
+        total_size = expected_s3_size + self.store.WRITE_CHUNKSIZE
+        expected_s3_contents = b"*" * total_size
+        image_s3 = io.BytesIO(expected_s3_contents)
+
+        fake_s3_client = botocore.session.get_session().create_client('s3')
+        # Patch abort_multipart_upload on the client to a Mock
+        fake_s3_client.abort_multipart_upload = mock.Mock()
+        with stub.Stubber(fake_s3_client) as stubber:
+            stubber.add_response(method='head_bucket',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket']
+                                 })
+            stubber.add_client_error(method='head_object',
+                                     service_error_code='404',
+                                     service_message='',
+                                     expected_params={
+                                         'Bucket': S3_CONF['s3_store_bucket'],
+                                         'Key': expected_image_id
+                                     })
+            stubber.add_response(method='create_multipart_upload',
+                                 service_response={
+                                     "Bucket": S3_CONF['s3_store_bucket'],
+                                     "Key": expected_image_id,
+                                     "UploadId": 'UploadId'
+                                 },
+                                 expected_params={
+                                     "Bucket": S3_CONF['s3_store_bucket'],
+                                     "Key": expected_image_id,
+                                 })
+            stubber.add_response(method='abort_multipart_upload',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket'],
+                                     'Key': expected_image_id,
+                                     'UploadId': 'UploadId'
+                                 })
+
+            mock_client.return_value = fake_s3_client
+            # Expect an exception due to size mismatch
+            try:
+                self.store.add(expected_image_id, image_s3, expected_s3_size,
+                               self.hash_algo)
+            except exceptions.Invalid as exc:
+                self.assertIn("Size exceeds: expected", exc.msg)
+
+            # Verify that the stream's position reflects the number of bytes
+            # read, which should be exactly at expected_file_size plus the
+            # last buffer size read.
+            actual_read_size = image_s3.tell()
+            self.assertEqual(actual_read_size, total_size,
+                             "The stream was not read only up to the expected "
+                             "size.")
+
+            # Assert that abort_multipart_upload was called
+            fake_s3_client.abort_multipart_upload.assert_called_once_with(
+                Bucket=S3_CONF['s3_store_bucket'],
+                Key=expected_image_id,
+                UploadId='UploadId'
+            )
+
+    @mock.patch.object(boto3.session.Session, "client")
+    def test_add_multipart_write_less_than_declared(self, mock_client):
+        """Test size validation during multipart upload."""
+        expected_image_id = str(uuid.uuid4())
+        expected_s3_size = 16 * units.Mi
+        # Actual data is less than expected to trigger size validation
+        # failure, 1MB less
+        expected_s3_contents = b"*" * (expected_s3_size - 1 * units.Mi)
+        image_s3 = io.BytesIO(expected_s3_contents)
+
+        fake_s3_client = botocore.session.get_session().create_client('s3')
+        # Patch abort_multipart_upload on the client to a Mock
+        fake_s3_client.abort_multipart_upload = mock.Mock()
+        with stub.Stubber(fake_s3_client) as stubber:
+            stubber.add_response(method='head_bucket',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket']
+                                 })
+            stubber.add_client_error(method='head_object',
+                                     service_error_code='404',
+                                     service_message='',
+                                     expected_params={
+                                         'Bucket': S3_CONF['s3_store_bucket'],
+                                         'Key': expected_image_id
+                                     })
+            stubber.add_response(method='create_multipart_upload',
+                                 service_response={
+                                     "Bucket": S3_CONF['s3_store_bucket'],
+                                     "Key": expected_image_id,
+                                     "UploadId": 'UploadId'
+                                 },
+                                 expected_params={
+                                     "Bucket": S3_CONF['s3_store_bucket'],
+                                     "Key": expected_image_id,
+                                 })
+            stubber.add_response(method='abort_multipart_upload',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket'],
+                                     'Key': expected_image_id,
+                                     'UploadId': 'UploadId'
+                                 })
+
+            mock_client.return_value = fake_s3_client
+            # Expect an exception due to size mismatch
+            try:
+                self.store.add(expected_image_id, image_s3, expected_s3_size,
+                               self.hash_algo)
+            except exceptions.Invalid as exc:
+                self.assertIn("Size mismatch: expected", exc.msg)
+
+            # The input buffer should be fully read depending on implementation
+            total_input_size = len(expected_s3_contents)
+            self.assertEqual(image_s3.tell(), total_input_size)
+
+            # Assert that abort_multipart_upload was called
+            fake_s3_client.abort_multipart_upload.assert_called_once_with(
+                Bucket=S3_CONF['s3_store_bucket'],
+                Key=expected_image_id,
+                UploadId='UploadId'
+            )
 
     @mock.patch.object(boto3.session.Session, "client")
     def test_add_already_existing(self, mock_client):
