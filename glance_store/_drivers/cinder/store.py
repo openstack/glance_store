@@ -950,6 +950,14 @@ class Store(glance_store.driver.Store):
                 return
             f.write(write_props.buf)
             write_props.bytes_written += len(write_props.buf)
+            # Check if total written exceeds image_size
+            if (write_props.image_size and
+                    write_props.bytes_written > write_props.image_size):
+                raise exceptions.Invalid(
+                    _("Size exceeds: expected %(expected)d "
+                      "bytes, got %(actual)d bytes") %
+                    {'expected': write_props.image_size,
+                     'actual': write_props.bytes_written})
 
     def _offline_extend(self, client, volume, write_props):
         while write_props.need_extend:
@@ -1077,6 +1085,23 @@ class Store(glance_store.driver.Store):
                     LOG.exception(_LE('Failed to delete of volume '
                                       '%(volume_id)s.'),
                                   {'volume_id': volume.id})
+
+        if image_size != 0 and write_props.bytes_written != image_size:
+            # Delete the partial volume
+            try:
+                volume.delete()
+                LOG.info(_LI("Partial volume %(volume_id)s deleted after "
+                             "exceeding image_size."),
+                         {'volume_id': volume.id})
+            except Exception:
+                LOG.exception(_LE('Failed to delete of volume '
+                                  '%(volume_id)s.'),
+                              {'volume_id': volume.id})
+            # Raise an exception with image size info
+            raise exceptions.Invalid(_(
+                "Size mismatch: expected %(expected)d  bytes, got %(actual)d "
+                "bytes") % {'expected': image_size,
+                            'actual': write_props.bytes_written})
 
         if write_props.image_size == 0:
             metadata.update({'image_size': str(write_props.bytes_written)})

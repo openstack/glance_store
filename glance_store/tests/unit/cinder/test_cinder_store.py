@@ -114,6 +114,21 @@ class TestCinderStore(base.StoreBaseTest,
         volume_file = io.BytesIO()
         self._test_cinder_add(fake_volume, volume_file)
 
+    def test_add_image_exceeding_max_size_raises_exception(self):
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
+                                     status='available',
+                                     size=1)
+        volume_file = io.BytesIO()
+        self._test_cinder_add_size_validation(fake_volume, volume_file,
+                                              oversized=True)
+
+    def test_write_less_than_declared_raises_exception(self):
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
+                                     status='available',
+                                     size=1)
+        volume_file = io.BytesIO()
+        self._test_cinder_add_size_validation(fake_volume, volume_file)
+
     def test_cinder_add_with_verifier(self):
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
                                      status='available',
