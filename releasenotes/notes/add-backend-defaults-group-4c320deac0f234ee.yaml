@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    Added a new ``[backend_defaults]`` section in the glance
+    configuration file.
+    Now operators can add common configuration options in the
+    ``[backend_defaults]`` section which will act as a fallback
+    mechanism for a configuration option not defined in the
+    main backend group.
