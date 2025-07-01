@@ -1,0 +1,10 @@
+---
+upgrade:
+  - |
+    Swift store driver no longer supports auth_version less than 3. Now
+    the driver uses identity v3 API by default.
+
+deprecations:
+  - |
+    The ``auth_version`` option of the swift back-end configrations file
+    has been deprecated and will be removed in a future release.

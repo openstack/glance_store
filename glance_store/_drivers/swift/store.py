@@ -149,8 +149,6 @@ Endpoint Type of Swift service.
 This string value indicates the endpoint type to use to fetch the
 Swift endpoint. The endpoint type determines the actions the user will
 be allowed to perform, for instance, reading and writing to the Store.
-This setting is only used if swift_store_auth_version is greater than
-1.
 
 Possible values:
     * publicURL
@@ -169,11 +167,6 @@ Type of Swift service to use.
 Provide a string value representing the service type to use for
 storing images while using Swift backend storage. The default
 service type is set to ``object-store``.
-
-NOTE: If ``swift_store_auth_version`` is set to 2, the value for
-this configuration option needs to be ``object-store``. If using
-a higher version of Keystone or a different auth scheme, this
-option may be modified.
 
 Possible values:
     * A string representing a valid service type for Swift storage.
@@ -1414,17 +1407,13 @@ class SingleTenantStore(BaseStore):
         if not auth_url.endswith('/'):
             auth_url += '/'
 
-        if self.auth_version in ('2', '3'):
-            try:
-                tenant_name, user = location.user.split(':')
-            except ValueError:
-                reason = (_("Badly formed tenant:user '%(user)s' in "
-                            "Swift URI") % {'user': location.user})
-                LOG.info(reason)
-                raise exceptions.BadStoreUri(message=reason)
-        else:
-            tenant_name = None
-            user = location.user
+        try:
+            tenant_name, user = location.user.split(':')
+        except ValueError:
+            reason = (_("Badly formed tenant:user '%(user)s' in "
+                        "Swift URI") % {'user': location.user})
+            LOG.info(reason)
+            raise exceptions.BadStoreUri(message=reason)
 
         os_options = {}
         if self.region:
