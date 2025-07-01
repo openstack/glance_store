@@ -674,11 +674,10 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
 
             mock_client.return_value = fake_s3_client
             # Expect an exception due to size mismatch
-            try:
-                self.store.add(expected_image_id, image_s3, expected_s3_size,
-                               self.hash_algo)
-            except exceptions.Invalid as e:
-                self.assertIn("Size exceeds: expected", str(e))
+            self.assertRaisesRegex(
+                exceptions.Invalid, "Size exceeds: expected",
+                self.store.add, expected_image_id, image_s3,
+                expected_s3_size, self.hash_algo)
 
             # Verify that the stream's position reflects the number of bytes
             # read, which should be exactly at expected_file_size plus the

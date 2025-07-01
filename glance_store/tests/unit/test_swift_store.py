@@ -27,7 +27,6 @@ import tempfile
 import uuid
 
 from oslo_config import cfg
-from oslo_utils import encodeutils
 from oslo_utils import units
 import requests_mock
 import swiftclient
@@ -471,11 +470,10 @@ class SwiftTests(object):
 
         with mock.patch.object(self.store,
                                '_delete_stale_chunks') as mock_delete:
-            try:
-                self.store.add(expected_image_id, image_swift,
-                               expected_swift_size, HASH_ALGO)
-            except exceptions.Invalid as e:
-                self.assertIn("Size exceeds: expected", e.msg)
+            self.assertRaisesRegex(
+                exceptions.Invalid, "Size exceeds: expected",
+                self.store.add, expected_image_id, image_swift,
+                expected_swift_size, HASH_ALGO)
 
         # The position should be equal to total input size
         self.assertEqual(image_swift.tell(), len(expected_swift_contents))
@@ -500,11 +498,10 @@ class SwiftTests(object):
 
         with mock.patch.object(self.store,
                                '_delete_stale_chunks') as mock_delete:
-            try:
-                self.store.add(expected_image_id, image_swift,
-                               expected_swift_size, HASH_ALGO)
-            except exceptions.Invalid as e:
-                self.assertIn("Size mismatch: expected", e.msg)
+            self.assertRaisesRegex(
+                exceptions.Invalid, "Size mismatch: expected",
+                self.store.add, expected_image_id, image_swift,
+                expected_swift_size, HASH_ALGO)
 
         # The position should be equal to actual data size
         self.assertEqual(image_swift.tell(), len(expected_swift_contents))
@@ -682,17 +679,10 @@ class SwiftTests(object):
         global SWIFT_PUT_OBJECT_CALLS
         SWIFT_PUT_OBJECT_CALLS = 0
 
-        # We check the exception text to ensure the container
-        # missing text is found in it, otherwise, we would have
-        # simply used self.assertRaises here
-        exception_caught = False
-        try:
-            self.store.add(str(uuid.uuid4()), image_swift, 0, HASH_ALGO)
-        except exceptions.BackendException as e:
-            exception_caught = True
-            self.assertIn("container noexist does not exist in Swift",
-                          encodeutils.exception_to_unicode(e))
-        self.assertTrue(exception_caught)
+        msg = "container noexist does not exist in Swift"
+        self.assertRaisesRegex(exceptions.BackendException, msg,
+                               self.store.add, str(uuid.uuid4()),
+                               image_swift, 0, HASH_ALGO)
         self.assertEqual(0, SWIFT_PUT_OBJECT_CALLS)
 
     @mock.patch('glance_store._drivers.swift.utils'
@@ -820,18 +810,11 @@ class SwiftTests(object):
         global SWIFT_PUT_OBJECT_CALLS
         SWIFT_PUT_OBJECT_CALLS = 0
 
-        # We check the exception text to ensure the container
-        # missing text is found in it, otherwise, we would have
-        # simply used self.assertRaises here
-        exception_caught = False
-        try:
-            self.store.add(expected_image_id, image_swift, 0, HASH_ALGO)
-        except exceptions.BackendException as e:
-            exception_caught = True
-            expected_msg = "container %s does not exist in Swift"
-            expected_msg = expected_msg % expected_container
-            self.assertIn(expected_msg, encodeutils.exception_to_unicode(e))
-        self.assertTrue(exception_caught)
+        expected_msg = "container %s does not exist in Swift"
+        expected_msg = expected_msg % expected_container
+        self.assertRaisesRegex(exceptions.BackendException, expected_msg,
+                               self.store.add, expected_image_id,
+                               image_swift, 0, HASH_ALGO)
         self.assertEqual(0, SWIFT_PUT_OBJECT_CALLS)
 
     @mock.patch('glance_store._drivers.swift.utils'

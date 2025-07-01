@@ -617,11 +617,10 @@ class TestCinderStoreBase(object):
                                   side_effect=fake_open):
             mock_cc.return_value = mock.MagicMock(client=fake_client,
                                                   volumes=fake_volumes)
-            try:
-                self.store.add(expected_image_id, image_file, expected_size,
-                               self.hash_algo, self.context, verifier)
-            except exceptions.Invalid as e:
-                self.assertIn(expected_error, e.msg)
+            self.assertRaisesRegex(
+                exceptions.Invalid, expected_error,
+                self.store.add, expected_image_id, image_file,
+                expected_size, self.hash_algo, self.context, verifier)
 
             fake_volume.delete.assert_called_once()
             self.assertEqual(image_file.tell(),

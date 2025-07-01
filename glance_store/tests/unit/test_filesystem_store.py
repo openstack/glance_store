@@ -151,11 +151,10 @@ class TestStore(base.StoreBaseTest,
         image_file = io.BytesIO(b'a' * (expected_file_size + 100))
 
         # Call method and assert exception
-        try:
-            self.store.add(expected_image_id, image_file,
-                           expected_file_size, self.hash_algo)
-        except exceptions.Invalid as e:
-            self.assertIn("Size exceeds: expected", str(e))
+        self.assertRaisesRegex(
+            exceptions.Invalid, "Size exceeds: expected",
+            self.store.add, expected_image_id, image_file,
+            expected_file_size, self.hash_algo)
 
         # Verify partial data is deleted from backend
         self.assertFalse(os.path.exists(path))
@@ -179,11 +178,10 @@ class TestStore(base.StoreBaseTest,
         image_file = io.BytesIO(b'b' * actual_data_size)
 
         # Call method and assert exception
-        try:
-            self.store.add(expected_image_id, image_file,
-                           declared_size, self.hash_algo)
-        except exceptions.Invalid as e:
-            self.assertIn("Size mismatch: expected", str(e))
+        self.assertRaisesRegex(
+            exceptions.Invalid, "Size mismatch: expected",
+            self.store.add, expected_image_id, image_file,
+            declared_size, self.hash_algo)
 
         # Verify partial data is deleted from backend
         self.assertFalse(os.path.exists(path))
