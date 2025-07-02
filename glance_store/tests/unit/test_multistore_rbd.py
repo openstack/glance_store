@@ -257,10 +257,10 @@ class TestMultiStore(base.MultiStoreBaseTest,
         data = b'a' * (total_bytes + 1024)
         image_file = io.BytesIO(data)
         with mock.patch.object(rbd_store.rbd.Image, 'write'):
-            try:
-                self.store.add('fake_image_id', image_file, image_size)
-            except exceptions.Invalid as e:
-                self.assertIn('Size exceeds: expected', e.msg)
+            self.assertRaisesRegex(
+                exceptions.Invalid, "Size exceeds: expected",
+                self.store.add, 'fake_image_id', image_file,
+                image_size)
 
             # Confirm that image deletion was called due to size mismatch
             mock_delete.assert_called()
@@ -277,10 +277,10 @@ class TestMultiStore(base.MultiStoreBaseTest,
         data = b'a' * (total_bytes - 100)
         image_file = io.BytesIO(data)
         with mock.patch.object(rbd_store.rbd.Image, 'write'):
-            try:
-                self.store.add('fake_image_id', image_file, image_size)
-            except exceptions.Invalid as e:
-                self.assertIn('Size mismatch: expected', e.msg)
+            self.assertRaisesRegex(
+                exceptions.Invalid, "Size mismatch: expected",
+                self.store.add, 'fake_image_id', image_file,
+                image_size)
 
             # Confirm that image deletion was called due to size mismatch
             mock_delete.assert_called()

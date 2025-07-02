@@ -566,11 +566,10 @@ class TestStore(base.StoreBaseTest,
 
             mock_client.return_value = fake_s3_client
             # Expect an exception due to size mismatch
-            try:
-                self.store.add(expected_image_id, image_s3, expected_s3_size,
-                               self.hash_algo)
-            except exceptions.Invalid as exc:
-                self.assertIn("Size exceeds: expected", exc.msg)
+            self.assertRaisesRegex(
+                exceptions.Invalid, "Size exceeds: expected",
+                self.store.add, expected_image_id, image_s3,
+                expected_s3_size, self.hash_algo)
 
             # Verify that the stream's position reflects the number of bytes
             # read, which should be exactly at expected_file_size plus the
@@ -633,11 +632,10 @@ class TestStore(base.StoreBaseTest,
 
             mock_client.return_value = fake_s3_client
             # Expect an exception due to size mismatch
-            try:
-                self.store.add(expected_image_id, image_s3, expected_s3_size,
-                               self.hash_algo)
-            except exceptions.Invalid as exc:
-                self.assertIn("Size mismatch: expected", exc.msg)
+            self.assertRaisesRegex(
+                exceptions.Invalid, "Size mismatch: expected",
+                self.store.add, expected_image_id, image_s3,
+                expected_s3_size, self.hash_algo)
 
             # The input buffer should be fully read depending on implementation
             total_input_size = len(expected_s3_contents)
