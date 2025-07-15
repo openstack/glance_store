@@ -20,8 +20,6 @@ from unittest import mock
 import sys
 import uuid
 
-from oslo_utils import units
-
 from glance_store import exceptions
 from glance_store.tests import base
 from glance_store.tests.unit.cinder import test_cinder_base
@@ -37,6 +35,7 @@ class TestCinderStore(base.StoreBaseTest,
 
     def setUp(self):
         super(TestCinderStore, self).setUp()
+        self.is_multistore = False
         self.store = cinder.Store(self.conf)
         self.store.configure()
         self.register_store_schemes(self.store, 'cinder')
@@ -98,46 +97,6 @@ class TestCinderStore(base.StoreBaseTest,
 
         self.store._check_context(mock.MagicMock(service_catalog='fake'))
 
-    def test_cinder_get(self):
-        self._test_cinder_get()
-
-    def test_cinder_get_size(self):
-        self._test_cinder_get_size()
-
-    def test_cinder_get_size_with_metadata(self):
-        self._test_cinder_get_size_with_metadata()
-
-    def test_cinder_add(self):
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
-                                     status='available',
-                                     size=1)
-        volume_file = io.BytesIO()
-        self._test_cinder_add(fake_volume, volume_file)
-
-    def test_add_image_exceeding_max_size_raises_exception(self):
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
-                                     status='available',
-                                     size=1)
-        volume_file = io.BytesIO()
-        self._test_cinder_add_size_validation(fake_volume, volume_file,
-                                              oversized=True)
-
-    def test_write_less_than_declared_raises_exception(self):
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
-                                     status='available',
-                                     size=1)
-        volume_file = io.BytesIO()
-        self._test_cinder_add_size_validation(fake_volume, volume_file)
-
-    def test_cinder_add_with_verifier(self):
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
-                                     status='available',
-                                     size=1)
-        volume_file = io.BytesIO()
-        verifier = mock.MagicMock()
-        self._test_cinder_add(fake_volume, volume_file, 1, verifier)
-        verifier.update.assert_called_with(b"*" * units.Ki)
-
     def test_cinder_add_volume_full(self):
         e = IOError()
         volume_file = io.BytesIO()
@@ -149,15 +108,6 @@ class TestCinderStore(base.StoreBaseTest,
             self.assertRaises(exceptions.StorageFull,
                               self._test_cinder_add, fake_volume, volume_file)
         fake_volume.delete.assert_called_once_with()
-
-    def test_cinder_add_extend(self):
-        self._test_cinder_add_extend()
-
-    def test_cinder_add_extend_online(self):
-        self._test_cinder_add_extend(online=True)
-
-    def test_cinder_delete(self):
-        self._test_cinder_delete()
 
     def test_set_url_prefix(self):
         self.assertEqual('cinder://', self.store._url_prefix)

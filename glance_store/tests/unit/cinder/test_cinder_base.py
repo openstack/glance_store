@@ -425,8 +425,8 @@ class TestCinderStoreBase(object):
                 mock_log.warning.assert_called_with(
                     "Invalid `cinder_volume_type some_random_type`")
 
-    def _get_uri_loc(self, fake_volume_uuid, is_multi_store=False):
-        if is_multi_store:
+    def _get_uri_loc(self, fake_volume_uuid):
+        if self.is_multistore:
             uri = "cinder://cinder1/%s" % fake_volume_uuid
             loc = location.get_location_from_uri_and_backend(
                 uri, "cinder1", conf=self.conf)
@@ -436,7 +436,7 @@ class TestCinderStoreBase(object):
 
         return loc
 
-    def _test_cinder_get(self, is_multi_store=False):
+    def test_cinder_get(self):
         expected_size = 5 * units.Ki
         expected_file_contents = b"*" * expected_size
         volume_file = io.BytesIO(expected_file_contents)
@@ -459,8 +459,7 @@ class TestCinderStoreBase(object):
             mock_cc.return_value = mock.MagicMock(client=fake_client,
                                                   volumes=fake_volumes)
 
-            loc = self._get_uri_loc(fake_volume_uuid,
-                                    is_multi_store=is_multi_store)
+            loc = self._get_uri_loc(fake_volume_uuid)
 
             (image_file, image_size) = self.store.get(loc,
                                                       context=self.context)
@@ -508,7 +507,7 @@ class TestCinderStoreBase(object):
             self.assertRaises(exceptions.BackendException, self.store.get, loc,
                               context=self.context)
 
-    def _test_cinder_get_size(self, is_multi_store=False):
+    def test_cinder_get_size(self):
         fake_client = mock.MagicMock(auth_token=None, management_url=None)
         fake_volume_uuid = str(uuid.uuid4())
         fake_volume = mock.MagicMock(size=5, metadata={})
@@ -518,13 +517,12 @@ class TestCinderStoreBase(object):
             mocked_cc.return_value = mock.MagicMock(client=fake_client,
                                                     volumes=fake_volumes)
 
-            loc = self._get_uri_loc(fake_volume_uuid,
-                                    is_multi_store=is_multi_store)
+            loc = self._get_uri_loc(fake_volume_uuid)
 
             image_size = self.store.get_size(loc, context=self.context)
             self.assertEqual(fake_volume.size * units.Gi, image_size)
 
-    def _test_cinder_get_size_with_metadata(self, is_multi_store=False):
+    def test_cinder_get_size_with_metadata(self):
         fake_client = mock.MagicMock(auth_token=None, management_url=None)
         fake_volume_uuid = str(uuid.uuid4())
         expected_image_size = 4500 * units.Mi
@@ -536,8 +534,7 @@ class TestCinderStoreBase(object):
             mocked_cc.return_value = mock.MagicMock(client=fake_client,
                                                     volumes=fake_volumes)
 
-            loc = self._get_uri_loc(fake_volume_uuid,
-                                    is_multi_store=is_multi_store)
+            loc = self._get_uri_loc(fake_volume_uuid)
 
             image_size = self.store.get_size(loc, context=self.context)
             self.assertEqual(expected_image_size, image_size)
@@ -554,8 +551,7 @@ class TestCinderStoreBase(object):
             self.assertEqual(0, image_size)
 
     def _test_cinder_add(self, fake_volume, volume_file, size_kb=5,
-                         verifier=None, backend='glance_store',
-                         is_multi_store=False):
+                         verifier=None, backend='glance_store'):
         expected_image_id = str(uuid.uuid4())
         expected_size = size_kb * units.Ki
         expected_file_contents = b"*" * expected_size
@@ -565,7 +561,7 @@ class TestCinderStoreBase(object):
         expected_multihash = hashlib.sha256(expected_file_contents).hexdigest()
 
         expected_location = 'cinder://%s' % fake_volume.id
-        if is_multi_store:
+        if self.is_multistore:
             # Default backend is 'glance_store' for single store but in case
             # of multi store, if the backend option is not passed, we should
             # assign it to the default i.e. 'cinder1'
@@ -603,12 +599,12 @@ class TestCinderStoreBase(object):
                           'glance_image_id': expected_image_id,
                           'image_size': str(expected_size)},
                 volume_type='some_type')
-            if is_multi_store:
+            if self.is_multistore:
                 self.assertEqual(backend, metadata["store"])
 
     def _test_cinder_add_size_validation(
             self, fake_volume, volume_file, verifier=None, size_kb=5,
-            backend='glance_store', is_multi_store=False, oversized=False):
+            backend='glance_store', oversized=False):
         expected_image_id = str(uuid.uuid4())
         expected_size = size_kb * units.Ki
         if oversized:
@@ -623,7 +619,7 @@ class TestCinderStoreBase(object):
             image_file = io.BytesIO(expected_file_contents)
             expected_error = "Size mismatch: expected"
 
-        if is_multi_store:
+        if self.is_multistore:
             # Default backend is 'glance_store' for single store but in case
             # of multi store, if the backend option is not passed, we should
             # assign it to the default i.e. 'cinder1'
@@ -655,6 +651,37 @@ class TestCinderStoreBase(object):
             self.assertEqual(image_file.tell(),
                              len(expected_file_contents))
 
+    def test_cinder_add(self):
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
+                                     status='available',
+                                     size=1)
+        volume_file = io.BytesIO()
+        self._test_cinder_add(fake_volume, volume_file)
+
+    def test_cinder_add_with_verifier(self):
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
+                                     status='available',
+                                     size=1)
+        volume_file = io.BytesIO()
+        verifier = mock.MagicMock()
+        self._test_cinder_add(fake_volume, volume_file, 1, verifier)
+        verifier.update.assert_called_with(b"*" * units.Ki)
+
+    def test_write_less_than_declared_raises_exception(self):
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
+                                     status='available',
+                                     size=1)
+        volume_file = io.BytesIO()
+        self._test_cinder_add_size_validation(fake_volume, volume_file)
+
+    def test_add_image_exceeding_max_size_raises_exception(self):
+        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
+                                     status='available',
+                                     size=1)
+        volume_file = io.BytesIO()
+        self._test_cinder_add_size_validation(fake_volume, volume_file,
+                                              oversized=True)
+
     def test_cinder_add_volume_not_found(self):
         image_file = mock.MagicMock()
         fake_image_id = str(uuid.uuid4())
@@ -669,7 +696,7 @@ class TestCinderStoreBase(object):
                 fake_image_id, image_file, expected_size, self.hash_algo,
                 self.context, None)
 
-    def _test_cinder_add_extend(self, is_multi_store=False, online=False):
+    def _test_cinder_add_extend(self, online=False):
 
         expected_volume_size = 2 * units.Gi
         expected_multihash = 'fake_hash'
@@ -699,7 +726,7 @@ class TestCinderStoreBase(object):
         backend = 'glance_store'
 
         expected_location = 'cinder://%s' % fake_volume.id
-        if is_multi_store:
+        if self.is_multistore:
             # Default backend is 'glance_store' for single store but in case
             # of multi store, if the backend option is not passed, we should
             # assign it to the default i.e. 'cinder1'
@@ -749,7 +776,7 @@ class TestCinderStoreBase(object):
                           'glance_image_id': expected_image_id,
                           'image_size': str(expected_volume_size)},
                 volume_type='some_type')
-            if is_multi_store:
+            if self.is_multistore:
                 self.assertEqual(backend, metadata["store"])
             if online:
                 extend_vol.assert_called_once_with(
@@ -768,6 +795,12 @@ class TestCinderStoreBase(object):
                                mock_cc_return_val),
                      mock.call(fake_volume, 'extending', 'available',
                                mock_cc_return_val)])
+
+    def test_cinder_add_extend(self):
+        self._test_cinder_add_extend()
+
+    def test_cinder_add_extend_online(self):
+        self._test_cinder_add_extend(online=True)
 
     def test_cinder_add_extend_storage_full(self):
 
@@ -851,7 +884,7 @@ class TestCinderStoreBase(object):
                 verifier)
             fake_volume.delete.assert_called_once()
 
-    def _test_cinder_delete(self, is_multi_store=False):
+    def test_cinder_delete(self):
         fake_client = mock.MagicMock(auth_token=None, management_url=None)
         fake_volume_uuid = str(uuid.uuid4())
         fake_volumes = mock.MagicMock(delete=mock.Mock())
@@ -860,8 +893,7 @@ class TestCinderStoreBase(object):
             mocked_cc.return_value = mock.MagicMock(client=fake_client,
                                                     volumes=fake_volumes)
 
-            loc = self._get_uri_loc(fake_volume_uuid,
-                                    is_multi_store=is_multi_store)
+            loc = self._get_uri_loc(fake_volume_uuid)
 
             self.store.delete(loc, context=self.context)
             fake_volumes.delete.assert_called_once_with(fake_volume_uuid)
