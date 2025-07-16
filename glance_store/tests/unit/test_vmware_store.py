@@ -15,24 +15,18 @@
 
 """Tests the VMware Datastore backend store"""
 
-import hashlib
-import io
 from unittest import mock
 import uuid
 
 from oslo_utils import units
-from oslo_vmware import api
-from oslo_vmware import exceptions as vmware_exceptions
 from oslo_vmware.objects import datacenter as oslo_datacenter
 from oslo_vmware.objects import datastore as oslo_datastore
 
 import glance_store._drivers.vmware_datastore as vm_store
 from glance_store import backend
-from glance_store import exceptions
-from glance_store import location
 from glance_store.tests import base
 from glance_store.tests.unit import test_store_capabilities
-from glance_store.tests import utils
+from glance_store.tests.unit import test_vmware_store_base as vmware_base
 
 
 FAKE_UUID = str(uuid.uuid4())
@@ -74,6 +68,7 @@ def fake_datastore_obj(*args, **kwargs):
 
 
 class TestStore(base.StoreBaseTest,
+                vmware_base.TestVMwareStoreBase,
                 test_store_capabilities.TestStoreCapabilitiesChecking):
 
     @mock.patch.object(vm_store.Store, '_get_datastore')
@@ -81,6 +76,10 @@ class TestStore(base.StoreBaseTest,
     def setUp(self, mock_api_session, mock_get_datastore):
         """Establish a clean test environment."""
         super(TestStore, self).setUp()
+
+        # Set class attributes for multistore and backend
+        self.multistore = False
+        self.backend = 'glance_store'
 
         vm_store.Store.CHUNKSIZE = 2
         default_store = VMWARE_DS['default_store']
@@ -106,555 +105,179 @@ class TestStore(base.StoreBaseTest,
     def _mock_http_connection(self):
         return mock.patch('http.client.HTTPConnection')
 
-    @mock.patch('oslo_vmware.api.VMwareAPISession')
-    def test_get(self, mock_api_session):
+    def test_get(self):
         """Test a "normal" retrieval of an image in chunks."""
-        expected_image_size = 31
-        expected_returns = ['I am a teapot, short and stout\n']
-        loc = location.get_location_from_uri(
-            "vsphere://127.0.0.1/folder/openstack_glance/%s"
-            "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.return_value = utils.fake_response()
-            (image_file, image_size) = self.store.get(loc)
-        self.assertEqual(expected_image_size, image_size)
-        chunks = [c for c in image_file]
-        self.assertEqual(expected_returns, chunks)
+        self._test_get()
 
-    @mock.patch('oslo_vmware.api.VMwareAPISession')
-    def test_get_non_existing(self, mock_api_session):
+    def test_get_non_existing(self):
         """
         Test that trying to retrieve an image that doesn't exist
         raises an error
         """
-        loc = location.get_location_from_uri(
-            "vsphere://127.0.0.1/folder/openstack_glan"
-            "ce/%s?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.return_value = utils.fake_response(status_code=404)
-            self.assertRaises(exceptions.NotFound, self.store.get, loc)
+        self._test_get_non_existing()
 
-    @mock.patch.object(vm_store.Store, '_build_vim_cookie_header')
-    @mock.patch.object(vm_store.Store, 'select_datastore')
-    @mock.patch.object(vm_store._Reader, 'size')
-    @mock.patch.object(api, 'VMwareAPISession')
-    def test_add(self, fake_api_session, fake_size, fake_select_datastore,
-                 fake_cookie):
+    def test_add(self):
         """Test that we can add an image via the VMware backend."""
-        fake_select_datastore.return_value = self.store.datastores[0][0]
-        expected_image_id = str(uuid.uuid4())
-        expected_size = FIVE_KB
-        expected_contents = b"*" * expected_size
-        hash_code = hashlib.md5(expected_contents, usedforsecurity=False)
-        expected_checksum = hash_code.hexdigest()
-        sha256_code = hashlib.sha256(expected_contents)
-        expected_multihash = sha256_code.hexdigest()
-        fake_size.__get__ = mock.Mock(return_value=expected_size)
-        expected_cookie = 'vmware_soap_session=fake-uuid'
-        fake_cookie.return_value = expected_cookie
-        expected_headers = {'Content-Length': str(expected_size),
-                            'Cookie': expected_cookie}
-        with mock.patch('hashlib.md5') as md5:
-            with mock.patch('hashlib.new') as fake_new:
-                md5.return_value = hash_code
-                fake_new.return_value = sha256_code
-                expected_location = format_location(
-                    VMWARE_DS['vmware_server_host'],
-                    VMWARE_DS['vmware_store_image_dir'],
-                    expected_image_id,
-                    VMWARE_DS['vmware_datastores'])
-                image = io.BytesIO(expected_contents)
-                with mock.patch('requests.Session.request') as HttpConn:
-                    HttpConn.return_value = utils.fake_response()
-                    location, size, checksum, multihash, _ = self.store.add(
-                        expected_image_id, image, expected_size,
-                        self.hash_algo)
-                    _, kwargs = HttpConn.call_args
-                    self.assertEqual(expected_headers, kwargs['headers'])
-        self.assertEqual(utils.sort_url_by_qs_keys(expected_location),
-                         utils.sort_url_by_qs_keys(location))
-        self.assertEqual(expected_size, size)
-        self.assertEqual(expected_checksum, checksum)
-        self.assertEqual(expected_multihash, multihash)
+        self._test_add()
 
-    @mock.patch.object(vm_store.Store, 'select_datastore')
-    @mock.patch.object(vm_store._Reader, 'size')
-    @mock.patch('oslo_vmware.api.VMwareAPISession')
-    def test_add_size_zero(self, mock_api_session, fake_size,
-                           fake_select_datastore):
+    def test_add_size_zero(self):
         """
         Test that when specifying size zero for the image to add,
         the actual size of the image is returned.
         """
-        fake_select_datastore.return_value = self.store.datastores[0][0]
-        expected_image_id = str(uuid.uuid4())
-        expected_size = FIVE_KB
-        expected_contents = b"*" * expected_size
-        hash_code = hashlib.md5(expected_contents, usedforsecurity=False)
-        expected_checksum = hash_code.hexdigest()
-        sha256_code = hashlib.sha256(expected_contents)
-        expected_multihash = sha256_code.hexdigest()
-        fake_size.__get__ = mock.Mock(return_value=expected_size)
-        with mock.patch('hashlib.md5') as md5:
-            with mock.patch('hashlib.new') as fake_new:
-                md5.return_value = hash_code
-                fake_new.return_value = sha256_code
-                expected_location = format_location(
-                    VMWARE_DS['vmware_server_host'],
-                    VMWARE_DS['vmware_store_image_dir'],
-                    expected_image_id,
-                    VMWARE_DS['vmware_datastores'])
-                image = io.BytesIO(expected_contents)
-                with mock.patch('requests.Session.request') as HttpConn:
-                    HttpConn.return_value = utils.fake_response()
-                    location, size, checksum, multihash, _ = self.store.add(
-                        expected_image_id, image, 0, self.hash_algo)
-        self.assertEqual(utils.sort_url_by_qs_keys(expected_location),
-                         utils.sort_url_by_qs_keys(location))
-        self.assertEqual(expected_size, size)
-        self.assertEqual(expected_checksum, checksum)
-        self.assertEqual(expected_multihash, multihash)
+        self._test_add_size_zero()
 
-    @mock.patch.object(vm_store.Store, 'select_datastore')
-    @mock.patch('glance_store._drivers.vmware_datastore._Reader')
-    def test_add_with_verifier(self, fake_reader, fake_select_datastore):
+    def test_add_with_verifier(self):
         """Test that the verifier is passed to the _Reader during add."""
-        verifier = mock.MagicMock(name='mock_verifier')
-        image_id = str(uuid.uuid4())
-        size = FIVE_KB
-        contents = b"*" * size
-        image = io.BytesIO(contents)
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.return_value = utils.fake_response()
-            self.store.add(image_id, image, size, self.hash_algo,
-                           verifier=verifier)
+        self._test_add_with_verifier()
 
-        fake_reader.assert_called_with(image, self.hash_algo, verifier)
-
-    @mock.patch.object(vm_store.Store, 'select_datastore')
-    @mock.patch('glance_store._drivers.vmware_datastore._Reader')
-    def test_add_with_verifier_size_zero(self, fake_reader, fake_select_ds):
+    def test_add_with_verifier_size_zero(self):
         """Test that the verifier is passed to the _ChunkReader during add."""
-        verifier = mock.MagicMock(name='mock_verifier')
-        image_id = str(uuid.uuid4())
-        size = FIVE_KB
-        contents = b"*" * size
-        image = io.BytesIO(contents)
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.return_value = utils.fake_response()
-            self.store.add(image_id, image, 0, self.hash_algo,
-                           verifier=verifier)
+        self._test_add_with_verifier_size_zero()
 
-        fake_reader.assert_called_with(image, self.hash_algo, verifier)
-
-    @mock.patch('oslo_vmware.api.VMwareAPISession')
-    def test_delete(self, mock_api_session):
+    def test_delete(self):
         """Test we can delete an existing image in the VMware store."""
-        loc = location.get_location_from_uri(
-            "vsphere://127.0.0.1/folder/openstack_glance/%s?"
-            "dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.return_value = utils.fake_response()
-            vm_store.Store._service_content = mock.Mock()
-            self.store.delete(loc)
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.return_value = utils.fake_response(status_code=404)
-            self.assertRaises(exceptions.NotFound, self.store.get, loc)
+        self._test_delete()
 
-    @mock.patch('oslo_vmware.api.VMwareAPISession')
-    def test_delete_non_existing(self, mock_api_session):
+    def test_delete_non_existing(self):
         """
         Test that trying to delete an image that doesn't exist raises an error
         """
-        loc = location.get_location_from_uri(
-            "vsphere://127.0.0.1/folder/openstack_glance/%s?"
-            "dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch.object(self.store.session,
-                               'wait_for_task') as mock_task:
-            mock_task.side_effect = vmware_exceptions.FileNotFoundException
-            self.assertRaises(exceptions.NotFound, self.store.delete, loc)
+        self._test_delete_non_existing()
 
-    @mock.patch('oslo_vmware.api.VMwareAPISession')
-    def test_get_size(self, mock_api_session):
+    def test_get_size(self):
         """
         Test we can get the size of an existing image in the VMware store
         """
-        loc = location.get_location_from_uri(
-            "vsphere://127.0.0.1/folder/openstack_glance/%s"
-            "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.return_value = utils.fake_response()
-            image_size = self.store.get_size(loc)
-        self.assertEqual(image_size, 31)
+        self._test_get_size()
 
-    @mock.patch('oslo_vmware.api.VMwareAPISession')
-    def test_get_size_non_existing(self, mock_api_session):
+    def test_get_size_non_existing(self):
         """
         Test that trying to retrieve an image size that doesn't exist
         raises an error
         """
-        loc = location.get_location_from_uri(
-            "vsphere://127.0.0.1/folder/openstack_glan"
-            "ce/%s?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.return_value = utils.fake_response(status_code=404)
-            self.assertRaises(exceptions.NotFound, self.store.get_size, loc)
+        self._test_get_size_non_existing()
 
     def test_reader_full(self):
-        content = b'XXX'
-        image = io.BytesIO(content)
-        expected_checksum = hashlib.md5(content,
-                                        usedforsecurity=False).hexdigest()
-        expected_multihash = hashlib.sha256(content).hexdigest()
-        reader = vm_store._Reader(image, self.hash_algo)
-        ret = reader.read()
-        self.assertEqual(content, ret)
-        self.assertEqual(expected_checksum, reader.checksum.hexdigest())
-        self.assertEqual(expected_multihash, reader.os_hash_value.hexdigest())
-        self.assertEqual(len(content), reader.size)
+        """Test the reader reads full content correctly."""
+        self._test_reader_full()
 
     def test_reader_partial(self):
-        content = b'XXX'
-        image = io.BytesIO(content)
-        expected_checksum = hashlib.md5(b'X',
-                                        usedforsecurity=False).hexdigest()
-        expected_multihash = hashlib.sha256(b'X').hexdigest()
-        reader = vm_store._Reader(image, self.hash_algo)
-        ret = reader.read(1)
-        self.assertEqual(b'X', ret)
-        self.assertEqual(expected_checksum, reader.checksum.hexdigest())
-        self.assertEqual(expected_multihash, reader.os_hash_value.hexdigest())
-        self.assertEqual(1, reader.size)
+        """Test the reader reads partial content correctly."""
+        self._test_reader_partial()
 
     def test_reader_with_verifier(self):
-        content = b'XXX'
-        image = io.BytesIO(content)
-        verifier = mock.MagicMock(name='mock_verifier')
-        reader = vm_store._Reader(image, self.hash_algo, verifier)
-        reader.read()
-        verifier.update.assert_called_with(content)
+        """Test the reader works with verifier."""
+        self._test_reader_with_verifier()
 
     def test_sanity_check_api_retry_count(self):
         """Test that sanity check raises if api_retry_count is <= 0."""
-        self.store.conf.glance_store.vmware_api_retry_count = -1
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store._sanity_check)
-        self.store.conf.glance_store.vmware_api_retry_count = 0
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store._sanity_check)
-        self.store.conf.glance_store.vmware_api_retry_count = 1
-        try:
-            self.store._sanity_check()
-        except exceptions.BadStoreConfiguration:
-            self.fail()
+        self._test_sanity_check_api_retry_count()
 
     def test_sanity_check_task_poll_interval(self):
         """Test that sanity check raises if task_poll_interval is <= 0."""
-        self.store.conf.glance_store.vmware_task_poll_interval = -1
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store._sanity_check)
-        self.store.conf.glance_store.vmware_task_poll_interval = 0
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store._sanity_check)
-        self.store.conf.glance_store.vmware_task_poll_interval = 1
-        try:
-            self.store._sanity_check()
-        except exceptions.BadStoreConfiguration:
-            self.fail()
+        self._test_sanity_check_task_poll_interval()
 
     def test_sanity_check_multiple_datastores(self):
-        self.store.conf.glance_store.vmware_api_retry_count = 1
-        self.store.conf.glance_store.vmware_task_poll_interval = 1
-        self.store.conf.glance_store.vmware_datastores = ['a:b:0', 'a:d:0']
-        try:
-            self.store._sanity_check()
-        except exceptions.BadStoreConfiguration:
-            self.fail()
+        """Test sanity check with multiple datastores."""
+        self._test_sanity_check_multiple_datastores()
 
     def test_parse_datastore_info_and_weight_less_opts(self):
-        datastore = 'a'
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store._parse_datastore_info_and_weight,
-                          datastore)
+        """Test parsing datastore with less options."""
+        self._test_parse_datastore_info_and_weight_less_opts()
 
     def test_parse_datastore_info_and_weight_invalid_weight(self):
-        datastore = 'a:b:c'
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store._parse_datastore_info_and_weight,
-                          datastore)
+        """Test parsing datastore with invalid weight."""
+        self._test_parse_datastore_info_and_weight_invalid_weight()
 
     def test_parse_datastore_info_and_weight_empty_opts(self):
-        datastore = 'a: :0'
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store._parse_datastore_info_and_weight,
-                          datastore)
-        datastore = ':b:0'
-        self.assertRaises(exceptions.BadStoreConfiguration,
-                          self.store._parse_datastore_info_and_weight,
-                          datastore)
+        """Test parsing datastore with empty options."""
+        self._test_parse_datastore_info_and_weight_empty_opts()
 
     def test_parse_datastore_info_and_weight(self):
-        datastore = 'a:b:100'
-        parts = self.store._parse_datastore_info_and_weight(datastore)
-        self.assertEqual('a', parts[0])
-        self.assertEqual('b', parts[1])
-        self.assertEqual(100, parts[2])
+        """Test parsing datastore with valid options."""
+        self._test_parse_datastore_info_and_weight()
 
     def test_parse_datastore_info_and_weight_default_weight(self):
-        datastore = 'a:b'
-        parts = self.store._parse_datastore_info_and_weight(datastore)
-        self.assertEqual('a', parts[0])
-        self.assertEqual('b', parts[1])
-        self.assertEqual(0, parts[2])
+        """Test parsing datastore with default weight."""
+        self._test_parse_datastore_info_and_weight_default_weight()
 
-    @mock.patch.object(vm_store.Store, 'select_datastore')
-    @mock.patch.object(api, 'VMwareAPISession')
-    def test_unexpected_status(self, mock_api_session, mock_select_datastore):
-        expected_image_id = str(uuid.uuid4())
-        expected_size = FIVE_KB
-        expected_contents = b"*" * expected_size
-        image = io.BytesIO(expected_contents)
-        self.session = mock.Mock()
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.return_value = utils.fake_response(status_code=401)
-            self.assertRaises(exceptions.BackendException,
-                              self.store.add,
-                              expected_image_id, image, expected_size,
-                              self.hash_algo)
+    def test_unexpected_status(self):
+        """Test handling of unexpected HTTP status."""
+        self._test_unexpected_status()
 
-    @mock.patch.object(vm_store.Store, 'select_datastore')
-    @mock.patch.object(api, 'VMwareAPISession')
-    def test_unexpected_status_no_response_body(self, mock_api_session,
-                                                mock_select_datastore):
-        expected_image_id = str(uuid.uuid4())
-        expected_size = FIVE_KB
-        expected_contents = b"*" * expected_size
-        image = io.BytesIO(expected_contents)
-        self.session = mock.Mock()
-        with self._mock_http_connection() as HttpConn:
-            HttpConn.return_value = utils.fake_response(status_code=500,
-                                                        no_response_body=True)
-            self.assertRaises(exceptions.BackendException,
-                              self.store.add,
-                              expected_image_id, image, expected_size,
-                              self.hash_algo)
+    def test_unexpected_status_no_response_body(self):
+        """Test handling of unexpected HTTP status with no response body."""
+        self._test_unexpected_status_no_response_body()
 
-    @mock.patch.object(api, 'VMwareAPISession')
-    def test_reset_session(self, mock_api_session):
-        self.store.reset_session()
-        self.assertTrue(mock_api_session.called)
+    def test_reset_session(self):
+        """Test resetting the session."""
+        self._test_reset_session()
 
-    @mock.patch.object(api, 'VMwareAPISession')
-    def test_build_vim_cookie_header_active(self, mock_api_session):
-        self.store.session.is_current_session_active = mock.Mock()
-        self.store.session.is_current_session_active.return_value = True
-        self.store._build_vim_cookie_header(True)
-        self.assertFalse(mock_api_session.called)
+    def test_build_vim_cookie_header_active(self):
+        """Test building VIM cookie header with active session."""
+        self._test_build_vim_cookie_header_active()
 
-    @mock.patch.object(api, 'VMwareAPISession')
-    def test_build_vim_cookie_header_expired(self, mock_api_session):
-        self.store.session.is_current_session_active = mock.Mock()
-        self.store.session.is_current_session_active.return_value = False
-        self.store._build_vim_cookie_header(True)
-        self.assertTrue(mock_api_session.called)
+    def test_build_vim_cookie_header_expired(self):
+        """Test building VIM cookie header with expired session."""
+        self._test_build_vim_cookie_header_expired()
 
-    @mock.patch.object(api, 'VMwareAPISession')
-    def test_build_vim_cookie_header_expired_noverify(self, mock_api_session):
-        self.store.session.is_current_session_active = mock.Mock()
-        self.store.session.is_current_session_active.return_value = False
-        self.store._build_vim_cookie_header()
-        self.assertFalse(mock_api_session.called)
+    def test_build_vim_cookie_header_expired_noverify(self):
+        """Test building VIM cookie header with expired session no verify."""
+        self._test_build_vim_cookie_header_expired_noverify()
 
-    @mock.patch.object(vm_store.Store, 'select_datastore')
-    @mock.patch.object(api, 'VMwareAPISession')
-    def test_add_ioerror(self, mock_api_session, mock_select_datastore):
-        mock_select_datastore.return_value = self.store.datastores[0][0]
-        expected_image_id = str(uuid.uuid4())
-        expected_size = FIVE_KB
-        expected_contents = b"*" * expected_size
-        image = io.BytesIO(expected_contents)
-        self.session = mock.Mock()
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.request.side_effect = IOError
-            self.assertRaises(exceptions.BackendException,
-                              self.store.add,
-                              expected_image_id, image, expected_size,
-                              self.hash_algo)
+    def test_add_ioerror(self):
+        """Test handling of IOError during add."""
+        self._test_add_ioerror()
 
     def test_qs_sort_with_literal_question_mark(self):
-        url = 'scheme://example.com/path?key2=val2&key1=val1?sort=true'
-        exp_url = 'scheme://example.com/path?key1=val1%3Fsort%3Dtrue&key2=val2'
-        self.assertEqual(exp_url,
-                         utils.sort_url_by_qs_keys(url))
+        """Test URL sorting with literal question mark."""
+        self._test_qs_sort_with_literal_question_mark()
 
-    @mock.patch.object(vm_store.Store, '_get_datastore')
-    @mock.patch.object(api, 'VMwareAPISession')
-    def test_build_datastore_weighted_map(self, mock_api_session, mock_ds_obj):
-        datastores = ['a:b:100', 'c:d:100', 'e:f:200']
-        mock_ds_obj.side_effect = fake_datastore_obj
-        ret = self.store._build_datastore_weighted_map(datastores)
-        ds = ret[200]
-        self.assertEqual('e', ds[0].datacenter.path)
-        self.assertEqual('f', ds[0].name)
-        ds = ret[100]
-        self.assertEqual(2, len(ds))
+    def test_build_datastore_weighted_map(self):
+        """Test building datastore weighted map."""
+        self._test_build_datastore_weighted_map()
 
-    @mock.patch.object(vm_store.Store, '_get_datastore')
-    @mock.patch.object(api, 'VMwareAPISession')
-    def test_build_datastore_weighted_map_equal_weight(self, mock_api_session,
-                                                       mock_ds_obj):
-        datastores = ['a:b:200', 'a:b:200']
-        mock_ds_obj.side_effect = fake_datastore_obj
-        ret = self.store._build_datastore_weighted_map(datastores)
-        ds = ret[200]
-        self.assertEqual(2, len(ds))
+    def test_build_datastore_weighted_map_equal_weight(self):
+        """Test building datastore weighted map with equal weights."""
+        self._test_build_datastore_weighted_map_equal_weight()
 
-    @mock.patch.object(vm_store.Store, '_get_datastore')
-    @mock.patch.object(api, 'VMwareAPISession')
-    def test_build_datastore_weighted_map_empty_list(self, mock_api_session,
-                                                     mock_ds_ref):
-        datastores = []
-        ret = self.store._build_datastore_weighted_map(datastores)
-        self.assertEqual({}, ret)
+    def test_build_datastore_weighted_map_empty_list(self):
+        """Test building datastore weighted map with empty list."""
+        self._test_build_datastore_weighted_map_empty_list()
 
-    @mock.patch.object(vm_store.Store, '_get_datastore')
-    @mock.patch.object(vm_store.Store, '_get_freespace')
-    def test_select_datastore_insufficient_freespace(self, mock_get_freespace,
-                                                     mock_ds_ref):
-        datastores = ['a:b:100', 'c:d:100', 'e:f:200']
-        image_size = 10
-        self.store.datastores = (
-            self.store._build_datastore_weighted_map(datastores))
-        freespaces = [5, 5, 5]
+    def test_select_datastore_insufficient_freespace(self):
+        """Test selecting datastore with insufficient free space."""
+        self._test_select_datastore_insufficient_freespace()
 
-        def fake_get_fp(*args, **kwargs):
-            return freespaces.pop(0)
-        mock_get_freespace.side_effect = fake_get_fp
-        self.assertRaises(exceptions.StorageFull,
-                          self.store.select_datastore, image_size)
+    def test_select_datastore_insufficient_fs_one_ds(self):
+        """Test selecting datastore with less free space on one datastore."""
+        self._test_select_datastore_insufficient_fs_one_ds()
 
-    @mock.patch.object(vm_store.Store, '_get_datastore')
-    @mock.patch.object(vm_store.Store, '_get_freespace')
-    def test_select_datastore_insufficient_fs_one_ds(self, mock_get_freespace,
-                                                     mock_ds_ref):
-        # Tests if fs is updated with just one datastore.
-        datastores = ['a:b:100']
-        image_size = 10
-        self.store.datastores = (
-            self.store._build_datastore_weighted_map(datastores))
-        freespaces = [5]
+    def test_select_datastore_equal_freespace(self):
+        """Test selecting datastore with equal free space."""
+        self._test_select_datastore_equal_freespace()
 
-        def fake_get_fp(*args, **kwargs):
-            return freespaces.pop(0)
-        mock_get_freespace.side_effect = fake_get_fp
-        self.assertRaises(exceptions.StorageFull,
-                          self.store.select_datastore, image_size)
-
-    @mock.patch.object(vm_store.Store, '_get_datastore')
-    @mock.patch.object(vm_store.Store, '_get_freespace')
-    def test_select_datastore_equal_freespace(self, mock_get_freespace,
-                                              mock_ds_obj):
-        datastores = ['a:b:100', 'c:d:100', 'e:f:200']
-        image_size = 10
-        mock_ds_obj.side_effect = fake_datastore_obj
-        self.store.datastores = (
-            self.store._build_datastore_weighted_map(datastores))
-        freespaces = [11, 11, 11]
-
-        def fake_get_fp(*args, **kwargs):
-            return freespaces.pop(0)
-        mock_get_freespace.side_effect = fake_get_fp
-
-        ds = self.store.select_datastore(image_size)
-        self.assertEqual('e', ds.datacenter.path)
-        self.assertEqual('f', ds.name)
-
-    @mock.patch.object(vm_store.Store, '_get_datastore')
-    @mock.patch.object(vm_store.Store, '_get_freespace')
-    def test_select_datastore_contention(self, mock_get_freespace,
-                                         mock_ds_obj):
-        datastores = ['a:b:100', 'c:d:100', 'e:f:200']
-        image_size = 10
-        mock_ds_obj.side_effect = fake_datastore_obj
-        self.store.datastores = (
-            self.store._build_datastore_weighted_map(datastores))
-        freespaces = [5, 11, 12]
-
-        def fake_get_fp(*args, **kwargs):
-            return freespaces.pop(0)
-        mock_get_freespace.side_effect = fake_get_fp
-        ds = self.store.select_datastore(image_size)
-        self.assertEqual('c', ds.datacenter.path)
-        self.assertEqual('d', ds.name)
+    def test_select_datastore_contention(self):
+        """Test selecting datastore with contention."""
+        self._test_select_datastore_contention()
 
     def test_select_datastore_empty_list(self):
-        datastores = []
-        self.store.datastores = (
-            self.store._build_datastore_weighted_map(datastores))
-        self.assertRaises(exceptions.StorageFull,
-                          self.store.select_datastore, 10)
+        """Test selecting datastore with empty list."""
+        self._test_select_datastore_empty_list()
 
-    @mock.patch('oslo_vmware.api.VMwareAPISession')
-    def test_get_datacenter_ref(self, mock_api_session):
-        datacenter_path = 'Datacenter1'
-        self.store._get_datacenter(datacenter_path)
-        self.store.session.invoke_api.assert_called_with(
-            self.store.session.vim,
-            'FindByInventoryPath',
-            self.store.session.vim.service_content.searchIndex,
-            inventoryPath=datacenter_path)
+    def test_get_datacenter_ref(self):
+        """Test getting datacenter reference."""
+        self._test_get_datacenter_ref()
 
-    @mock.patch('oslo_vmware.api.VMwareAPISession')
-    def test_http_get_redirect(self, mock_api_session):
-        # Add two layers of redirects to the response stack, which will
-        # return the default 200 OK with the expected data after resolving
-        # both redirects.
-        redirect1 = {"location": "https://example.com?dsName=ds1&dcPath=dc1"}
-        redirect2 = {"location": "https://example.com?dsName=ds2&dcPath=dc2"}
-        responses = [utils.fake_response(),
-                     utils.fake_response(status_code=302, headers=redirect1),
-                     utils.fake_response(status_code=301, headers=redirect2)]
+    def test_http_get_redirect(self):
+        """Test HTTP GET with redirects."""
+        self._test_http_get_redirect()
 
-        def getresponse(*args, **kwargs):
-            return responses.pop()
+    def test_http_get_max_redirects(self):
+        """Test HTTP GET with max redirects exceeded."""
+        self._test_http_get_max_redirects()
 
-        expected_image_size = 31
-        expected_returns = ['I am a teapot, short and stout\n']
-        loc = location.get_location_from_uri(
-            "vsphere://127.0.0.1/folder/openstack_glance/%s"
-            "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.side_effect = getresponse
-            (image_file, image_size) = self.store.get(loc)
-        self.assertEqual(expected_image_size, image_size)
-        chunks = [c for c in image_file]
-        self.assertEqual(expected_returns, chunks)
-
-    @mock.patch('oslo_vmware.api.VMwareAPISession')
-    def test_http_get_max_redirects(self, mock_api_session):
-        redirect = {"location": "https://example.com?dsName=ds1&dcPath=dc1"}
-        responses = ([utils.fake_response(status_code=302, headers=redirect)]
-                     * (vm_store.MAX_REDIRECTS + 1))
-
-        def getresponse(*args, **kwargs):
-            return responses.pop()
-
-        loc = location.get_location_from_uri(
-            "vsphere://127.0.0.1/folder/openstack_glance/%s"
-            "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.side_effect = getresponse
-            self.assertRaises(exceptions.MaxRedirectsExceeded, self.store.get,
-                              loc)
-
-    @mock.patch('oslo_vmware.api.VMwareAPISession')
-    def test_http_get_redirect_invalid(self, mock_api_session):
-        redirect = {"location": "https://example.com?dsName=ds1&dcPath=dc1"}
-
-        loc = location.get_location_from_uri(
-            "vsphere://127.0.0.1/folder/openstack_glance/%s"
-            "?dsName=ds1&dcPath=dc1" % FAKE_UUID, conf=self.conf)
-        with mock.patch('requests.Session.request') as HttpConn:
-            HttpConn.return_value = utils.fake_response(status_code=307,
-                                                        headers=redirect)
-            self.assertRaises(exceptions.BadStoreUri, self.store.get, loc)
+    def test_http_get_redirect_invalid(self):
+        """Test HTTP GET with invalid redirect."""
+        self._test_http_get_redirect_invalid()
