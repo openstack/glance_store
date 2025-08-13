@@ -179,6 +179,7 @@ Related Options:
 """),
     cfg.IntOpt('s3_store_large_object_size',
                default=DEFAULT_LARGE_OBJECT_SIZE,
+               min=0,
                help="""
 What size, in MB, should S3 start chunking image files and do a multipart
 upload in S3.
@@ -189,7 +190,7 @@ upload the image to S3 as is or to split it (Multipart Upload).
 Note: You can only split up to 10,000 images.
 
 Possible values:
-    * Any positive integer value
+    * Any positive integer value or zero
 
 Related Options:
     * s3_store_large_object_chunk_size
@@ -472,6 +473,8 @@ class Store(glance_store.driver.Store):
         result = getattr(store_conf, param)
         if not result:
             if param == 's3_store_create_bucket_on_put':
+                return result
+            if param == 's3_store_large_object_size':
                 return result
             if param == 's3_store_region_name':
                 return result
