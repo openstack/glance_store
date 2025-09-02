@@ -28,6 +28,9 @@ S3_CONF = {
     's3_store_bucket': 'glance',
     's3_store_large_object_size': 9,  # over 9MB is large
     's3_store_large_object_chunk_size': 6,  # part size is 6MB
+    's3_store_enable_data_integrity_protection': False,
+    's3_store_request_checksum_calculation': 'when_required',
+    's3_store_response_checksum_validation': 'when_required',
 }
 
 
@@ -114,3 +117,12 @@ class TestStore(base.StoreBaseTest,
 
     def test_get_my_object_storage_location(self):
         self._test_get_my_object_storage_location()
+
+    def test_config_with_data_integrity_protection_disabled(self):
+        self._test_config_with_data_integrity_protection_disabled()
+
+    def test_config_with_data_integrity_protection_enabled(self):
+        self._test_config_with_data_integrity_protection_enabled()
+
+    def test_config_fallback_for_old_boto3(self):
+        self._test_config_fallback_for_old_boto3()

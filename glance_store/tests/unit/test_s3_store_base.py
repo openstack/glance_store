@@ -927,3 +927,97 @@ class TestS3StoreBase(object):
                 self.assertEqual(expected_s3_size, size)
                 self.assertEqual(expected_checksum, checksum)
                 self.assertEqual(expected_multihash, multihash)
+
+    def _test_config_with_data_integrity_protection_disabled(self):
+        """Test Config creation when data integrity protection is disabled."""
+        # Explicitly disable data integrity protection
+        self.config(s3_store_enable_data_integrity_protection=False,
+                    group=self.backend)
+        self.store.configure()
+
+        # Create a mock location with required attributes
+        mock_loc = mock.Mock()
+        mock_loc.accesskey = 'access_key'
+        mock_loc.secretkey = 'secret_key'
+        mock_loc.bucket = 'test_bucket'
+
+        with mock.patch('botocore.client.Config') as mock_config, \
+                mock.patch('boto3.session.Session.client'):
+            mock_config.return_value = mock.Mock()
+            self.store._create_s3_client(mock_loc)
+
+            # When data integrity protection is disabled,
+            # both checksum options should be 'when_required'
+            mock_config.assert_called_once()
+            call_args = mock_config.call_args
+            self.assertEqual('when_required',
+                             call_args.kwargs['request_checksum_calculation'])
+            self.assertEqual('when_required',
+                             call_args.kwargs['response_checksum_validation'])
+
+    def _test_config_with_data_integrity_protection_enabled(self):
+        """Test Config creation when data integrity protection is enabled."""
+        # Enable data integrity protection and set custom checksum options
+        self.config(s3_store_enable_data_integrity_protection=True,
+                    s3_store_request_checksum_calculation='when_supported',
+                    s3_store_response_checksum_validation='when_supported',
+                    group=self.backend)
+        self.store.configure()
+
+        # Create a mock location with required attributes
+        mock_loc = mock.Mock()
+        mock_loc.accesskey = 'access_key'
+        mock_loc.secretkey = 'secret_key'
+        mock_loc.bucket = 'test_bucket'
+
+        with mock.patch('botocore.client.Config') as mock_config, \
+                mock.patch('boto3.session.Session.client'):
+            mock_config.return_value = mock.Mock()
+            self.store._create_s3_client(mock_loc)
+
+            # When data integrity protection is enabled,
+            # checksum options should use the configured values
+            mock_config.assert_called_once()
+            call_args = mock_config.call_args
+            self.assertEqual('when_supported',
+                             call_args.kwargs['request_checksum_calculation'])
+            self.assertEqual('when_supported',
+                             call_args.kwargs['response_checksum_validation'])
+
+    def _test_config_fallback_for_old_boto3(self):
+        """Test Config fallback when boto3 < 1.36.0 (no checksum support)."""
+        # Create a mock location with required attributes
+        mock_loc = mock.Mock()
+        mock_loc.accesskey = 'access_key'
+        mock_loc.secretkey = 'secret_key'
+        mock_loc.bucket = 'test_bucket'
+
+        # Simulate old boto3 version by making Config raise TypeError
+        # when checksum parameters are passed
+        def config_side_effect(*args, **kwargs):
+            if 'request_checksum_calculation' in kwargs:
+                raise TypeError("Unexpected keyword argument")
+            return mock.Mock()
+
+        with mock.patch('botocore.client.Config',
+                        side_effect=config_side_effect) as mock_config, \
+                mock.patch('boto3.session.Session.client'):
+            self.store._create_s3_client(mock_loc)
+
+            # Should have been called twice: once with checksum params
+            # (which failed), then without them
+            self.assertEqual(2, mock_config.call_count)
+
+            # First call should have checksum parameters
+            first_call_kwargs = mock_config.call_args_list[0].kwargs
+            self.assertIn('request_checksum_calculation',
+                          first_call_kwargs)
+            self.assertIn('response_checksum_validation',
+                          first_call_kwargs)
+
+            # Second call should not have checksum parameters
+            second_call_kwargs = mock_config.call_args_list[1].kwargs
+            self.assertNotIn('request_checksum_calculation',
+                             second_call_kwargs)
+            self.assertNotIn('response_checksum_validation',
+                             second_call_kwargs)
