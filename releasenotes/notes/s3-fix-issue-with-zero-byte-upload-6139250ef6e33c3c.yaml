@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    S3: Fixed issue when uploading a zero byte image using
+    multipart upload.

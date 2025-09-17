@@ -835,28 +835,49 @@ class Store(glance_store.driver.Store):
         total_size = sum(p.size for p in plist)
 
         if success:
-            # Complete
-            pedict = {p.partnum: p.etag[p.partnum] for p in plist}
-            mpu_list = self._get_mpu_list(pedict)
-            s3_client.complete_multipart_upload(Bucket=bucket,
-                                                Key=key,
-                                                MultipartUpload=mpu_list,
-                                                UploadId=upload_id)
             hash_hex = os_hash_value.hexdigest()
             checksum_hex = checksum.hexdigest()
-
             # Add store backend information to location metadata
             metadata = {}
             if self.backend_group:
                 metadata['store'] = self.backend_group
+            # If no parts were uploaded, this was a zero-byte image. This is
+            # the case when a BFV server creates a snapshot resulting in a 0
+            # byte image file. Since we cannot complete a multipart upload
+            # with zero parts, so we must abort it and create the empty
+            # object directly.
+            if not plist:
+                LOG.info("Not doing multipart upload for zero-byte image "
+                         "key=%(key)s, UploadId=%(UploadId)s",
+                         {'key': key, 'UploadId': upload_id})
+                s3_client.abort_multipart_upload(Bucket=bucket, Key=key,
+                                                 UploadId=upload_id)
 
-            LOG.info("Multipart complete key=%(key)s "
-                     "UploadId=%(UploadId)s "
-                     "Wrote %(total_size)d bytes to S3 key "
-                     "named %(key)s "
-                     "with checksum %(checksum)s",
-                     {'key': key, 'UploadId': upload_id,
-                      'total_size': total_size, 'checksum': checksum_hex})
+                LOG.debug("Creating zero-byte object directly using "
+                          "singlepart for key=%s", key)
+                s3_client.put_object(Body=b'', Bucket=bucket, Key=key)
+                LOG.info("Singlepart upload completed. "
+                         "Wrote %(total_size)d bytes to S3 key "
+                         "named %(key)s "
+                         "with checksum %(checksum)s",
+                         {'key': key, 'total_size': total_size,
+                          'checksum': checksum_hex})
+            else:
+                # Complete the multipart upload
+                pedict = {p.partnum: p.etag[p.partnum] for p in plist}
+                mpu_list = self._get_mpu_list(pedict)
+                s3_client.complete_multipart_upload(Bucket=bucket,
+                                                    Key=key,
+                                                    MultipartUpload=mpu_list,
+                                                    UploadId=upload_id)
+
+                LOG.info("Multipart complete key=%(key)s "
+                         "UploadId=%(UploadId)s "
+                         "Wrote %(total_size)d bytes to S3 key "
+                         "named %(key)s "
+                         "with checksum %(checksum)s",
+                         {'key': key, 'UploadId': upload_id,
+                          'total_size': total_size, 'checksum': checksum_hex})
             return loc.get_uri(), total_size, checksum_hex, hash_hex, metadata
 
         # Abort

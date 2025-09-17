@@ -758,6 +758,78 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
             )
 
     @mock.patch.object(boto3.session.Session, "client")
+    def test_add_multipart_zero_byte_image(self, mock_client):
+        """Bug #2124829: add a zero-byte image using multipart upload."""
+        expected_image_id = str(uuid.uuid4())
+        expected_s3_size = 0
+        expected_s3_contents = b""
+        expected_checksum = hashlib.md5(expected_s3_contents,
+                                        usedforsecurity=False).hexdigest()
+        expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
+        expected_location = format_s3_location(
+            S3_CONF['s3_store_access_key'],
+            S3_CONF['s3_store_secret_key'],
+            S3_CONF['s3_store_host'],
+            S3_CONF['s3_store_bucket'],
+            expected_image_id)
+        image_s3 = io.BytesIO(expected_s3_contents)
+
+        self.config(group='s3_region1', s3_store_large_object_size=0)
+        self.store.configure()
+        fake_s3_client = botocore.session.get_session().create_client('s3')
+
+        with stub.Stubber(fake_s3_client) as stubber:
+            stubber.add_response(method='head_bucket',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket']
+                                 })
+            stubber.add_client_error(method='head_object',
+                                     service_error_code='404',
+                                     service_message='',
+                                     expected_params={
+                                         'Bucket': S3_CONF['s3_store_bucket'],
+                                         'Key': expected_image_id
+                                     })
+            stubber.add_response(method='create_multipart_upload',
+                                 service_response={
+                                     "Bucket": S3_CONF['s3_store_bucket'],
+                                     "Key": expected_image_id,
+                                     "UploadId": 'UploadId'
+                                 },
+                                 expected_params={
+                                     "Bucket": S3_CONF['s3_store_bucket'],
+                                     "Key": expected_image_id,
+                                 })
+
+            stubber.add_response(method='abort_multipart_upload',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket'],
+                                     'Key': expected_image_id,
+                                     'UploadId': 'UploadId'
+                                 })
+            stubber.add_response(method='put_object',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': S3_CONF['s3_store_bucket'],
+                                     'Key': expected_image_id,
+                                     'Body': b''
+                                 })
+
+            mock_client.return_value = fake_s3_client
+            loc, size, checksum, multihash, metadata = \
+                self.store.add(expected_image_id, image_s3, expected_s3_size,
+                               self.hash_algo)
+
+            stubber.assert_no_pending_responses()
+            self.assertEqual("s3_region1", metadata["store"])
+            self.assertEqual(expected_location, loc)
+            self.assertEqual(expected_s3_size, size)
+            self.assertEqual(expected_checksum, checksum)
+            self.assertEqual(expected_multihash, multihash)
+
+    @mock.patch.object(boto3.session.Session, "client")
     def test_add_already_existing(self, mock_client):
         """Tests that adding an image with an existing identifier raises an
         appropriate exception
