@@ -569,16 +569,20 @@ class Store(glance_store.driver.Store):
             # image-volume to modification by users which might lead
             # to corruption of image.
             try:
-                volume = cinder_client.volumes.get(volume_id)
-            except cinder_exception.NotFound:
-                reason = (_LW("Image-Volume %s not found. If you have "
-                              "upgraded your environment from single store "
-                              "to multi store, transfer all your "
-                              "Image-Volumes from user projects to service "
-                              "project."
-                          % volume_id))
-                LOG.warning(reason)
-                return False
+                volume = self.volume_api.get(cinder_client, volume_id)
+            # NotFound Exception is translated to BackendException
+            except exceptions.BackendException as e:
+                # 'Volume <vol-id> could not be found.
+                # (HTTP 404) (Request-ID: <req-id>)'
+                if 'HTTP 404' in str(e):
+                    reason = (_LW("Image-Volume %s not found. If you have "
+                                  "upgraded your environment from single "
+                                  "store to multi store, transfer all your "
+                                  "Image-Volumes from user projects to "
+                                  "service project."
+                              % volume_id))
+                    LOG.warning(reason)
+                    return False
             if cinder_volume_type and volume.volume_type == cinder_volume_type:
                 return True
             elif not cinder_volume_type:
@@ -687,10 +691,12 @@ class Store(glance_store.driver.Store):
             raise exceptions.BadStoreConfiguration(store_name="cinder",
                                                    reason=reason)
 
-    def _wait_volume_status(self, volume, status_transition, status_expected):
+    def _wait_volume_status(self, volume, status_transition, status_expected,
+                            client):
+        volume_id = volume.id
         max_recheck_wait = 15
         timeout = self.store_conf.cinder_state_transition_timeout
-        volume = volume.manager.get(volume.id)
+        volume = self.volume_api.get(client, volume_id)
         tries = 0
         elapsed = 0
         while volume.status == status_transition:
@@ -705,7 +711,7 @@ class Store(glance_store.driver.Store):
             time.sleep(wait)
             tries += 1
             elapsed += wait
-            volume = volume.manager.get(volume.id)
+            volume = self.volume_api.get(client, volume_id)
         if volume.status != status_expected:
             msg = (_('The status of volume %(volume_id)s is unexpected: '
                      'status = %(status)s, expected = %(expected)s.')
@@ -746,7 +752,7 @@ class Store(glance_store.driver.Store):
         LOG.debug('Attachment %(attachment_id)s created successfully.',
                   {'attachment_id': attachment['id']})
 
-        volume = volume.manager.get(volume_id)
+        volume = self.volume_api.get(client, volume_id)
         attachment_id = attachment['id']
         connection_info = None
         try:
@@ -853,7 +859,7 @@ class Store(glance_store.driver.Store):
         self._check_context(context)
         try:
             client = self.get_cinderclient(context, version='3.54')
-            volume = client.volumes.get(loc.volume_id)
+            volume = self.volume_api.get(client, loc.volume_id)
             size = int(volume.metadata.get('image_size',
                                            volume.size * units.Gi))
             iterator = self._cinder_volume_data_iterator(
@@ -896,7 +902,7 @@ class Store(glance_store.driver.Store):
                               "internal error."))
             return 0
 
-    def _call_offline_extend(self, volume, size_gb):
+    def _call_offline_extend(self, volume, size_gb, client):
         size_gb += 1
         LOG.debug("Extending (offline) volume %(volume_id)s to %(size)s GB.",
                   {'volume_id': volume.id, 'size': size_gb})
@@ -904,7 +910,8 @@ class Store(glance_store.driver.Store):
         try:
             volume = self._wait_volume_status(volume,
                                               'extending',
-                                              'available')
+                                              'available',
+                                              client)
             size_gb = volume.size
             return size_gb
         except exceptions.BackendException:
@@ -918,7 +925,8 @@ class Store(glance_store.driver.Store):
         try:
             volume = self._wait_volume_status(volume,
                                               'extending',
-                                              'in-use')
+                                              'in-use',
+                                              client)
             size_gb = volume.size
             return size_gb
         except exceptions.BackendException:
@@ -965,7 +973,7 @@ class Store(glance_store.driver.Store):
                 self._write_data(f, write_props)
             if write_props.need_extend:
                 write_props.size_gb = self._call_offline_extend(
-                    volume, write_props.size_gb)
+                    volume, write_props.size_gb, client)
 
     def _online_extend(self, client, volume, write_props):
         with self._open_cinder_volume(client, volume, 'wb') as f:
@@ -1048,7 +1056,8 @@ class Store(glance_store.driver.Store):
                                         metadata=metadata,
                                         volume_type=volume_type)
 
-        volume = self._wait_volume_status(volume, 'creating', 'available')
+        volume = self._wait_volume_status(volume, 'creating', 'available',
+                                          client)
         size_gb = volume.size
 
         failed = True

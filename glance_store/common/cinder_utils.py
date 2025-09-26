@@ -67,6 +67,15 @@ class API(object):
         volume = client.volumes.create(size, **kwargs)
         return volume
 
+    @handle_exceptions
+    def get(self, client, volume_id):
+        """Get the details about a volume given it's ID.
+
+        :param client: cinderclient object
+        :param volume_id: UUID of the volume to get
+        """
+        return client.volumes.get(volume_id)
+
     def delete(self, client, volume_id):
         client.volumes.delete(volume_id)
 
