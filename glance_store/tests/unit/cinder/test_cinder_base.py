@@ -31,8 +31,8 @@ from oslo_concurrency import processutils
 from oslo_utils.secretutils import md5
 from oslo_utils import units
 
-from glance_store.common import attachment_state_manager
 from glance_store.common import cinder_utils
+from glance_store.common import utils
 from glance_store import exceptions
 from glance_store import location
 
@@ -208,11 +208,31 @@ class TestCinderStoreBase(object):
                                  enforce_multipath=False,
                                  encrypted_nfs=False, qcow2_vol=False,
                                  multiattach=False,
-                                 update_attachment_error=None):
+                                 update_attachment_error=None,
+                                 disconnect_multiattach=True):
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()), status='available',
                                      multiattach=multiattach)
         fake_attachment_id = str(uuid.uuid4())
         fake_attachment_create = {'id': fake_attachment_id}
+        if disconnect_multiattach:
+            fake_volume.attachments = [
+                {
+                    'id': fake_attachment_id,
+                    'host_name': 'fake_host',
+                }
+            ]
+        else:
+            fake_attachment_id_2 = str(uuid.uuid4())
+            fake_volume.attachments = [
+                {
+                    'id': fake_attachment_id,
+                    'host_name': 'fake_host',
+                },
+                {
+                    'id': fake_attachment_id_2,
+                    'host_name': 'fake_host',
+                },
+            ]
         if encrypted_nfs or qcow2_vol:
             fake_attachment_update = mock.MagicMock(
                 id=fake_attachment_id,
@@ -235,23 +255,18 @@ class TestCinderStoreBase(object):
             yield
 
         def do_open():
-            if multiattach:
-                with mock.patch.object(
-                        attachment_state_manager._AttachmentStateManager,
-                        'get_state') as mock_get_state:
-                    mock_get_state.return_value.__enter__.return_value = (
-                        attachment_state_manager._AttachmentState())
-                    with self.store._open_cinder_volume(
-                            fake_client, fake_volume, open_mode):
-                        pass
-            else:
-                with self.store._open_cinder_volume(
-                        fake_client, fake_volume, open_mode):
-                    if error:
-                        raise error
+            with self.store._open_cinder_volume(
+                    fake_client, fake_volume, open_mode):
+                if error:
+                    raise error
 
         def fake_factory(protocol, root_helper, **kwargs):
             return fake_connector
+
+        def fake_synchronized(*args, **kwargs):
+            def decorator(f):
+                return f
+            return decorator
 
         root_helper = "sudo glance-rootwrap /etc/glance/rootwrap.conf"
         with mock.patch.object(cinder.Store,
@@ -282,7 +297,9 @@ class TestCinderStoreBase(object):
                                   'gethostname') as mock_get_host, \
                 mock.patch.object(socket,
                                   'getaddrinfo') as mock_get_host_ip, \
-                mock.patch.object(cinder.strutils, 'mask_dict_password'):
+                mock.patch.object(cinder.strutils, 'mask_dict_password'), \
+                mock.patch.object(utils, 'synchronized',
+                                  side_effect=fake_synchronized):
 
             if update_attachment_error:
                 attach_update.side_effect = update_attachment_error
@@ -326,8 +343,13 @@ class TestCinderStoreBase(object):
                         host=fake_host)
                     fake_connector.connect_volume.assert_called_once_with(
                         mock.ANY)
-                    fake_connector.disconnect_volume.assert_called_once_with(
-                        mock.ANY, fake_devinfo, force=True)
+                    if not multiattach or (
+                            multiattach and disconnect_multiattach):
+                        disconnect = fake_connector.disconnect_volume
+                        disconnect.assert_called_once_with(
+                            mock.ANY, fake_devinfo, force=True)
+                    else:
+                        fake_connector.disconnect_volume.assert_not_called()
                     fake_conn_obj.assert_called_once_with(
                         mock.ANY, root_helper, conn=mock.ANY,
                         use_multipath=multipath_supported)
@@ -374,6 +396,10 @@ class TestCinderStoreBase(object):
 
     def test_open_cinder_volume_multiattach_volume(self):
         self._test_open_cinder_volume('rb', 'ro', None, multiattach=True)
+
+    def test_open_cinder_volume_multiattach_volume_not_disconnect(self):
+        self._test_open_cinder_volume('rb', 'ro', None, multiattach=True,
+                                      disconnect_multiattach=False)
 
     def _fake_volume_type_check(self, name):
         if name != 'some_type':

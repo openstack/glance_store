@@ -34,7 +34,6 @@ from oslo_utils import units
 
 from glance_store._drivers.cinder import base
 from glance_store import capabilities
-from glance_store.common import attachment_state_manager
 from glance_store.common import cinder_utils
 from glance_store.common import utils
 import glance_store.driver
@@ -727,9 +726,73 @@ class Store(glance_store.driver.Store):
         except socket.gaierror:
             return socket.getaddrinfo(host, None, socket.AF_INET)[0][4][0]
 
+    def _disconnect_and_detach(self, client, volume_id, multiattach, host,
+                               conn, device, attachment_id):
+        @utils.synchronized(volume_id, external=True)
+        def _disconnect_and_detach_with_lock(self, client, volume_id,
+                                             multiattach, host, conn,
+                                             device, attachment_id):
+            """This method disconnects and detaches a volume.
+
+            The decision to disconnect a volume is based on the number of
+            attachments it has on a particular host. If there are > 1
+            attachments for a specific volume on a given host, we should
+            not disconnect the volume.
+            """
+            should_disconnect = False
+            # If the volume is not multiattach, we should always disconnect
+            if not multiattach:
+                # Since the lock is acquired on volume_id, it's non-blocking
+                # for disconnecting different non-multiattach volumes
+                should_disconnect = True
+            else:
+                # Counting number of attachments on this host
+                conn_count = 0
+                volume = self.volume_api.get(client, volume_id)
+                attachments = volume.attachments
+                # When connections are <= 1, we should disconnect
+                if len(attachments) > 1:
+                    for attachment in attachments:
+                        if attachment['host_name'] == host:
+                            conn_count += 1
+                # If we have more than 1 attachment on the same host,
+                # we should not disconnect otherwise we can safely disconnect
+                if conn_count <= 1:
+                    should_disconnect = True
+
+            if should_disconnect:
+                if device:
+                    LOG.debug("Disconnecting volume %s from current host",
+                              volume_id)
+                    # disconnect_volume has it's own lock so it doesn't
+                    # require the additional lock here but to include the
+                    # attachment_delete call, we have to do disconnect here
+                    try:
+                        conn.disconnect_volume(device)
+                    except Exception:
+                        LOG.exception(_LE('Failed to disconnect volume '
+                                          '%(volume_id)s.'),
+                                      {'volume_id': volume_id})
+            if attachment_id:
+                # Delete the attachment.
+                # Cinder volume driver handles unmapping based on attachments
+                # so we don't need to handle anything here.
+                # We need to do this inside the lock since we fetch
+                # attachments to make disconnect decision which could be
+                # influenced by this call.
+                self.volume_api.attachment_delete(client, attachment_id)
+                LOG.debug('Attachment %(attachment_id)s deleted successfully.',
+                          {'attachment_id': attachment_id})
+
+        return _disconnect_and_detach_with_lock(self, client, volume_id,
+                                                multiattach, host, conn,
+                                                device, attachment_id)
+
     @contextlib.contextmanager
     def _open_cinder_volume(self, client, volume, mode):
         attach_mode = 'rw' if mode == 'wb' else 'ro'
+        attachment_id = None
+        conn = None
         device = None
         root_helper = self.get_root_helper()
         priv_context.init(root_helper=shlex.split(root_helper))
@@ -738,17 +801,13 @@ class Store(glance_store.driver.Store):
         use_multipath = self.store_conf.cinder_use_multipath
         enforce_multipath = self.store_conf.cinder_enforce_multipath
         volume_id = volume.id
+        multiattach = volume.multiattach
 
         connector_prop = connector.get_connector_properties(
             root_helper, my_ip, use_multipath, enforce_multipath, host=host)
 
-        if volume.multiattach:
-            attachment = attachment_state_manager.attach(client, volume_id,
-                                                         host,
-                                                         mode=attach_mode)
-        else:
-            attachment = self.volume_api.attachment_create(client, volume_id,
-                                                           mode=attach_mode)
+        attachment = self.volume_api.attachment_create(client, volume_id,
+                                                       mode=attach_mode)
         LOG.debug('Attachment %(attachment_id)s created successfully.',
                   {'attachment_id': attachment['id']})
 
@@ -795,23 +854,10 @@ class Store(glance_store.driver.Store):
                               '%(volume_id)s.'), {'volume_id': volume.id})
             raise
         finally:
-            if device:
-                try:
-                    if volume.multiattach:
-                        attachment_state_manager.detach(
-                            client, attachment_id, volume_id, host, conn,
-                            connection_info, device)
-                    else:
-                        conn.disconnect_volume(device)
-                        if self.volume_connector_map.get(volume.id):
-                            del self.volume_connector_map[volume.id]
-                except Exception:
-                    LOG.exception(_LE('Failed to disconnect volume '
-                                      '%(volume_id)s.'),
-                                  {'volume_id': volume.id})
-
-            if not volume.multiattach:
-                self.volume_api.attachment_delete(client, attachment_id)
+            self._disconnect_and_detach(client, volume_id, multiattach,
+                                        host, conn, device, attachment_id)
+            if self.volume_connector_map.get(volume.id):
+                del self.volume_connector_map[volume.id]
 
     def _cinder_volume_data_iterator(self, client, volume, max_size, offset=0,
                                      chunk_size=None, partial_length=None):
