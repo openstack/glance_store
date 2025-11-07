@@ -22,7 +22,6 @@ import uuid
 
 import fixtures
 from oslo_config import cfg
-from oslo_utils import units
 
 import glance_store as store
 from glance_store import exceptions
@@ -46,6 +45,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
 
     def setUp(self):
         super(TestMultiCinderStore, self).setUp()
+        self.is_multistore = True
         enabled_backends = {
             "cinder1": "cinder",
             "cinder2": "cinder"
@@ -237,49 +237,6 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                     "project." % fake_vol_id)
             self.assertFalse(type_match)
 
-    def test_cinder_get(self):
-        self._test_cinder_get(is_multi_store=True)
-
-    def test_cinder_get_size(self):
-        self._test_cinder_get_size(is_multi_store=True)
-
-    def test_cinder_get_size_with_metadata(self):
-        self._test_cinder_get_size_with_metadata(is_multi_store=True)
-
-    def test_cinder_add(self):
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
-                                     status='available',
-                                     size=1)
-        volume_file = io.BytesIO()
-        self._test_cinder_add(fake_volume, volume_file, is_multi_store=True)
-
-    def test_add_image_exceeding_max_size_raises_exception(self):
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
-                                     status='available',
-                                     size=1)
-        volume_file = io.BytesIO()
-        self._test_cinder_add_size_validation(fake_volume, volume_file,
-                                              oversized=True,
-                                              is_multi_store=True)
-
-    def test_write_less_than_declared_raises_exception(self):
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
-                                     status='available',
-                                     size=1)
-        volume_file = io.BytesIO()
-        self._test_cinder_add_size_validation(fake_volume, volume_file,
-                                              is_multi_store=True)
-
-    def test_cinder_add_with_verifier(self):
-        fake_volume = mock.MagicMock(id=str(uuid.uuid4()),
-                                     status='available',
-                                     size=1)
-        volume_file = io.BytesIO()
-        verifier = mock.MagicMock()
-        self._test_cinder_add(fake_volume, volume_file, 1, verifier,
-                              is_multi_store=True)
-        verifier.update.assert_called_with(b"*" * units.Ki)
-
     def test_cinder_add_volume_full(self):
         e = IOError()
         volume_file = io.BytesIO()
@@ -289,8 +246,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                                      size=1)
         with mock.patch.object(volume_file, 'write', side_effect=e):
             self.assertRaises(exceptions.StorageFull,
-                              self._test_cinder_add, fake_volume, volume_file,
-                              is_multi_store=True)
+                              self._test_cinder_add, fake_volume, volume_file)
         fake_volume.delete.assert_called_once_with()
 
     def test_cinder_add_different_backend(self):
@@ -302,17 +258,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                                      status='available',
                                      size=1)
         volume_file = io.BytesIO()
-        self._test_cinder_add(fake_volume, volume_file, backend="cinder2",
-                              is_multi_store=True)
-
-    def test_cinder_add_extend(self):
-        self._test_cinder_add_extend(is_multi_store=True)
-
-    def test_cinder_add_extend_online(self):
-        self._test_cinder_add_extend(is_multi_store=True, online=True)
-
-    def test_cinder_delete(self):
-        self._test_cinder_delete(is_multi_store=True)
+        self._test_cinder_add(fake_volume, volume_file, backend="cinder2")
 
     def test_set_url_prefix(self):
         self.assertEqual('cinder://cinder1', self.store._url_prefix)
