@@ -22,48 +22,29 @@ import uuid
 
 import boto3
 import botocore
-from botocore import exceptions as boto_exceptions
 from botocore import stub
 from oslo_config import cfg
-from oslo_utils import units
 
 import glance_store as store
 from glance_store._drivers import s3
-from glance_store import exceptions
 from glance_store import location
 from glance_store.tests import base
+from glance_store.tests.unit import test_s3_store_base
 from glance_store.tests.unit import test_store_capabilities
 
-
-FAKE_UUID = str(uuid.uuid4())
-
-FIVE_KB = 5 * units.Ki
 S3_CONF = {
     's3_store_access_key': 'user',
     's3_store_secret_key': 'key',
     's3_store_host': 'https://s3-region1.com',
     's3_store_bucket': 'glance',
-    's3_store_large_object_size': 9,        # over 9MB is large
+    's3_store_large_object_size': 9,  # over 9MB is large
     's3_store_large_object_chunk_size': 6,  # part size is 6MB
 }
 
 
-def format_s3_location(user, key, authurl, bucket, obj):
-    """Helper method that returns a S3 store URI given the component pieces."""
-    scheme = 's3'
-    if authurl.startswith('https://'):
-        scheme = 's3+https'
-        authurl = authurl[8:]
-    elif authurl.startswith('http://'):
-        authurl = authurl[7:]
-    authurl = authurl.strip('/')
-    return "%s://%s:%s@%s/%s/%s" % (scheme, user, key, authurl,
-                                    bucket, obj)
-
-
 class TestMultiS3Store(base.MultiStoreBaseTest,
+                       test_s3_store_base.TestS3StoreBase,
                        test_store_capabilities.TestStoreCapabilitiesChecking):
-
     # NOTE(flaper87): temporary until we
     # can move to a fully-local lib.
     # (Swift store's fault)
@@ -118,647 +99,82 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
         self.store.configure()
         self.register_store_backend_schemes(self.store, 's3', 's3_region1')
 
+        # Set default multistore and backend parameters
+        self.multistore = True
+        self.backend = 's3_region1'
+
     def test_location_url_prefix_is_set(self):
         expected_url_prefix = "s3+https://user:key@s3-region1.com/glance"
         self.assertEqual(expected_url_prefix, self.store.url_prefix)
 
     def test_get_invalid_bucket_name(self):
-        self.config(s3_store_bucket_url_format='virtual', group='s3_region1')
+        self._test_get_invalid_bucket_name()
 
-        invalid_buckets = ['not.dns.compliant', 'aa', 'bucket-']
-        for bucket in invalid_buckets:
-            loc = location.get_location_from_uri_and_backend(
-                "s3+https://user:key@auth_address/%s/key" % bucket,
-                's3_region1', conf=self.conf)
-            self.assertRaises(boto_exceptions.InvalidDNSNameError,
-                              self.store.get, loc)
+    def test_client_custom_region_name(self):
+        self._test_client_custom_region_name()
 
-    @mock.patch('glance_store.location.Location')
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_client_custom_region_name(self, mock_client, mock_loc):
-        """Test a custom s3_store_region_name in config"""
-        mock_loc.accesskey = 'abcd'
-        mock_loc.secretkey = 'efgh'
-        mock_loc.bucket = 'bucket1'
-        self.store._create_s3_client(mock_loc)
-        mock_client.assert_called_with(
-            config=mock.ANY,
-            endpoint_url='https://s3-region1.com',
-            region_name='custom_region_name',
-            service_name='s3',
-            use_ssl=False,
-            verify='path/to/cert/bundle.pem',
-        )
+    def test_client_custom_ca_cert_bundle(self):
+        self._test_client_custom_ca_cert_bundle()
 
-    @mock.patch('glance_store.location.Location')
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_client_custom_ca_cert_bundle(self, mock_client, mock_loc):
-        """Test a custom s3_store_cacert in config"""
-        mock_loc.accesskey = 'abcd'
-        mock_loc.secretkey = 'efgh'
-        mock_loc.bucket = 'bucket1'
-        self.store._create_s3_client(mock_loc)
-        mock_client.assert_called_with(
-            config=mock.ANY,
-            endpoint_url='https://s3-region1.com',
-            region_name='custom_region_name',
-            service_name='s3',
-            use_ssl=False,
-            verify='path/to/cert/bundle.pem',
-        )
-
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_get(self, mock_client):
-        """Test a "normal" retrieval of an image in chunks."""
-        bucket, key = 'glance', FAKE_UUID
-        fixture_object = {
-            'Body': io.BytesIO(b"*" * FIVE_KB),
-            'ContentLength': FIVE_KB
-        }
-        fake_s3_client = botocore.session.get_session().create_client('s3')
-
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_response(method='head_object',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': bucket,
-                                     'Key': key
-                                 })
-            stubber.add_response(method='get_object',
-                                 service_response=fixture_object,
-                                 expected_params={
-                                     'Bucket': bucket,
-                                     'Key': key
-                                 })
-            mock_client.return_value = fake_s3_client
-
-            loc = location.get_location_from_uri_and_backend(
-                "s3+https://user:key@auth_address/%s/%s" % (bucket, key),
-                's3_region1', conf=self.conf)
-            (image_s3, image_size) = self.store.get(loc)
-
-            self.assertEqual(FIVE_KB, image_size)
-
-            expected_data = b"*" * FIVE_KB
-            data = b""
-
-            for chunk in image_s3:
-                data += chunk
-            self.assertEqual(expected_data, data)
+    def test_get(self):
+        self._test_get()
 
     def test_partial_get(self):
-        loc = location.get_location_from_uri_and_backend(
-            "s3+https://user:key@auth_address/glance/%s" % FAKE_UUID,
-            's3_region1', conf=self.conf)
-        self.assertRaises(exceptions.StoreRandomGetNotSupported,
-                          self.store.get, loc, chunk_size=1)
+        self._test_partial_get()
 
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_get_non_existing(self, mock_client):
-        """Test that trying to retrieve a s3 that doesn't exist raises an
-        error
-        """
-        bucket, key = 'glance', 'no_exist'
-        fake_s3_client = botocore.session.get_session().create_client('s3')
+    def test_get_non_existing(self):
+        self._test_get_non_existing()
 
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='''
-                                     The specified key does not exist.
-                                     ''',
-                                     expected_params={
-                                         'Bucket': bucket,
-                                         'Key': key
-                                     })
-            mock_client.return_value = fake_s3_client
-
-            uri = "s3+https://user:key@auth_address/%s/%s" % (bucket, key)
-            loc = location.get_location_from_uri_and_backend(uri,
-                                                             's3_region1',
-                                                             conf=self.conf)
-            self.assertRaises(exceptions.NotFound, self.store.get, loc)
-
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_add_singlepart(self, mock_client):
+    def test_add_singlepart(self):
         """Test that we can add an image via the s3 backend."""
-        expected_image_id = str(uuid.uuid4())
-        # 5KiB is smaller than WRITE_CHUNKSIZE
-        expected_s3_size = FIVE_KB
-        expected_s3_contents = b"*" * expected_s3_size
-        expected_checksum = hashlib.md5(expected_s3_contents,
-                                        usedforsecurity=False).hexdigest()
-        expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
-        expected_location = format_s3_location(
-            S3_CONF['s3_store_access_key'],
-            S3_CONF['s3_store_secret_key'],
-            S3_CONF['s3_store_host'],
-            S3_CONF['s3_store_bucket'],
-            expected_image_id)
-        image_s3 = io.BytesIO(expected_s3_contents)
+        self._test_add_singlepart()
 
-        fake_s3_client = botocore.session.get_session().create_client('s3')
+    def test_add_singlepart_size_exceeding_max_size(self):
+        self._test_add_singlepart_size_exceeding_max_size()
 
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_response(method='head_bucket',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket']
-                                 })
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='',
-                                     expected_params={
-                                         'Bucket': S3_CONF['s3_store_bucket'],
-                                         'Key': expected_image_id
-                                     })
-            stubber.add_response(method='put_object',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket'],
-                                     'Key': expected_image_id,
-                                     'Body': botocore.stub.ANY
-                                 })
+    def test_add_singlepart_write_less_than_declared(self):
+        self._test_add_singlepart_write_less_than_declared()
 
-            mock_client.return_value = fake_s3_client
-            loc, size, checksum, multihash, metadata = \
-                self.store.add(expected_image_id, image_s3, expected_s3_size,
-                               self.hash_algo)
-            self.assertEqual("s3_region1", metadata["store"])
+    def test_add_singlepart_bigger_than_write_chunk(self):
+        self._test_add_singlepart_bigger_than_write_chunk()
 
-            self.assertEqual(expected_location, loc)
-            self.assertEqual(expected_s3_size, size)
-            self.assertEqual(expected_checksum, checksum)
-            self.assertEqual(expected_multihash, multihash)
+    def test_add_different_backend(self):
+        self._test_add_different_backend()
 
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_add_singlepart_size_exceeding_max_size(self, mock_client):
-        """Test size validation during add for singlepart upload."""
-        self.store.WRITE_CHUNKSIZE = 1024
-        expected_image_id = str(uuid.uuid4())
-        # Provide a smaller expected size than actual data to trigger
-        # size mismatch
-        expected_s3_size = FIVE_KB
-        # 5KB more than expected
-        actual_s3_contents = b"*" * (expected_s3_size * 2)
-        image_s3 = io.BytesIO(actual_s3_contents)
+    def test_add_with_verifier(self):
+        self._test_add_with_verifier()
 
-        fake_s3_client = botocore.session.get_session().create_client('s3')
+    def test_add_multipart(self):
+        self._test_add_multipart()
 
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_response(method='head_bucket',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket']
-                                 })
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='',
-                                     expected_params={
-                                         'Bucket': S3_CONF['s3_store_bucket'],
-                                         'Key': expected_image_id
-                                     })
-            stubber.add_response(method='put_object',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket'],
-                                     'Key': expected_image_id,
-                                     'Body': botocore.stub.ANY
-                                 })
+    def test_add_multipart_size_exceeding_max_size(self):
+        self._test_add_multipart_size_exceeding_max_size()
 
-            mock_client.return_value = fake_s3_client
+    def test_add_multipart_write_less_than_declared(self):
+        self._test_add_multipart_write_less_than_declared()
 
-            # Expect an exception due to size mismatch
-            self.assertRaisesRegex(exceptions.Invalid,
-                                   'Size exceeds: expected',
-                                   self.store.add,
-                                   expected_image_id, image_s3,
-                                   expected_s3_size, self.hash_algo)
+    def test_add_already_existing(self):
+        self._test_add_already_existing()
 
-            # Verify that the stream's position reflects the number of bytes
-            # read, which should be exactly at expected_file_size plus the
-            # last buffer size read.
-            actual_read_size = image_s3.tell()
-            expected_read = expected_s3_size + self.store.WRITE_CHUNKSIZE
-            self.assertEqual(actual_read_size, expected_read,
-                             "The stream was not read only up to the expected "
-                             "size.")
+    def test_delete_non_existing(self):
+        self._test_delete_non_existing()
 
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_add_singlepart_write_less_than_declared(self, mock_client):
-        """Test size validation during add for singlepart upload."""
-        expected_image_id = str(uuid.uuid4())
-        # Provide a smaller expected size than actual data to trigger
-        # size mismatch
-        expected_s3_size = FIVE_KB
-        # 100 bytes smaller than expected
-        actual_s3_contents = b"*" * (FIVE_KB - 100)
-        image_s3 = io.BytesIO(actual_s3_contents)
+    def test_no_access_key(self):
+        self._test_no_access_key()
 
-        fake_s3_client = botocore.session.get_session().create_client('s3')
+    def test_no_secret_key(self):
+        self._test_no_secret_key()
 
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_response(method='head_bucket',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket']
-                                 })
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='',
-                                     expected_params={
-                                         'Bucket': S3_CONF['s3_store_bucket'],
-                                         'Key': expected_image_id
-                                     })
-            stubber.add_response(method='head_bucket',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket']
-                                 })
-            # Add a second head_object call to match the code's behavior
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='',
-                                     expected_params={
-                                         'Bucket': S3_CONF['s3_store_bucket'],
-                                         'Key': expected_image_id
-                                     })
-            stubber.add_response(method='put_object',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket'],
-                                     'Key': expected_image_id,
-                                     'Body': botocore.stub.ANY
-                                 })
+    def test_no_host(self):
+        self._test_no_host()
 
-            mock_client.return_value = fake_s3_client
+    def test_no_bucket(self):
+        self._test_no_bucket()
 
-            # Expect an exception due to size mismatch
-            self.assertRaisesRegex(exceptions.Invalid,
-                                   'Size mismatch: expected',
-                                   self.store.add,
-                                   expected_image_id, image_s3,
-                                   expected_s3_size, self.hash_algo)
-            # The input buffer should be fully read
-            # depending on implementation
-            total_input_size = len(actual_s3_contents)
-            self.assertEqual(image_s3.tell(), total_input_size)
+    def test_get_s3_good_location(self):
+        self._test_get_s3_good_location()
 
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_add_singlepart_bigger_than_write_chunk(self, mock_client):
-        """Test that we can add an image via the s3 backend."""
-        expected_image_id = str(uuid.uuid4())
-        # 8 MiB is bigger than WRITE_CHUNKSIZE(=5MiB),
-        # but smaller than s3_store_large_object_size
-        expected_s3_size = 8 * units.Mi
-        expected_s3_contents = b"*" * expected_s3_size
-        expected_checksum = hashlib.md5(expected_s3_contents,
-                                        usedforsecurity=False).hexdigest()
-        expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
-        expected_location = format_s3_location(
-            S3_CONF['s3_store_access_key'],
-            S3_CONF['s3_store_secret_key'],
-            S3_CONF['s3_store_host'],
-            S3_CONF['s3_store_bucket'],
-            expected_image_id)
-        image_s3 = io.BytesIO(expected_s3_contents)
-
-        fake_s3_client = botocore.session.get_session().create_client('s3')
-
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_response(method='head_bucket',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket']
-                                 })
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='',
-                                     expected_params={
-                                         'Bucket': S3_CONF['s3_store_bucket'],
-                                         'Key': expected_image_id
-                                     })
-            stubber.add_response(method='put_object',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket'],
-                                     'Key': expected_image_id,
-                                     'Body': botocore.stub.ANY
-                                 })
-
-            mock_client.return_value = fake_s3_client
-            loc, size, checksum, multihash, metadata = \
-                self.store.add(expected_image_id, image_s3, expected_s3_size,
-                               self.hash_algo)
-            self.assertEqual("s3_region1", metadata["store"])
-
-            self.assertEqual(expected_location, loc)
-            self.assertEqual(expected_s3_size, size)
-            self.assertEqual(expected_checksum, checksum)
-            self.assertEqual(expected_multihash, multihash)
-
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_add_different_backend(self, mock_client):
-        self.store = s3.Store(self.conf, backend="s3_region2")
-        self.store.configure()
-        self.register_store_backend_schemes(self.store, 's3', 's3_region2')
-
-        expected_image_id = str(uuid.uuid4())
-        expected_s3_size = FIVE_KB
-        expected_s3_contents = b"*" * expected_s3_size
-        expected_checksum = hashlib.md5(expected_s3_contents,
-                                        usedforsecurity=False).hexdigest()
-        expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
-        expected_location = format_s3_location(
-            S3_CONF['s3_store_access_key'],
-            S3_CONF['s3_store_secret_key'],
-            'http://s3-region2.com',
-            S3_CONF['s3_store_bucket'],
-            expected_image_id)
-        image_s3 = io.BytesIO(expected_s3_contents)
-
-        fake_s3_client = botocore.session.get_session().create_client('s3')
-
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_response(method='head_bucket',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket']
-                                 })
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='',
-                                     expected_params={
-                                         'Bucket': S3_CONF['s3_store_bucket'],
-                                         'Key': expected_image_id
-                                     })
-            stubber.add_response(method='put_object',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket'],
-                                     'Key': expected_image_id,
-                                     'Body': botocore.stub.ANY
-                                 })
-
-            mock_client.return_value = fake_s3_client
-            loc, size, checksum, multihash, metadata = \
-                self.store.add(expected_image_id, image_s3, expected_s3_size,
-                               self.hash_algo)
-            self.assertEqual("s3_region2", metadata["store"])
-
-            self.assertEqual(expected_location, loc)
-            self.assertEqual(expected_s3_size, size)
-            self.assertEqual(expected_checksum, checksum)
-            self.assertEqual(expected_multihash, multihash)
-
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_add_with_verifier(self, mock_client):
-        """Assert 'verifier.update' is called when verifier is provided"""
-        expected_image_id = str(uuid.uuid4())
-        expected_s3_size = FIVE_KB
-        expected_s3_contents = b"*" * expected_s3_size
-        image_s3 = io.BytesIO(expected_s3_contents)
-
-        fake_s3_client = botocore.session.get_session().create_client('s3')
-        verifier = mock.MagicMock(name='mock_verifier')
-
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_response(method='head_bucket', service_response={})
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='')
-            stubber.add_response(method='put_object', service_response={})
-
-            mock_client.return_value = fake_s3_client
-            self.store.add(expected_image_id, image_s3, expected_s3_size,
-                           self.hash_algo, verifier=verifier)
-        verifier.update.assert_called_with(expected_s3_contents)
-
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_add_multipart(self, mock_client):
-        """Test that we can add an image via the s3 backend."""
-        expected_image_id = str(uuid.uuid4())
-        expected_s3_size = 16 * units.Mi
-        expected_s3_contents = b"*" * expected_s3_size
-        expected_checksum = hashlib.md5(expected_s3_contents,
-                                        usedforsecurity=False).hexdigest()
-        expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
-        expected_location = format_s3_location(
-            S3_CONF['s3_store_access_key'],
-            S3_CONF['s3_store_secret_key'],
-            S3_CONF['s3_store_host'],
-            S3_CONF['s3_store_bucket'],
-            expected_image_id)
-        image_s3 = io.BytesIO(expected_s3_contents)
-
-        fake_s3_client = botocore.session.get_session().create_client('s3')
-
-        num_parts = 3  # image size = 16MB and chunk size is 6MB
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_response(method='head_bucket',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket']
-                                 })
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='',
-                                     expected_params={
-                                         'Bucket': S3_CONF['s3_store_bucket'],
-                                         'Key': expected_image_id
-                                     })
-            stubber.add_response(method='create_multipart_upload',
-                                 service_response={
-                                     "Bucket": S3_CONF['s3_store_bucket'],
-                                     "Key": expected_image_id,
-                                     "UploadId": 'UploadId'
-                                 },
-                                 expected_params={
-                                     "Bucket": S3_CONF['s3_store_bucket'],
-                                     "Key": expected_image_id,
-                                 })
-            parts = []
-            remaining_image_size = expected_s3_size
-            chunk_size = S3_CONF['s3_store_large_object_chunk_size'] * units.Mi
-            for i in range(num_parts):
-                part_number = i + 1
-                stubber.add_response(method='upload_part',
-                                     service_response={
-                                         'ETag': 'ETag'
-                                     },
-                                     expected_params={
-                                         "Bucket": S3_CONF['s3_store_bucket'],
-                                         "Key": expected_image_id,
-                                         "Body": botocore.stub.ANY,
-                                         'ContentLength': chunk_size,
-                                         "PartNumber": part_number,
-                                         "UploadId": 'UploadId'
-                                     })
-                parts.append({'ETag': 'ETag', 'PartNumber': part_number})
-
-                remaining_image_size -= chunk_size
-                if remaining_image_size < chunk_size:
-                    chunk_size = remaining_image_size
-
-            stubber.add_response(method='complete_multipart_upload',
-                                 service_response={
-                                     "Bucket": S3_CONF['s3_store_bucket'],
-                                     "Key": expected_image_id,
-                                     'ETag': 'ETag'
-                                 },
-                                 expected_params={
-                                     "Bucket": S3_CONF['s3_store_bucket'],
-                                     "Key": expected_image_id,
-                                     "MultipartUpload": {
-                                         "Parts": parts
-                                     },
-                                     "UploadId": 'UploadId'
-                                 })
-
-            mock_client.return_value = fake_s3_client
-            loc, size, checksum, multihash, metadata = \
-                self.store.add(expected_image_id, image_s3, expected_s3_size,
-                               self.hash_algo)
-            self.assertEqual("s3_region1", metadata["store"])
-
-            self.assertEqual(expected_location, loc)
-            self.assertEqual(expected_s3_size, size)
-            self.assertEqual(expected_checksum, checksum)
-            self.assertEqual(expected_multihash, multihash)
-
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_add_multipart_size_exceeding_max_size(self, mock_client):
-        """Test size validation during multipart upload."""
-        expected_image_id = str(uuid.uuid4())
-        expected_s3_size = 15 * units.Mi
-        self.store.WRITE_CHUNKSIZE = 5 * units.Mi
-        # Actual data is larger than expected to trigger size validation
-        # failure, 5MB larger
-        total_size = expected_s3_size + self.store.WRITE_CHUNKSIZE
-        expected_s3_contents = b"*" * total_size
-        image_s3 = io.BytesIO(expected_s3_contents)
-
-        fake_s3_client = botocore.session.get_session().create_client('s3')
-        # Patch abort_multipart_upload on the client to a Mock
-        fake_s3_client.abort_multipart_upload = mock.Mock()
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_response(method='head_bucket',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket']
-                                 })
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='',
-                                     expected_params={
-                                         'Bucket': S3_CONF['s3_store_bucket'],
-                                         'Key': expected_image_id
-                                     })
-            stubber.add_response(method='create_multipart_upload',
-                                 service_response={
-                                     "Bucket": S3_CONF['s3_store_bucket'],
-                                     "Key": expected_image_id,
-                                     "UploadId": 'UploadId'
-                                 },
-                                 expected_params={
-                                     "Bucket": S3_CONF['s3_store_bucket'],
-                                     "Key": expected_image_id,
-                                 })
-            stubber.add_response(method='abort_multipart_upload',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket'],
-                                     'Key': expected_image_id,
-                                     'UploadId': 'UploadId'
-                                 })
-
-            mock_client.return_value = fake_s3_client
-            # Expect an exception due to size mismatch
-            self.assertRaisesRegex(
-                exceptions.Invalid, "Size exceeds: expected",
-                self.store.add, expected_image_id, image_s3,
-                expected_s3_size, self.hash_algo)
-
-            # Verify that the stream's position reflects the number of bytes
-            # read, which should be exactly at expected_file_size plus the
-            # last buffer size read.
-            actual_read_size = image_s3.tell()
-            self.assertEqual(actual_read_size, total_size,
-                             "The stream was not read only up to the expected "
-                             "size.")
-
-            # Assert that abort_multipart_upload was called
-            fake_s3_client.abort_multipart_upload.assert_called_once_with(
-                Bucket=S3_CONF['s3_store_bucket'],
-                Key=expected_image_id,
-                UploadId='UploadId'
-            )
-
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_add_multipart_write_less_than_declared(self, mock_client):
-        """Test size validation during multipart upload."""
-        expected_image_id = str(uuid.uuid4())
-        expected_s3_size = 16 * units.Mi
-        # Actual data is less than expected to trigger size validation
-        # failure, 1MB less
-        expected_s3_contents = b"*" * (expected_s3_size - 1 * units.Mi)
-        image_s3 = io.BytesIO(expected_s3_contents)
-
-        fake_s3_client = botocore.session.get_session().create_client('s3')
-        # Patch abort_multipart_upload on the client to a Mock
-        fake_s3_client.abort_multipart_upload = mock.Mock()
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_response(method='head_bucket',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket']
-                                 })
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='',
-                                     expected_params={
-                                         'Bucket': S3_CONF['s3_store_bucket'],
-                                         'Key': expected_image_id
-                                     })
-            stubber.add_response(method='create_multipart_upload',
-                                 service_response={
-                                     "Bucket": S3_CONF['s3_store_bucket'],
-                                     "Key": expected_image_id,
-                                     "UploadId": 'UploadId'
-                                 },
-                                 expected_params={
-                                     "Bucket": S3_CONF['s3_store_bucket'],
-                                     "Key": expected_image_id,
-                                 })
-            stubber.add_response(method='abort_multipart_upload',
-                                 service_response={},
-                                 expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket'],
-                                     'Key': expected_image_id,
-                                     'UploadId': 'UploadId'
-                                 })
-
-            mock_client.return_value = fake_s3_client
-            # Expect an exception due to size mismatch
-            self.assertRaisesRegex(exceptions.Invalid,
-                                   'Size mismatch: expected',
-                                   self.store.add,
-                                   expected_image_id, image_s3,
-                                   expected_s3_size, self.hash_algo)
-
-            # The input buffer should be fully read depending on implementation
-            total_input_size = len(expected_s3_contents)
-            self.assertEqual(image_s3.tell(), total_input_size)
-
-            # Assert that abort_multipart_upload was called
-            fake_s3_client.abort_multipart_upload.assert_called_once_with(
-                Bucket=S3_CONF['s3_store_bucket'],
-                Key=expected_image_id,
-                UploadId='UploadId'
-            )
-
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_add_multipart_zero_byte_image(self, mock_client):
+    def test_add_multipart_zero_byte_image(self):
         """Bug #2124829: add a zero-byte image using multipart upload."""
         expected_image_id = str(uuid.uuid4())
         expected_s3_size = 0
@@ -766,15 +182,17 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
         expected_checksum = hashlib.md5(expected_s3_contents,
                                         usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
-        expected_location = format_s3_location(
-            S3_CONF['s3_store_access_key'],
-            S3_CONF['s3_store_secret_key'],
-            S3_CONF['s3_store_host'],
-            S3_CONF['s3_store_bucket'],
+        backend_conf = getattr(self.conf, self.backend)
+
+        expected_location = test_s3_store_base.format_s3_location(
+            backend_conf.s3_store_access_key,
+            backend_conf.s3_store_secret_key,
+            backend_conf.s3_store_host,
+            backend_conf.s3_store_bucket,
             expected_image_id)
         image_s3 = io.BytesIO(expected_s3_contents)
 
-        self.config(group='s3_region1', s3_store_large_object_size=0)
+        self.config(group=self.backend, s3_store_large_object_size=0)
         self.store.configure()
         fake_s3_client = botocore.session.get_session().create_client('s3')
 
@@ -782,91 +200,55 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
             stubber.add_response(method='head_bucket',
                                  service_response={},
                                  expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket']
+                                     'Bucket': backend_conf.s3_store_bucket
                                  })
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='',
-                                     expected_params={
-                                         'Bucket': S3_CONF['s3_store_bucket'],
-                                         'Key': expected_image_id
-                                     })
+            stubber.add_client_error(
+                method='head_object', service_error_code='404',
+                service_message='',
+                expected_params={
+                    'Bucket': backend_conf.s3_store_bucket,
+                    'Key': expected_image_id})
             stubber.add_response(method='create_multipart_upload',
                                  service_response={
-                                     "Bucket": S3_CONF['s3_store_bucket'],
+                                     "Bucket": backend_conf.s3_store_bucket,
                                      "Key": expected_image_id,
                                      "UploadId": 'UploadId'
                                  },
                                  expected_params={
-                                     "Bucket": S3_CONF['s3_store_bucket'],
+                                     "Bucket": backend_conf.s3_store_bucket,
                                      "Key": expected_image_id,
                                  })
 
             stubber.add_response(method='abort_multipart_upload',
                                  service_response={},
                                  expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket'],
+                                     'Bucket': backend_conf.s3_store_bucket,
                                      'Key': expected_image_id,
                                      'UploadId': 'UploadId'
                                  })
             stubber.add_response(method='put_object',
                                  service_response={},
                                  expected_params={
-                                     'Bucket': S3_CONF['s3_store_bucket'],
+                                     'Bucket': backend_conf.s3_store_bucket,
                                      'Key': expected_image_id,
                                      'Body': b''
                                  })
 
-            mock_client.return_value = fake_s3_client
-            loc, size, checksum, multihash, metadata = \
-                self.store.add(expected_image_id, image_s3, expected_s3_size,
-                               self.hash_algo)
+            with mock.patch.object(
+                    boto3.session.Session, "client") as mock_client:
+                mock_client.return_value = fake_s3_client
 
-            stubber.assert_no_pending_responses()
-            self.assertEqual("s3_region1", metadata["store"])
-            self.assertEqual(expected_location, loc)
-            self.assertEqual(expected_s3_size, size)
-            self.assertEqual(expected_checksum, checksum)
-            self.assertEqual(expected_multihash, multihash)
+                loc, size, checksum, multihash, metadata = \
+                    self.store.add(expected_image_id, image_s3,
+                                   expected_s3_size,
+                                   self.hash_algo)
 
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_add_already_existing(self, mock_client):
-        """Tests that adding an image with an existing identifier raises an
-        appropriate exception
-        """
-        image_s3 = io.BytesIO(b"never_gonna_make_it")
+                stubber.assert_no_pending_responses()
+                self.assertEqual(self.backend, metadata["store"])
+                self.assertEqual(expected_location, loc)
+                self.assertEqual(expected_s3_size, size)
+                self.assertEqual(expected_checksum, checksum)
+                self.assertEqual(expected_multihash, multihash)
 
-        fake_s3_client = botocore.session.get_session().create_client('s3')
-
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_response(method='head_bucket', service_response={})
-            stubber.add_response(method='head_object', service_response={})
-            mock_client.return_value = fake_s3_client
-            self.assertRaises(exceptions.Duplicate, self.store.add,
-                              FAKE_UUID, image_s3, 0, self.hash_algo)
-
-    @mock.patch.object(boto3.session.Session, "client")
-    def test_delete_non_existing(self, mock_client):
-        """Test that trying to delete a s3 that doesn't exist raises an error
-        """
-        bucket, key = 'glance', 'no_exist'
-        fake_s3_client = botocore.session.get_session().create_client('s3')
-
-        with stub.Stubber(fake_s3_client) as stubber:
-            stubber.add_client_error(method='head_object',
-                                     service_error_code='404',
-                                     service_message='''
-                                     The specified key does not exist.
-                                     ''',
-                                     expected_params={
-                                         'Bucket': bucket,
-                                         'Key': key
-                                     })
-            fake_s3_client.head_bucket = mock.MagicMock()
-            mock_client.return_value = fake_s3_client
-
-            uri = "s3+https://user:key@auth_address/%s/%s" % (bucket, key)
-            loc = location.get_location_from_uri_and_backend(uri,
-                                                             's3_region1',
-                                                             conf=self.conf)
-            self.assertRaises(exceptions.NotFound, self.store.delete, loc)
+    def test_get_my_object_storage_location(self):
+        self._test_get_my_object_storage_location()
