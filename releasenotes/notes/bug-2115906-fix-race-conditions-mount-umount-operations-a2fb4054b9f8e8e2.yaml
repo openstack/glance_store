@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    `Bug #2115906 <https://bugs.launchpad.net/glance/+bug/2115906>`_:
+    Fixed race condition causing mount/umount operations to fail in
+    multi-worker Glance deployment with uWSGI.
