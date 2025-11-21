@@ -141,6 +141,16 @@
     required-projects:
       - openstack/glance
       - openstack/glance_store
+    irrelevant-files:
+      - ^LICENSE$
+      - ^.*\.rst$
+      - ^test-requirements.txt$
+      - ^glance_store/locale/.*$
+      - ^glance_store/tests/.*$
+      - ^doc/.*$
+      - ^releasenotes/.*$
+      - ^tools/.*$
+      - ^tox.ini/.*$
 
 - project:
     templates:
