@@ -430,7 +430,8 @@ class StoreLocation(glance_store.location.StoreLocation):
 class Store(glance_store.driver.Store):
     """An implementation of the s3 adapter."""
 
-    _CAPABILITIES = capabilities.BitMasks.RW_ACCESS
+    _CAPABILITIES = (capabilities.BitMasks.RW_ACCESS |
+                     capabilities.BitMasks.READ_RANDOM)
     OPTIONS = _S3_OPTS
     EXAMPLE_URL = "s3://<S3_URL>/<BUCKET>/<OBJ>"
 
@@ -613,6 +614,22 @@ class Store(glance_store.driver.Store):
         """
         return self._create_s3_client(), loc.bucket, loc.key
 
+    @staticmethod
+    def _get_range_header(offset, chunk_size):
+        """Create a http range header for partial content requests based on
+        the given offset and chunk size (RFC 9110).
+        https://www.rfc-editor.org/rfc/rfc9110.html#name-range-requests
+
+        :param offset: Starting byte position
+        :param chunk_size: Number of bytes to read (None for read to end)
+        :returns: Range header string (e.g. 'bytes=0-1023' or 'bytes=1024-')
+                  or None if full read
+        """
+        if chunk_size is None:
+            return None if offset == 0 else f'bytes={offset}-'
+
+        return f'bytes={offset}-{offset + chunk_size - 1}'
+
     @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
         """
@@ -623,6 +640,7 @@ class Store(glance_store.driver.Store):
         :param location: `glance_store.location.Location` object, supplied
                          from glance_store.location.get_location_from_uri()
         :raises: `glance_store.exceptions.NotFound` if image does not exist
+        :raises: `glance_store.exceptions.Invalid` if range request is invalid
         """
         loc = location.store_location
         s3_client, bucket, key = self._operation_set(loc)
@@ -632,7 +650,22 @@ class Store(glance_store.driver.Store):
                         "bucket %(bucket)s", {'key': key, 'bucket': bucket})
             raise exceptions.NotFound(image=key)
 
-        key = s3_client.get_object(Bucket=bucket, Key=key)
+        get_kwargs = {'Bucket': bucket, 'Key': key}
+        range_header = self._get_range_header(offset, chunk_size)
+        if range_header:
+            get_kwargs['Range'] = range_header
+
+        try:
+            resp = s3_client.get_object(**get_kwargs)
+        except boto_exceptions.ClientError as e:
+            status_code = e.response.get('ResponseMetadata',
+                                         {}).get('HTTPStatusCode')
+            error_code = e.response.get('Error', {}).get('Code')
+            if range_header and (error_code == 'InvalidRange' or
+                                 status_code == 416):
+                raise exceptions.Invalid(
+                    _("The requested range is not satisfiable."))
+            raise
 
         LOG.debug("Retrieved image object from S3 using s3_host=%(s3_host)s, "
                   "bucket=%(bucket)s key=%(key)s)",
@@ -647,8 +680,9 @@ class Store(glance_store.driver.Store):
                 except StopIteration:
                     return b''
 
-        return (ResponseIndexable(utils.chunkiter(key['Body'], cs),
-                                  key['ContentLength']), key['ContentLength'])
+        return (ResponseIndexable(utils.chunkiter(resp['Body'], cs),
+                                  resp['ContentLength']),
+                resp['ContentLength'])
 
     def get_size(self, location, context=None):
         """

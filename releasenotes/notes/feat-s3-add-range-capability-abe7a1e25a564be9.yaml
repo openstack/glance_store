@@ -1,0 +1,12 @@
+---
+features:
+  - |
+    This release introduces the range request capability for the S3 store
+    driver. This allows users to download specific byte ranges of an image.
+    It can also improve overall download speeds significantly when a client
+    uses multiple streams in parallel to fetch an image, especially when the
+    S3 backend has limited single-stream performance. Note that ranged
+    downloads bypass the Glance image cache and will neither populate nor
+    be served from it. For more details, see the unified spec at
+    https://review.opendev.org/c/openstack/glance-specs/+/1010854 .
+

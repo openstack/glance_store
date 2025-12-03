@@ -134,6 +134,15 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
     def test_partial_get(self):
         self._test_partial_get()
 
+    def test_get_out_of_range(self):
+        self._test_get_out_of_range()
+
+    def test_get_out_of_range_status_code_416(self):
+        self._test_get_out_of_range_status_code_416()
+
+    def test_get_full_object_416(self):
+        self._test_get_full_object_416()
+
     def test_get_non_existing(self):
         self._test_get_non_existing()
 
