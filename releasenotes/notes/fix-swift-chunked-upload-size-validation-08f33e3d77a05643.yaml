@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    `Bug #2136857 <https://bugs.launchpad.net/glance-store/+bug/2136857>`_:
+    Swift: Fixed chunked upload size validation timing. Size-exceeds is now
+    detected in the same iteration, and early EOF is reported immediately
+    instead of causing long timeouts.
