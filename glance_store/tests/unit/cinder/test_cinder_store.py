@@ -139,3 +139,63 @@ class TestCinderStore(base.StoreBaseTest,
 
     def test_get_cinderclient_cinder_endpoint_template(self):
         self._test_get_cinderclient_cinder_endpoint_template()
+
+    def test_get_cinderclient_with_application_credential(self):
+        self._test_get_cinderclient_with_application_credential()
+
+    def test_get_cinderclient_with_application_credential_fallback(self):
+        self._test_get_cinderclient_with_application_credential_fallback()
+
+    def test_is_user_overriden_with_application_credential(self):
+        self.config(
+            cinder_store_application_credential_id='test_ac_id')
+        self.config(
+            cinder_store_application_credential_secret='test_ac_secret')
+        self.config(cinder_store_auth_address='test_address')
+        self.assertTrue(self.store.is_user_overriden())
+
+    def test_is_user_overriden_with_partial_application_credential(self):
+        self.config(cinder_store_application_credential_id='test_ac_id')
+        self.config(cinder_store_auth_address='test_address')
+        self.assertFalse(self.store.is_user_overriden())
+
+    def test_get_cinder_session_with_application_credential(self):
+        cinder._reset_cinder_session()
+        self.config(
+            cinder_store_application_credential_id='test_ac_id')
+        self.config(
+            cinder_store_application_credential_secret='test_ac_secret')
+        self.config(cinder_store_auth_address='test_address')
+        with mock.patch.object(
+            cinder.ksa_session, 'Session') as fake_session, \
+            mock.patch.object(
+                cinder.ksa_identity,
+                'V3ApplicationCredential') as fake_ac_method:
+            fake_auth = mock.MagicMock()
+            fake_ac_method.return_value = fake_auth
+            cinder.get_cinder_session(self.store.store_conf)
+            fake_ac_method.assert_called_once_with(
+                application_credential_id='test_ac_id',
+                application_credential_secret='test_ac_secret',
+                auth_url='test_address')
+            fake_session.assert_called_once_with(auth=fake_auth, verify=True)
+
+    def test_get_cinder_session_fallback_to_password(self):
+        cinder._reset_cinder_session()
+        self.config(cinder_store_user_name='test_user')
+        self.config(cinder_store_password='test_password')
+        self.config(cinder_store_project_name='test_project')
+        self.config(cinder_store_auth_address='test_address')
+        with mock.patch.object(
+            cinder.ksa_session, 'Session') as fake_session, \
+            mock.patch.object(
+                cinder.ksa_identity, 'V3Password') as fake_password_method, \
+            mock.patch.object(
+                cinder.ksa_identity,
+                'V3ApplicationCredential') as fake_ac_method:
+            fake_auth = mock.MagicMock()
+            fake_password_method.return_value = fake_auth
+            cinder.get_cinder_session(self.store.store_conf)
+            fake_ac_method.assert_not_called()
+            fake_password_method.assert_called_once()
+            fake_session.assert_called_once_with(auth=fake_auth, verify=True)

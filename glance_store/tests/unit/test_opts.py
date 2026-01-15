@@ -79,6 +79,8 @@ class OptsTestCase(base.StoreBaseTest):
             'cinder_store_user_name',
             'cinder_store_user_domain_name',
             'cinder_store_password',
+            'cinder_store_application_credential_id',
+            'cinder_store_application_credential_secret',
             'cinder_store_project_name',
             'cinder_store_project_domain_name',
             'cinder_volume_type',

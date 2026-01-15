@@ -285,6 +285,55 @@ Related options:
     * cinder_store_project_name
     * cinder_store_project_domain_name
     * cinder_store_user_domain_name
+    * cinder_store_application_credential_id
+    * cinder_store_application_credential_secret
+
+"""),
+    cfg.StrOpt('cinder_store_application_credential_id',
+               default=None,
+               help="""
+Application credential ID for authenticating against cinder.
+
+When this option is set along with
+``cinder_store_application_credential_secret``,
+the Cinder backend will use application credential authentication instead of
+password authentication. This enables Zero Downtime Password Rotation (ZDPR)
+support for Glance deployments using Cinder as the image backend.
+
+If both application credential options are set, they take precedence over
+password authentication. If either option is not set, the driver falls back
+to password authentication using ``cinder_store_password``.
+
+Possible values:
+    * A valid application credential ID
+
+Related options:
+    * cinder_store_auth_address
+    * cinder_store_user_name
+    * cinder_store_application_credential_secret
+    * cinder_store_project_name
+    * cinder_store_project_domain_name
+    * cinder_store_user_domain_name
+
+"""),
+    cfg.StrOpt('cinder_store_application_credential_secret', secret=True,
+               help="""
+Application credential secret for authenticating against cinder.
+
+This must be used together with ``cinder_store_application_credential_id``.
+When both options are set, the Cinder backend will use application credential
+authentication instead of password authentication.
+
+Possible values:
+    * A valid application credential secret
+
+Related options:
+    * cinder_store_auth_address
+    * cinder_store_user_name
+    * cinder_store_application_credential_id
+    * cinder_store_project_name
+    * cinder_store_project_domain_name
+    * cinder_store_user_domain_name
 
 """),
     cfg.StrOpt('cinder_store_project_name',
@@ -431,14 +480,27 @@ def _reset_cinder_session():
 def get_cinder_session(conf):
     global CINDER_SESSION
     if not CINDER_SESSION:
-        auth = ksa_identity.V3Password(
-            password=conf.cinder_store_password,
-            username=conf.cinder_store_user_name,
-            user_domain_name=conf.cinder_store_user_domain_name,
-            project_name=conf.cinder_store_project_name,
-            project_domain_name=conf.cinder_store_project_domain_name,
-            auth_url=conf.cinder_store_auth_address
-        )
+        ac_id = getattr(conf,
+                        'cinder_store_application_credential_id', None)
+        ac_secret = getattr(conf,
+                            'cinder_store_application_credential_secret',
+                            None)
+
+        if ac_id and ac_secret:
+            auth = ksa_identity.V3ApplicationCredential(
+                application_credential_id=ac_id,
+                application_credential_secret=ac_secret,
+                auth_url=conf.cinder_store_auth_address
+            )
+        else:
+            auth = ksa_identity.V3Password(
+                password=conf.cinder_store_password,
+                username=conf.cinder_store_user_name,
+                user_domain_name=conf.cinder_store_user_domain_name,
+                project_name=conf.cinder_store_project_name,
+                project_domain_name=conf.cinder_store_project_domain_name,
+                auth_url=conf.cinder_store_auth_address
+            )
         if conf.cinder_api_insecure:
             verify = False
         elif conf.cinder_ca_certificates_file:
@@ -603,6 +665,16 @@ class Store(glance_store.driver.Store):
         return 'sudo glance-rootwrap %s' % rootwrap
 
     def is_user_overriden(self):
+        ac_id = getattr(self.store_conf,
+                        'cinder_store_application_credential_id', None)
+        ac_secret = getattr(self.store_conf,
+                            'cinder_store_application_credential_secret',
+                            None)
+        if ac_id and ac_secret:
+            return all([self.store_conf.get('cinder_store_' + key)
+                        for key in ['application_credential_id',
+                                    'application_credential_secret',
+                                    'auth_address']])
         return all([self.store_conf.get('cinder_store_' + key)
                     for key in ['user_name', 'password',
                                 'project_name', 'auth_address']])

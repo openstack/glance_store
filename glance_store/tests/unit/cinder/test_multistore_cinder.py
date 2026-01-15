@@ -281,3 +281,66 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
     def test_get_cinderclient_cinder_endpoint_template(self):
         self._test_get_cinderclient_cinder_endpoint_template(
             group='cinder1')
+
+    def test_get_cinderclient_with_application_credential(self):
+        self._test_get_cinderclient_with_application_credential(
+            group='cinder1')
+
+    def test_application_credential_from_backend_defaults(self):
+        cinder._reset_cinder_session()
+        self.config(
+            cinder_store_application_credential_id='default_ac_id',
+            group='backend_defaults')
+        self.config(
+            cinder_store_application_credential_secret='default_ac_secret',
+            group='backend_defaults')
+        self.config(
+            cinder_store_auth_address='default_auth_address',
+            group='backend_defaults')
+        with mock.patch.object(
+            cinder.ksa_session, 'Session') as fake_session, \
+            mock.patch.object(
+                cinder.ksa_identity,
+                'V3ApplicationCredential') as fake_ac_method:
+            fake_auth = mock.MagicMock()
+            fake_ac_method.return_value = fake_auth
+            cinder.get_cinder_session(self.store.store_conf)
+            fake_ac_method.assert_called_once_with(
+                application_credential_id='default_ac_id',
+                application_credential_secret='default_ac_secret',
+                auth_url='default_auth_address')
+            fake_session.assert_called_once_with(auth=fake_auth, verify=True)
+
+    def test_application_credential_backend_overrides_defaults(self):
+        cinder._reset_cinder_session()
+        self.config(
+            cinder_store_application_credential_id='default_ac_id',
+            group='backend_defaults')
+        self.config(
+            cinder_store_application_credential_secret='default_ac_secret',
+            group='backend_defaults')
+        self.config(
+            cinder_store_auth_address='default_auth_address',
+            group='backend_defaults')
+        self.config(
+            cinder_store_application_credential_id='cinder1_ac_id',
+            group='cinder1')
+        self.config(
+            cinder_store_application_credential_secret='cinder1_ac_secret',
+            group='cinder1')
+        self.config(
+            cinder_store_auth_address='cinder1_auth_address',
+            group='cinder1')
+        with mock.patch.object(
+            cinder.ksa_session, 'Session') as fake_session, \
+            mock.patch.object(
+                cinder.ksa_identity,
+                'V3ApplicationCredential') as fake_ac_method:
+            fake_auth = mock.MagicMock()
+            fake_ac_method.return_value = fake_auth
+            cinder.get_cinder_session(self.store.store_conf)
+            fake_ac_method.assert_called_once_with(
+                application_credential_id='cinder1_ac_id',
+                application_credential_secret='cinder1_ac_secret',
+                auth_url='cinder1_auth_address')
+            fake_session.assert_called_once_with(auth=fake_auth, verify=True)
