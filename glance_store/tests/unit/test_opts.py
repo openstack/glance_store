@@ -118,6 +118,8 @@ class OptsTestCase(base.StoreBaseTest):
             'swift_store_expire_soon_interval',
             'swift_store_admin_tenants',
             'swift_store_auth_address',
+            'swift_store_application_credential_id',
+            'swift_store_application_credential_secret',
             'swift_store_cacert',
             'swift_store_auth_insecure',
             'swift_store_auth_version',

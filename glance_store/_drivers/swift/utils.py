@@ -73,6 +73,54 @@ The option 'user' in the Swift back-end configuration file is set instead.
 The option 'key' in the Swift back-end configuration file is used
 to set the authentication key instead.
 """),
+    cfg.StrOpt('swift_store_application_credential_id', secret=True,
+               help="""
+Application credential ID for authenticating against Swift.
+
+This option specifies the application credential ID to use for
+authenticating with the Swift backend. When set along with
+swift_store_application_credential_secret, the Swift driver will
+use V3ApplicationCredential authentication instead of password
+authentication.
+
+This enables Zero Downtime Password Rotation (ZDPR) support for
+Swift backend operations, as application credentials are not
+affected by password rotation.
+
+If not set, the driver falls back to password authentication
+using swift_store_user and swift_store_key.
+
+Possible values:
+    * A valid application credential ID string
+
+Related options:
+    * swift_store_application_credential_secret
+
+"""),
+    cfg.StrOpt('swift_store_application_credential_secret', secret=True,
+               help="""
+Application credential secret for authenticating against Swift.
+
+This option specifies the application credential secret to use
+for authenticating with the Swift backend. When set along with
+swift_store_application_credential_id, the Swift driver will
+use V3ApplicationCredential authentication instead of password
+authentication.
+
+This enables Zero Downtime Password Rotation (ZDPR) support for
+Swift backend operations, as application credentials are not
+affected by password rotation.
+
+If not set, the driver falls back to password authentication
+using swift_store_user and swift_store_key.
+
+Possible values:
+    * A valid application credential secret string
+
+Related options:
+    * swift_store_application_credential_id
+
+"""),
     cfg.StrOpt('swift_store_config_file',
                default=None,
                help="""
@@ -150,6 +198,30 @@ class SwiftParams(object):
         else:
             glance_store = self.conf.glance_store
         if (
+                getattr(glance_store,
+                        'swift_store_application_credential_id',
+                        None) and
+                getattr(glance_store,
+                        'swift_store_application_credential_secret',
+                        None) and
+                glance_store.swift_store_auth_address
+        ):
+            default['application_credential_id'] = (
+                glance_store.swift_store_application_credential_id)
+            default['application_credential_secret'] = (
+                glance_store.swift_store_application_credential_secret)
+            default['auth_address'] = glance_store.swift_store_auth_address
+            default['project_domain_id'] = 'default'
+            default['project_domain_name'] = None
+            default['user_domain_id'] = 'default'
+            default['user_domain_name'] = None
+            default['auth_version'] = glance_store.swift_store_auth_version
+            if hasattr(glance_store, 'swift_store_project_name'):
+                default['project_name'] = glance_store.swift_store_project_name
+            if hasattr(glance_store, 'swift_store_project_id'):
+                default['project_id'] = glance_store.swift_store_project_id
+            return {glance_store.default_swift_reference: default}
+        elif (
                 glance_store.swift_store_user and
                 glance_store.swift_store_key and
                 glance_store.swift_store_auth_address
@@ -189,8 +261,21 @@ class SwiftParams(object):
         for ref in account_references:
             reference = {}
             try:
-                for param in ('auth_address', 'user', 'key'):
-                    reference[param] = CONFIG.get(ref, param)
+                try:
+                    reference['application_credential_id'] = CONFIG.get(
+                        ref, 'application_credential_id')
+                    reference['application_credential_secret'] = CONFIG.get(
+                        ref, 'application_credential_secret')
+                    reference['auth_address'] = CONFIG.get(ref, 'auth_address')
+                    reference['project_name'] = CONFIG.get(
+                        ref, 'project_name', fallback=None)
+                    reference['project_id'] = CONFIG.get(
+                        ref, 'project_id', fallback=None)
+                except configparser.NoOptionError:
+                    reference['application_credential_id'] = None
+                    reference['application_credential_secret'] = None
+                    for param in ('auth_address', 'user', 'key'):
+                        reference[param] = CONFIG.get(ref, param)
 
                 reference['project_domain_name'] = CONFIG.get(
                     ref, 'project_domain_name', fallback=None)

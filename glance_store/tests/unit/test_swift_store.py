@@ -1531,6 +1531,104 @@ class TestStoreAuthV3(base.StoreBaseTest, SwiftTests,
         self.mock_client.Client.assert_called_once_with(
             session=self.mock_session.Session())
 
+    @mock.patch("glance_store._drivers.swift.store.ks_identity")
+    @mock.patch("glance_store._drivers.swift.store.ks_session")
+    @mock.patch("glance_store._drivers.swift.store.ks_client")
+    def test_init_client_single_tenant_with_application_credentials(
+            self, mock_client, mock_session, mock_identity):
+        """Test keystone client initialized correctly with app creds"""
+        # initialize client
+        conf = self.getConfig()
+        conf['default_swift_reference'] = 'ref6'
+        self.config(**conf)
+        store = Store(self.conf)
+        store.configure()
+        uri = "swift+config://ref6/glance/%s" % FAKE_UUID
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        ctxt = mock.MagicMock()
+        store.init_client(location=loc.store_location, context=ctxt)
+        mock_identity.V3ApplicationCredential.assert_called_once_with(
+            auth_url=loc.store_location.swift_url + '/',
+            application_credential_id='app-cred-id-123',
+            application_credential_secret='app-cred-secret-456',
+            project_domain_id='default', project_domain_name=None,
+            user_domain_id='default', user_domain_name=None,)
+        mock_session.Session.assert_called_once_with(
+            auth=mock_identity.V3ApplicationCredential(), verify=True)
+        mock_client.Client.assert_called_once_with(
+            session=mock_session.Session())
+
+    @mock.patch("glance_store._drivers.swift.store.ks_identity")
+    @mock.patch("glance_store._drivers.swift.store.ks_session")
+    @mock.patch("glance_store._drivers.swift.store.ks_client")
+    def test_init_client_single_tenant_app_creds_with_domains(
+            self, mock_client, mock_session, mock_identity):
+        """Test keystone client init with app creds and domain IDs"""
+        # initialize client
+        conf = self.getConfig()
+        conf['default_swift_reference'] = 'ref7'
+        self.config(**conf)
+        store = Store(self.conf)
+        store.configure()
+        uri = "swift+config://ref7/glance/%s" % FAKE_UUID
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        ctxt = mock.MagicMock()
+        store.init_client(location=loc.store_location, context=ctxt)
+        mock_identity.V3ApplicationCredential.assert_called_once_with(
+            auth_url=loc.store_location.swift_url + '/',
+            application_credential_id='app-cred-id-789',
+            application_credential_secret='app-cred-secret-012',
+            project_domain_id='projdomainid', project_domain_name=None,
+            user_domain_id='userdomainid', user_domain_name=None,)
+        mock_session.Session.assert_called_once_with(
+            auth=mock_identity.V3ApplicationCredential(), verify=True)
+        mock_client.Client.assert_called_once_with(
+            session=mock_session.Session())
+
+    def test_get_connection_with_application_credentials(self):
+        """Test get_connection with application credentials"""
+        conf = self.getConfig()
+        conf['default_swift_reference'] = 'ref6'
+        self.config(**conf)
+        store = Store(self.conf)
+        store.configure()
+        uri = "swift+config://ref6/glance/%s" % FAKE_UUID
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        conn = store.get_connection(location=loc.store_location)
+        # Verify connection was created with application credentials
+        self.assertIsNotNone(conn)
+        self.assertEqual(conn.os_options.get('application_credential_id'),
+                         'app-cred-id-123')
+        self.assertEqual(conn.os_options.get('application_credential_secret'),
+                         'app-cred-secret-456')
+        # Should not have user/key when using application credentials
+        self.assertIsNone(conn.user)
+        self.assertIsNone(conn.key)
+
+    def test_partial_application_credential_id_only(self):
+        """Test that BadStoreUri is raised when only app_cred_id is provided"""
+        conf = self.getConfig()
+        conf['default_swift_reference'] = 'ref8'
+        self.config(**conf)
+        store = Store(self.conf)
+        store.configure()
+        uri = "swift+config://ref8/glance/%s" % FAKE_UUID
+        self.assertRaises(exceptions.BadStoreUri,
+                          location.get_location_from_uri, uri, conf=self.conf)
+
+    def test_partial_application_credential_secret_only(self):
+        """Test that BadStoreUri is raised when only app_cred_secret is
+        provided
+        """
+        conf = self.getConfig()
+        conf['default_swift_reference'] = 'ref9'
+        self.config(**conf)
+        store = Store(self.conf)
+        store.configure()
+        uri = "swift+config://ref9/glance/%s" % FAKE_UUID
+        self.assertRaises(exceptions.BadStoreUri,
+                          location.get_location_from_uri, uri, conf=self.conf)
+
 
 class FakeConnection(object):
     def __init__(self, authurl=None, user=None, key=None, retries=5,
