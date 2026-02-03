@@ -1329,6 +1329,67 @@ class SwiftTests(object):
                               swift_store_auth_insecure=True,
                               swift_store_config_file=None)
 
+    def test_init_client_multi_tenant_with_password(self):
+        """Test keystone client initialized with password in multi-tenant"""
+        # In multi-tenant mode with password authentication
+        with mock.patch.object(swift.MultiTenantStore, '_set_url_prefix'):
+            self.config(
+                group="swift1",
+                swift_store_multi_tenant=True,
+                swift_store_config_file=None,
+                swift_store_user='service:glance-swift',
+                swift_store_key='admin',
+                swift_store_container='glance',
+                swift_store_auth_address='https://example.com',
+                swift_store_auth_version='3')
+            store = Store(self.conf, backend="swift1")
+            store.configure()
+            # prepare client and session
+            trustee_session = mock.MagicMock()
+            trustor_session = mock.MagicMock()
+            main_session = mock.MagicMock()
+            trustee_client = mock.MagicMock()
+            trustee_client.session.get_user_id.return_value = 'fake_user'
+            trustor_client = mock.MagicMock()
+            auth_ref = {'roles': [{'name': 'fake_role'}]}
+            trustor_client.session.auth.get_auth_ref.return_value = auth_ref
+            trustor_client.trusts.create.return_value = mock.MagicMock(
+                id='fake_trust')
+            main_client = mock.MagicMock()
+            self.mock_session.Session.side_effect = [
+                trustor_session, trustee_session, main_session]
+            self.mock_client.Client.side_effect = [
+                trustor_client, trustee_client, main_client]
+
+            # initialize client
+            ctxt = mock.MagicMock()
+            ctxt.auth_token = 'fake_token'
+            ctxt.project_id = 'fake_project'
+            ctxt.user_id = 'fake_user_id'
+            client = store.init_client(location=mock.MagicMock(), context=ctxt)
+
+            # test trustee usage with password
+            # Verify V3Password was called for trustee (without trust_id)
+            calls = self.mock_identity.V3Password.call_args_list
+            self.assertGreater(
+                len(calls), 0,
+                "V3Password should be called")
+            # Find the call without trust_id (trustee auth)
+            trustee_call = None
+            for call in calls:
+                args, kwargs = call
+                if 'trust_id' not in kwargs:
+                    trustee_call = call
+                    break
+            self.assertIsNotNone(
+                trustee_call,
+                "V3Password should be called for trustee")
+            args, kwargs = trustee_call
+            self.assertEqual(kwargs['username'], 'glance-swift')
+            self.assertEqual(kwargs['password'], 'admin')
+            self.assertEqual(kwargs['project_name'], 'service')
+            self.assertEqual(main_client, client)
+
     def _init_client(self, verify, **kwargs):
         # initialize store and connection parameters
         self.config(group="swift1", **kwargs)
@@ -2159,6 +2220,32 @@ class TestCreatingLocations(base.MultiStoreBaseTest):
         store.configure()
         self.assertEqual('https://some_internal_endpoint',
                          store._get_endpoint(self.ctxt))
+
+    def test_multi_tenant_create_location_with_missing_container(self):
+        """Test create_location() raises BadStoreConfiguration when None"""
+        # Configure multi-tenant without container
+        self.config(
+            group="swift1",
+            swift_store_multi_tenant=True,
+            swift_store_container=None)  # Missing container!
+        store = swift.MultiTenantStore(self.conf, backend="swift1")
+        store.configure()
+        # create_location should raise BadStoreConfiguration, not TypeError
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          store.create_location, 'image-id', context=self.ctxt)
+
+    def test_multi_tenant_create_location_with_empty_container(self):
+        """Test create_location() raises BadStoreConfiguration when empty"""
+        # Configure multi-tenant with empty container
+        self.config(
+            group="swift1",
+            swift_store_multi_tenant=True,
+            swift_store_container='')  # Empty container!
+        store = swift.MultiTenantStore(self.conf, backend="swift1")
+        store.configure()
+        # create_location should raise BadStoreConfiguration
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          store.create_location, 'image-id', context=self.ctxt)
 
 
 class TestChunkReader(base.MultiStoreBaseTest):
