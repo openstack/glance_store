@@ -179,3 +179,8 @@ class InUseByStore(GlanceStoreException):
 class HostNotInitialized(GlanceStoreException):
     message = _("The glance cinder store host %(host)s which will used to "
                 "perform nfs mount/umount operations isn't initialized.")
+
+
+class TimeoutError(GlanceStoreException):
+    message = _("Operation timed out after %(timeout)ds. Check storage "
+                "health and connectivity.")

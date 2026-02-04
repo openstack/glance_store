@@ -19,11 +19,14 @@ import errno
 import io
 import json
 import os
+import time
 import uuid
 
 import fixtures
+import futurist
 from oslo_config import cfg
 from oslo_utils import units
+from unittest import mock
 
 import glance_store as store
 from glance_store._drivers import filesystem
@@ -325,3 +328,139 @@ class TestMultiStore(base.MultiStoreBaseTest,
 
     def test_configure_add_chunk_size(self):
         self._test_configure_add_chunk_size()
+
+    def test_multiple_backends_different_timeout_configs(self):
+        """Test that multiple backends can have different timeout configs."""
+        # Configure file1 with timeout enabled
+        self.config(filesystem_store_timeout=30,
+                    filesystem_store_thread_pool_size=5,
+                    filesystem_store_threadpool_threshold=80,
+                    group="file1")
+        self.store.configure()
+
+        # Verify file1 has correct timeout config
+        self.assertEqual(self.store.timeout_executor.timeout, 30)
+        self.assertEqual(self.store.timeout_executor.pool_size, 5)
+        self.assertEqual(self.store.timeout_executor.threshold, 80)
+        self.assertIsNotNone(self.store.timeout_executor.executor)
+
+        # Configure file2 with different timeout config
+        store2 = filesystem.Store(self.conf, backend='file2')
+        test_dir2 = self.useFixture(fixtures.TempDir()).path
+        self.config(filesystem_store_datadir=test_dir2,
+                    filesystem_store_timeout=60,
+                    filesystem_store_thread_pool_size=10,
+                    filesystem_store_threadpool_threshold=90,
+                    group="file2")
+        store2.configure()
+
+        # Verify file2 has different timeout config
+        self.assertEqual(store2.timeout_executor.timeout, 60)
+        self.assertEqual(store2.timeout_executor.pool_size, 10)
+        self.assertEqual(store2.timeout_executor.threshold, 90)
+        self.assertIsNotNone(store2.timeout_executor.executor)
+
+        # Verify they are independent instances
+        self.assertIsNot(self.store.timeout_executor,
+                         store2.timeout_executor)
+
+    def test_multiple_backends_one_with_timeout_one_without(self):
+        """Test that one backend can have timeout enabled, another disabled."""
+        # Configure file1 with timeout enabled
+        self.config(filesystem_store_timeout=30, group="file1")
+        self.store.configure()
+        self.assertEqual(self.store.timeout_executor.timeout, 30)
+        self.assertIsNotNone(self.store.timeout_executor.executor)
+
+        # Configure file2 with timeout disabled
+        store2 = filesystem.Store(self.conf, backend='file2')
+        test_dir2 = self.useFixture(fixtures.TempDir()).path
+        self.config(filesystem_store_datadir=test_dir2,
+                    filesystem_store_timeout=0,
+                    group="file2")
+        store2.configure()
+
+        # Verify file2 has timeout disabled
+        self.assertEqual(store2.timeout_executor.timeout, 0)
+        self.assertIsInstance(store2.timeout_executor.executor,
+                              futurist.SynchronousExecutor)
+
+    def test_backend_defaults_timeout_config(self):
+        """Test that backend_defaults timeout config is used."""
+        # Set timeout in backend_defaults BEFORE creating stores
+        self.config(filesystem_store_timeout=45,
+                    filesystem_store_thread_pool_size=8,
+                    filesystem_store_threadpool_threshold=85,
+                    group="backend_defaults")
+
+        # Recreate store1 to pick up backend_defaults
+        self.store = filesystem.Store(self.conf, backend='file1')
+        self.config(filesystem_store_datadir=self.test_dir,
+                    filesystem_store_chunk_size=10,
+                    group="file1")
+        self.store.configure()
+
+        # Verify file1 uses backend_defaults values
+        self.assertEqual(self.store.timeout_executor.timeout, 45)
+        self.assertEqual(self.store.timeout_executor.pool_size, 8)
+        self.assertEqual(self.store.timeout_executor.threshold, 85)
+        self.assertIsNotNone(self.store.timeout_executor.executor)
+
+        # Configure file2 with explicit timeout (should override
+        # backend_defaults)
+        store2 = filesystem.Store(self.conf, backend='file2')
+        test_dir2 = self.useFixture(fixtures.TempDir()).path
+        self.config(filesystem_store_datadir=test_dir2,
+                    filesystem_store_timeout=20,
+                    group="file2")
+        store2.configure()
+
+        # Verify file2 uses its own timeout, but pool_size and threshold
+        # from backend_defaults
+        self.assertEqual(store2.timeout_executor.timeout, 20)
+        # From backend_defaults
+        self.assertEqual(store2.timeout_executor.pool_size, 8)
+        # From backend_defaults
+        self.assertEqual(store2.timeout_executor.threshold, 85)
+
+    def test_multiple_backends_timeout_operations_independent(self):
+        """Test that timeout operations work independently for each backend."""
+        # Configure both backends with timeout
+        self.config(filesystem_store_timeout=1, group="file1")
+        self.store.configure()
+
+        store2 = filesystem.Store(self.conf, backend='file2')
+        test_dir2 = self.useFixture(fixtures.TempDir()).path
+        self.config(filesystem_store_datadir=test_dir2,
+                    filesystem_store_timeout=1,
+                    group="file2")
+        store2.configure()
+
+        # Create images in both backends
+        image_id1 = str(uuid.uuid4())
+        file_contents = b"test content 1"
+        image_file1 = io.BytesIO(file_contents)
+        uri1, size1, checksum1, multihash1 = self.store.add(
+            image_id1, image_file1, len(file_contents))
+        loc1 = location.get_location_from_uri_and_backend(
+            uri1, 'file1', conf=self.conf)
+
+        image_id2 = str(uuid.uuid4())
+        file_contents2 = b"test content 2"
+        image_file2 = io.BytesIO(file_contents2)
+        uri2, size2, checksum2, multihash2 = store2.add(
+            image_id2, image_file2, len(file_contents2))
+        loc2 = location.get_location_from_uri_and_backend(
+            uri2, 'file2', conf=self.conf)
+
+        # Test timeout on file1 backend
+        with mock.patch('os.unlink') as mock_unlink:
+            def slow_unlink(path):
+                time.sleep(2)
+            mock_unlink.side_effect = slow_unlink
+            self.assertRaises(exceptions.TimeoutError,
+                              self.store.delete, loc1)
+
+        # Test that file2 backend still works normally
+        result_size = store2.get_size(loc2)
+        self.assertEqual(result_size, len(file_contents2))

@@ -24,6 +24,8 @@ import os
 import stat
 import urllib
 
+from concurrent import futures
+import futurist
 import jsonschema
 from oslo_config import cfg
 from oslo_serialization import jsonutils
@@ -195,6 +197,69 @@ Related options:
     * None
 
 """),
+    cfg.IntOpt('filesystem_store_timeout',
+               default=0,
+               min=0,
+               help="""
+Timeout for all filesystem operations (seconds).
+
+Set to 0 to disable timeout protection (blocking IO, normal behavior).
+Set > 0 to enable timeout protection with thread pool.
+Recommended: 30 seconds for network storage, higher for slow networks.
+
+When timeout protection is enabled, filesystem operations like delete(),
+get_size(), and _get_capacity_info() will be wrapped with timeout
+protection. If an operation exceeds the timeout, a TimeoutError will be
+raised.
+
+Possible values:
+    * 0 (disabled, blocking IO)
+    * Any positive integer (timeout in seconds)
+
+Related options:
+    * filesystem_store_thread_pool_size
+    * filesystem_store_threadpool_threshold
+
+"""),
+    cfg.IntOpt('filesystem_store_thread_pool_size',
+               default=10,
+               min=1,
+               help="""
+Thread pool size for timeout-protected operations.
+
+Only meaningful when filesystem_store_timeout > 0.
+Ignored when filesystem_store_timeout = 0 (no thread pool is created).
+Each store instance gets its own pool to avoid starvation.
+Set based on expected concurrency and WSGI worker count.
+
+Possible values:
+    * Any positive integer
+
+Related options:
+    * filesystem_store_timeout
+    * filesystem_store_threadpool_threshold
+
+"""),
+    cfg.IntOpt('filesystem_store_threadpool_threshold',
+               default=75,
+               min=0,
+               max=100,
+               help="""
+Thread pool usage threshold for warning logs (percentage).
+
+Only meaningful when filesystem_store_timeout > 0.
+Ignored when filesystem_store_timeout = 0 (no thread pool is created).
+When thread pool usage exceeds this threshold, a warning is logged
+indicating that the pool is getting busy and may start blocking.
+
+Possible values:
+    * 0-100 (percentage)
+
+Related options:
+    * filesystem_store_timeout
+    * filesystem_store_thread_pool_size
+
+"""),
 ]
 
 MULTI_FILESYSTEM_METADATA_SCHEMA = {
@@ -284,6 +349,41 @@ class ChunkedFile(object):
             self.fp = None
 
 
+class TimeoutExecutor(object):
+    def __init__(self, timeout, pool_size, threshold):
+        self.timeout = timeout
+        self.pool_size = pool_size
+        self.threshold = threshold
+        self.active_futures = set()
+        if timeout > 0:
+            self.executor = futures.ThreadPoolExecutor(max_workers=pool_size)
+        else:
+            self.executor = futurist.SynchronousExecutor()
+
+    def execute(self, func, *args, **kwargs):
+        future = self.executor.submit(func, *args, **kwargs)
+        if not future.done():
+            self.active_futures.add(future)
+            # Check usage AFTER adding the current future
+            active = len([f for f in self.active_futures if not f.done()])
+            usage = (active / self.pool_size) * 100
+            if usage >= self.threshold:
+                LOG.warning(_LW("Thread pool usage is at %(usage).1f%% "
+                                "(threshold: %(threshold)d%%). Pool may "
+                                "start blocking.") %
+                            {'usage': usage,
+                             'threshold': self.threshold})
+        try:
+            return future.result(timeout=self.timeout)
+        except futures.TimeoutError:
+            raise exceptions.TimeoutError(timeout=self.timeout)
+        finally:
+            self.active_futures.discard(future)
+
+    def shutdown(self, wait=True):
+        self.executor.shutdown(wait=wait)
+
+
 class Store(glance_store.driver.Store):
 
     _CAPABILITIES = (capabilities.BitMasks.READ_RANDOM |
@@ -299,6 +399,7 @@ class Store(glance_store.driver.Store):
                 self.OPTIONS, self.backend_group, conf=self.conf)
         else:
             self.store_conf = self.conf.glance_store
+        self.timeout_executor = None
 
     def get_schemes(self):
         return ('file', 'filesystem')
@@ -441,6 +542,11 @@ class Store(glance_store.driver.Store):
         self.READ_CHUNKSIZE = self.chunk_size
         self.WRITE_CHUNKSIZE = self.READ_CHUNKSIZE
 
+        timeout = self.store_conf.filesystem_store_timeout
+        pool_size = self.store_conf.filesystem_store_thread_pool_size
+        threshold = self.store_conf.filesystem_store_threadpool_threshold
+        self.timeout_executor = TimeoutExecutor(timeout, pool_size, threshold)
+
         if not (fdir or fdirs):
             reason = (_("Specify at least 'filesystem_store_datadir' or "
                         "'filesystem_store_datadirs' option"))
@@ -556,14 +662,14 @@ class Store(glance_store.driver.Store):
 
         return datadir_path, priority
 
-    @staticmethod
-    def _resolve_location(location):
+    def _resolve_location(self, location):
         filepath = location.store_location.path
 
-        if not os.path.exists(filepath):
+        try:
+            filesize = self.timeout_executor.execute(os.path.getsize, filepath)
+        except FileNotFoundError:
             raise exceptions.NotFound(image=filepath)
 
-        filesize = os.path.getsize(filepath)
         return filepath, filesize
 
     def _get_metadata(self, filepath):
@@ -651,15 +757,14 @@ class Store(glance_store.driver.Store):
         """
         loc = location.store_location
         fn = loc.path
-        if os.path.exists(fn):
-            try:
-                LOG.debug(_("Deleting image at %(fn)s"), {'fn': fn})
-                os.unlink(fn)
-            except OSError:
-                raise exceptions.Forbidden(
-                    message=(_("You cannot delete file %s") % fn))
-        else:
+        try:
+            LOG.debug(_("Deleting image at %(fn)s"), {'fn': fn})
+            self.timeout_executor.execute(os.unlink, fn)
+        except FileNotFoundError:
             raise exceptions.NotFound(image=fn)
+        except OSError:
+            raise exceptions.Forbidden(
+                message=(_("You cannot delete file %s") % fn))
 
     def _get_capacity_info(self, mount_point):
         """Calculates total available space for given mount point.
@@ -668,7 +773,7 @@ class Store(glance_store.driver.Store):
         """
 
         # Calculate total available space
-        stvfs_result = os.statvfs(mount_point)
+        stvfs_result = self.timeout_executor.execute(os.statvfs, mount_point)
         total_available_space = stvfs_result.f_bavail * stvfs_result.f_bsize
         return max(0, total_available_space)
 

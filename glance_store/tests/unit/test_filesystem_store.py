@@ -19,12 +19,18 @@ import errno
 import io
 import json
 import os
+import threading
+import time
 import uuid
 
+from unittest import mock
+
+import futurist
 from oslo_utils import units
 
 from glance_store._drivers import filesystem
 from glance_store import exceptions
+from glance_store import location
 from glance_store.tests import base
 from glance_store.tests.unit import test_filesystem_store_base as file_base
 from glance_store.tests.unit import test_store_capabilities
@@ -266,3 +272,181 @@ class TestStore(base.StoreBaseTest,
 
     def test_configure_add_chunk_size(self):
         self._test_configure_add_chunk_size()
+
+    def test_timeout_executor_disabled_by_default(self):
+        self.store.configure()
+        self.assertEqual(self.store.timeout_executor.timeout, 0)
+        self.assertIsInstance(self.store.timeout_executor.executor,
+                              futurist.SynchronousExecutor)
+
+    def test_timeout_executor_enabled_with_timeout(self):
+        self.config(filesystem_store_timeout=30,
+                    filesystem_store_thread_pool_size=5,
+                    filesystem_store_threadpool_threshold=80,
+                    group="glance_store")
+        self.store.configure()
+        self.assertEqual(self.store.timeout_executor.timeout, 30)
+        self.assertEqual(self.store.timeout_executor.pool_size, 5)
+        self.assertEqual(self.store.timeout_executor.threshold, 80)
+        self.assertIsNotNone(self.store.timeout_executor.executor)
+
+    def test_delete_with_timeout_success(self):
+        image_id = str(uuid.uuid4())
+        file_contents = b"test content"
+        image_file = io.BytesIO(file_contents)
+        uri, size, checksum, multihash, _ = self.store.add(
+            image_id, image_file, len(file_contents), self.hash_algo)
+        self.config(filesystem_store_timeout=30, group="glance_store")
+        self.store.configure()
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        self.store.delete(loc)
+        loc2 = location.get_location_from_uri(uri, conf=self.conf)
+        self.assertRaises(exceptions.NotFound, self.store.get, loc2)
+
+    def test_delete_with_timeout_failure(self):
+        image_id = str(uuid.uuid4())
+        file_contents = b"test content"
+        image_file = io.BytesIO(file_contents)
+        uri, size, checksum, multihash, _ = self.store.add(
+            image_id, image_file, len(file_contents), self.hash_algo)
+        self.config(filesystem_store_timeout=1, group="glance_store")
+        self.store.configure()
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        with mock.patch('os.unlink') as mock_unlink:
+
+            def slow_unlink(path):
+                time.sleep(2)
+
+            mock_unlink.side_effect = slow_unlink
+            self.assertRaises(exceptions.TimeoutError, self.store.delete, loc)
+
+    def test_get_size_with_timeout_success(self):
+        image_id = str(uuid.uuid4())
+        file_contents = b"test content"
+        image_file = io.BytesIO(file_contents)
+        uri, size, checksum, multihash, _ = self.store.add(
+            image_id, image_file, len(file_contents), self.hash_algo)
+        self.config(filesystem_store_timeout=30, group="glance_store")
+        self.store.configure()
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        result_size = self.store.get_size(loc)
+        self.assertEqual(result_size, len(file_contents))
+
+    def test_get_size_with_timeout_failure(self):
+        image_id = str(uuid.uuid4())
+        file_contents = b"test content"
+        image_file = io.BytesIO(file_contents)
+        uri, size, checksum, multihash, _ = self.store.add(
+            image_id, image_file, len(file_contents), self.hash_algo)
+        self.config(filesystem_store_timeout=1, group="glance_store")
+        self.store.configure()
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        with mock.patch('os.path.getsize') as mock_getsize:
+            def slow_getsize(path):
+                time.sleep(2)
+                return len(file_contents)
+            mock_getsize.side_effect = slow_getsize
+            self.assertRaises(exceptions.TimeoutError,
+                              self.store.get_size, loc)
+
+    def test_get_capacity_info_with_timeout_success(self):
+        self.config(filesystem_store_timeout=30, group="glance_store")
+        self.store.configure()
+        capacity = self.store._get_capacity_info(self.test_dir)
+        self.assertGreaterEqual(capacity, 0)
+
+    def test_get_capacity_info_with_timeout_failure(self):
+        self.config(filesystem_store_timeout=1, group="glance_store")
+        self.store.configure()
+        with mock.patch('os.statvfs') as mock_statvfs:
+
+            def slow_statvfs(path):
+                time.sleep(2)
+
+                class FakeStatvfs:
+                    f_bavail = 1000
+                    f_bsize = 4096
+
+                return FakeStatvfs()
+
+            mock_statvfs.side_effect = slow_statvfs
+            self.assertRaises(exceptions.TimeoutError,
+                              self.store._get_capacity_info,
+                              self.test_dir)
+
+    def test_timeout_executor_no_overhead_when_disabled(self):
+        image_id = str(uuid.uuid4())
+        file_contents = b"test content"
+        image_file = io.BytesIO(file_contents)
+        uri, size, checksum, multihash, _ = self.store.add(
+            image_id, image_file, len(file_contents), self.hash_algo)
+        self.config(filesystem_store_timeout=0, group="glance_store")
+        self.store.configure()
+        self.assertIsInstance(self.store.timeout_executor.executor,
+                              futurist.SynchronousExecutor)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        result_size = self.store.get_size(loc)
+        self.assertEqual(result_size, len(file_contents))
+
+
+class TestTimeoutExecutor(base.StoreBaseTest):
+    """Test TimeoutExecutor utility class"""
+
+    def test_thread_pool_threshold_warning(self):
+        """Test that warning is logged when thread pool usage exceeds
+        threshold
+        """
+        pool_size = 3
+        threshold = 66
+        timeout = 10
+
+        executor = filesystem.TimeoutExecutor(timeout, pool_size, threshold)
+        event = threading.Event()
+
+        def blocking_func():
+            event.wait()
+
+        with mock.patch.object(filesystem.LOG, 'warning') as mock_warning:
+            def worker():
+                executor.execute(blocking_func)
+
+            threads = []
+            for i in range(2):
+                t = threading.Thread(target=worker)
+                t.start()
+                threads.append(t)
+
+            time.sleep(0.2)
+            executor.execute(lambda: 1)
+
+            mock_warning.assert_called_once()
+            call_args = mock_warning.call_args[0][0]
+            self.assertIn('Thread pool usage', call_args)
+            self.assertIn('threshold', call_args)
+            self.assertIn('%d%%' % threshold, call_args)
+            self.assertIn('Pool may start blocking', call_args)
+
+            event.set()
+            for t in threads:
+                t.join(timeout=5)
+
+        executor.shutdown(wait=True)
+
+    def test_timeout_behavior(self):
+        """Test that operations timeout cleanly when timeout is exceeded"""
+        pool_size = 1
+        threshold = 80
+        timeout = 0.1
+
+        executor = filesystem.TimeoutExecutor(timeout, pool_size, threshold)
+        event = threading.Event()
+
+        def blocking_func():
+            event.wait()
+
+        self.assertRaises(exceptions.TimeoutError,
+                          executor.execute, blocking_func)
+
+        event.set()
+
+        executor.shutdown(wait=True)

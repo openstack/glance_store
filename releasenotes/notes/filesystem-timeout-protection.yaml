@@ -1,0 +1,14 @@
+---
+features:
+  - |
+    Added timeout protection to filesystem operations in the filesystem
+    store driver. This prevents operations from hanging forever when storage
+    is unavailable. Three new configuration options have been added:
+    ``filesystem_store_timeout`` (default: 0, disabled),
+    ``filesystem_store_thread_pool_size`` (default: 10), and
+    ``filesystem_store_threadpool_threshold`` (default: 75). When timeout
+    protection is enabled (timeout > 0), filesystem operations like delete(),
+    get_size(), and _get_capacity_info() are wrapped with timeout protection
+    using a thread pool. If an operation exceeds the timeout, a TimeoutError
+    is raised. This feature is backward compatible by default (timeout = 0
+    means blocking IO, normal behavior).
