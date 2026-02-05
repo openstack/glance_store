@@ -123,6 +123,32 @@ class TestSwiftParams(base.StoreBaseTest):
         self.assertEqual('userdomain',
                          swift_params['ref5']['user_domain_name'])
 
+    def test_swift_store_config_with_application_credentials(self):
+        swift_params = sutils.SwiftParams(self.conf).params
+        self.assertEqual('app-cred-id-123',
+                         swift_params['ref6']['application_credential_id'])
+        self.assertEqual('app-cred-secret-456',
+                         swift_params['ref6']['application_credential_secret'])
+        self.assertEqual('https://example.com',
+                         swift_params['ref6']['auth_address'])
+        self.assertIsNone(swift_params['ref6'].get('user'))
+        self.assertIsNone(swift_params['ref6'].get('key'))
+
+    def test_swift_store_config_with_application_credentials_and_domains(self):
+        swift_params = sutils.SwiftParams(self.conf).params
+        self.assertEqual('app-cred-id-789',
+                         swift_params['ref7']['application_credential_id'])
+        self.assertEqual('app-cred-secret-012',
+                         swift_params['ref7']['application_credential_secret'])
+        self.assertEqual('https://example.com',
+                         swift_params['ref7']['auth_address'])
+        self.assertEqual('userdomainid',
+                         swift_params['ref7']['user_domain_id'])
+        self.assertEqual('projdomainid',
+                         swift_params['ref7']['project_domain_id'])
+        self.assertIsNone(swift_params['ref7'].get('user'))
+        self.assertIsNone(swift_params['ref7'].get('key'))
+
 
 class TestSwiftConfigParser(base.StoreBaseTest):
 

@@ -543,6 +543,12 @@ class StoreLocation(location.StoreLocation):
         self.scheme = self.specs.get('scheme', 'swift+https')
         self.user = self.specs.get('user')
         self.key = self.specs.get('key')
+        self.application_credential_id = self.specs.get(
+            'application_credential_id')
+        self.application_credential_secret = self.specs.get(
+            'application_credential_secret')
+        self.project_name = self.specs.get('project_name')
+        self.project_id = self.specs.get('project_id')
         self.auth_or_store_url = self.specs.get('auth_or_store_url')
         self.container = self.specs.get('container')
         self.obj = self.specs.get('obj')
@@ -585,12 +591,51 @@ class StoreLocation(location.StoreLocation):
         return '%s://%s%s/%s/%s' % (self.scheme, credstring, auth_or_store_url,
                                     container, obj)
 
+    def _load_credentials(self, params):
+        """Load and validate credentials from reference parameters."""
+        # Try application credentials first
+        app_cred_id = params.get('application_credential_id')
+        app_cred_secret = params.get('application_credential_secret')
+
+        # Validate that both application credential ID and secret are provided
+        # if either one is present
+        if app_cred_id and not app_cred_secret:
+            reason = _("application_credential_secret required when "
+                       "application_credential_id is provided")
+            LOG.info(reason)
+            raise exceptions.BadStoreUri(message=reason)
+        elif app_cred_secret and not app_cred_id:
+            reason = _("application_credential_id required when "
+                       "application_credential_secret is provided")
+            LOG.info(reason)
+            raise exceptions.BadStoreUri(message=reason)
+
+        if app_cred_id and app_cred_secret:
+            self.application_credential_id = app_cred_id
+            self.application_credential_secret = app_cred_secret
+            self.project_name = params.get('project_name')
+            self.project_id = params.get('project_id')
+            self.user = None
+            self.key = None
+            return
+
+        # Fall back to user/key credentials
+        self.user = params.get('user')
+        self.key = params.get('key')
+        self.application_credential_id = None
+        self.application_credential_secret = None
+
+        if not self.user or not self.key:
+            reason = _("Badly formed Swift URI. Credentials not found for "
+                       "account reference")
+            LOG.info(reason)
+            raise exceptions.BadStoreUri(message=reason)
+
     def _get_conf_value_from_account_ref(self, netloc):
         try:
             ref_params = sutils.SwiftParams(
                 self.conf, backend=self.backend_group).params
-            self.user = ref_params[netloc]['user']
-            self.key = ref_params[netloc]['key']
+            self._load_credentials(ref_params[netloc])
             netloc = ref_params[netloc]['auth_address']
             self.ssl_enabled = True
             if netloc != '':
@@ -1283,6 +1328,12 @@ class SingleTenantStore(BaseStore):
         self.auth_version = default_swift_reference.get('auth_version')
         self.user = default_swift_reference.get('user')
         self.key = default_swift_reference.get('key')
+        self.application_credential_id = default_swift_reference.get(
+            'application_credential_id')
+        self.application_credential_secret = default_swift_reference.get(
+            'application_credential_secret')
+        self.project_name = default_swift_reference.get('project_name')
+        self.project_id = default_swift_reference.get('project_id')
         self.user_domain_id = default_swift_reference.get('user_domain_id')
         self.user_domain_name = default_swift_reference.get('user_domain_name')
         self.project_domain_id = default_swift_reference.get(
@@ -1290,8 +1341,11 @@ class SingleTenantStore(BaseStore):
         self.project_domain_name = default_swift_reference.get(
             'project_domain_name')
 
-        if not (self.user or self.key):
-            reason = _("A value for swift_store_ref_params is required.")
+        if not ((self.user and self.key) or
+                (self.application_credential_id and
+                 self.application_credential_secret)):
+            reason = _("A value for swift_store_ref_params (user/key or "
+                       "application credentials) is required.")
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="swift",
                                                    reason=reason)
@@ -1347,7 +1401,13 @@ class SingleTenantStore(BaseStore):
                  'obj': str(image_id),
                  'auth_or_store_url': self.auth_address,
                  'user': self.user,
-                 'key': self.key}
+                 'key': self.key,
+                 'application_credential_id':
+                     self.application_credential_id,
+                 'application_credential_secret':
+                     self.application_credential_secret,
+                 'project_name': self.project_name,
+                 'project_id': self.project_id}
         return StoreLocation(specs, self.conf,
                              backend_group=self.backend_group)
 
@@ -1394,14 +1454,54 @@ class SingleTenantStore(BaseStore):
             return default_image_container
 
     def get_connection(self, location, context=None):
-        if not location.user:
-            reason = _("Location is missing user:password information.")
-            LOG.info(reason)
-            raise exceptions.BadStoreUri(message=reason)
-
         auth_url = location.swift_url
         if not auth_url.endswith('/'):
             auth_url += '/'
+
+        app_cred_id = getattr(location, 'application_credential_id', None)
+        app_cred_secret = getattr(
+            location, 'application_credential_secret', None)
+
+        if not (location.user or app_cred_id):
+            reason = _("Location is missing user:password or "
+                       "application credential information.")
+            raise exceptions.BadStoreUri(message=reason)
+
+        if app_cred_id and not app_cred_secret:
+            reason = _("application_credential_secret required when "
+                       "application_credential_id is provided")
+            raise exceptions.BadStoreUri(message=reason)
+        elif app_cred_secret and not app_cred_id:
+            reason = _("application_credential_id required when "
+                       "application_credential_secret is provided")
+            raise exceptions.BadStoreUri(message=reason)
+
+        if app_cred_id and app_cred_secret:
+            os_options = {
+                'endpoint_type': self.endpoint_type,
+                'service_type': self.service_type,
+                'auth_type': 'v3applicationcredential',
+                'application_credential_id': app_cred_id,
+                'application_credential_secret': app_cred_secret}
+            if self.region:
+                os_options['region_name'] = self.region
+            if self.user_domain_id:
+                os_options['user_domain_id'] = self.user_domain_id
+            if self.user_domain_name:
+                os_options['user_domain_name'] = self.user_domain_name
+            if self.project_domain_id:
+                os_options['project_domain_id'] = self.project_domain_id
+            if self.project_domain_name:
+                os_options['project_domain_name'] = self.project_domain_name
+            if getattr(location, 'project_name', None):
+                os_options['project_name'] = location.project_name
+            if getattr(location, 'project_id', None):
+                os_options['project_id'] = location.project_id
+            return swiftclient.Connection(
+                auth_url, None, None, preauthurl=self.conf_endpoint,
+                insecure=self.insecure, auth_version=self.auth_version,
+                os_options=os_options, ssl_compression=self.ssl_compression,
+                cacert=self.cacert)
 
         try:
             tenant_name, user = location.user.split(':')
@@ -1433,15 +1533,42 @@ class SingleTenantStore(BaseStore):
 
     def init_client(self, location, context=None):
         """Initialize keystone client with swift service user credentials"""
-        # prepare swift admin credentials
-        if not location.user:
-            reason = _("Location is missing user:password information.")
-            LOG.info(reason)
-            raise exceptions.BadStoreUri(message=reason)
+        if self.backend_group:
+            store_conf = getattr(self.conf, self.backend_group)
+        else:
+            store_conf = self.conf.glance_store
 
         auth_url = location.swift_url
         if not auth_url.endswith('/'):
             auth_url += '/'
+
+        app_cred_id = (getattr(location, 'application_credential_id', None) or
+                       getattr(store_conf,
+                               'swift_store_application_credential_id',
+                               None))
+        app_cred_secret = (
+            getattr(location, 'application_credential_secret', None) or
+            getattr(store_conf, 'swift_store_application_credential_secret',
+                    None))
+
+        if app_cred_id and app_cred_secret:
+            app_cred = ks_identity.V3ApplicationCredential(
+                auth_url=auth_url,
+                application_credential_id=app_cred_id,
+                application_credential_secret=app_cred_secret,
+                user_domain_id=self.user_domain_id,
+                user_domain_name=self.user_domain_name,
+                project_domain_id=self.project_domain_id,
+                project_domain_name=self.project_domain_name)
+            sess = ks_session.Session(auth=app_cred, verify=self.ks_verify)
+            return ks_client.Client(session=sess)
+
+        if not (location.user or getattr(location, 'application_credential_id',
+                                         None)):
+            reason = _("Location is missing user:password or "
+                       "application credential information.")
+            LOG.info(reason)
+            raise exceptions.BadStoreUri(message=reason)
 
         try:
             tenant_name, user = location.user.split(':')
@@ -1451,7 +1578,6 @@ class SingleTenantStore(BaseStore):
             LOG.info(reason)
             raise exceptions.BadStoreUri(message=reason)
 
-        # initialize a keystone plugin for swift admin with creds
         password = ks_identity.V3Password(
             auth_url=auth_url,
             username=user,
@@ -1590,6 +1716,20 @@ class MultiTenantStore(BaseStore):
         auth_address = default_swift_reference.get('auth_address')
         user = default_swift_reference.get('user')
         key = default_swift_reference.get('key')
+        app_cred_id = default_swift_reference.get('application_credential_id')
+        app_cred_secret = default_swift_reference.get(
+            'application_credential_secret')
+        if not app_cred_id or not app_cred_secret:
+            if self.backend_group:
+                store_conf = getattr(self.conf, self.backend_group)
+            else:
+                store_conf = self.conf.glance_store
+            app_cred_id = getattr(store_conf,
+                                  'swift_store_application_credential_id',
+                                  None)
+            app_cred_secret = getattr(
+                store_conf, 'swift_store_application_credential_secret',
+                None)
         user_domain_id = default_swift_reference.get('user_domain_id')
         user_domain_name = default_swift_reference.get('user_domain_name')
         project_domain_id = default_swift_reference.get('project_domain_id')
@@ -1610,17 +1750,31 @@ class MultiTenantStore(BaseStore):
         roles = [t['name'] for t in auth_ref['roles']]
 
         # create client for trustee - glance user specified in swift config
-        tenant_name, user = user.split(':')
-        password = ks_identity.V3Password(
-            auth_url=auth_address,
-            username=user,
-            password=key,
-            project_name=tenant_name,
-            user_domain_id=user_domain_id,
-            user_domain_name=user_domain_name,
-            project_domain_id=project_domain_id,
-            project_domain_name=project_domain_name)
-        trustee_sess = ks_session.Session(auth=password,
+        if app_cred_id and app_cred_secret:
+            trustee_auth = ks_identity.V3ApplicationCredential(
+                auth_url=auth_address,
+                application_credential_id=app_cred_id,
+                application_credential_secret=app_cred_secret,
+                user_domain_id=user_domain_id,
+                user_domain_name=user_domain_name)
+        else:
+            if not user or not key:
+                reason = _("A value for swift_store_ref_params (user/key or "
+                           "application credentials) is required.")
+                LOG.error(reason)
+                raise exceptions.BadStoreConfiguration(store_name="swift",
+                                                       reason=reason)
+            tenant_name, user = user.split(':')
+            trustee_auth = ks_identity.V3Password(
+                auth_url=auth_address,
+                username=user,
+                password=key,
+                project_name=tenant_name,
+                user_domain_id=user_domain_id,
+                user_domain_name=user_domain_name,
+                project_domain_id=project_domain_id,
+                project_domain_name=project_domain_name)
+        trustee_sess = ks_session.Session(auth=trustee_auth,
                                           verify=self.ks_verify)
         trustee_client = ks_client.Client(session=trustee_sess)
 
@@ -1635,19 +1789,28 @@ class MultiTenantStore(BaseStore):
         ).id
         # initialize a new client with trust and trustee credentials
         # create client for glance trustee user
-        client_password = ks_identity.V3Password(
-            auth_url=auth_address,
-            username=user,
-            password=key,
-            trust_id=trust_id,
-            user_domain_id=user_domain_id,
-            user_domain_name=user_domain_name,
-            project_domain_id=project_domain_id,
-            project_domain_name=project_domain_name
-        )
+        if app_cred_id and app_cred_secret:
+            client_auth = ks_identity.V3ApplicationCredential(
+                auth_url=auth_address,
+                application_credential_id=app_cred_id,
+                application_credential_secret=app_cred_secret,
+                trust_id=trust_id,
+                user_domain_id=user_domain_id,
+                user_domain_name=user_domain_name)
+        else:
+            client_auth = ks_identity.V3Password(
+                auth_url=auth_address,
+                username=user,
+                password=key,
+                trust_id=trust_id,
+                user_domain_id=user_domain_id,
+                user_domain_name=user_domain_name,
+                project_domain_id=project_domain_id,
+                project_domain_name=project_domain_name
+            )
         # now we can authenticate against KS
         # as trustee of user who provided token
-        client_sess = ks_session.Session(auth=client_password,
+        client_sess = ks_session.Session(auth=client_auth,
                                          verify=self.ks_verify)
         return ks_client.Client(session=client_sess)
 
