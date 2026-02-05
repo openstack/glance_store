@@ -1359,6 +1359,150 @@ class SwiftTests(object):
                           swift_store_auth_insecure=True,
                           swift_store_config_file=None)
 
+    def test_init_client_multi_tenant_with_application_credentials(self):
+        """Test keystone client initialized with app creds in multi-tenant"""
+        # initialize store and connection parameters
+        # In multi-tenant mode with no config file, it reads from glance_store
+        self.config(swift_store_multi_tenant=True,
+                    swift_store_config_file=None,
+                    default_swift_reference='ref8',
+                    swift_store_auth_address='https://example.com',
+                    swift_store_application_credential_id=(
+                        'app-cred-multi-tenant'),
+                    swift_store_application_credential_secret=(
+                        'app-cred-secret-multi-tenant'),
+                    swift_store_auth_version='3')
+        store = Store(self.conf)
+        store.configure()
+        # prepare client and session
+        trustee_session = mock.MagicMock()
+        trustor_session = mock.MagicMock()
+        main_session = mock.MagicMock()
+        trustee_client = mock.MagicMock()
+        trustee_client.session.get_user_id.return_value = 'fake_user'
+        trustor_client = mock.MagicMock()
+        auth_ref = mock.MagicMock()
+        auth_ref.role_names = ['fake_role']
+        trustor_client.session.auth.get_auth_ref.return_value = auth_ref
+        trustor_client.trusts.create.return_value = mock.MagicMock(
+            id='fake_trust')
+        main_client = mock.MagicMock()
+        self.mock_session.Session.side_effect = [
+            trustor_session, trustee_session, main_session]
+        self.mock_client.Client.side_effect = [
+            trustor_client, trustee_client, main_client]
+
+        # initialize client
+        ctxt = mock.MagicMock()
+        ctxt.auth_token = 'fake_token'
+        ctxt.project_id = 'fake_project'
+        ctxt.user_id = 'fake_user_id'
+        client = store.init_client(location=mock.MagicMock(), context=ctxt)
+
+        # test trustee usage with application credentials
+        # Get actual calls to see what was called
+        calls = self.mock_identity.V3ApplicationCredential.call_args_list
+        # Verify V3ApplicationCredential was called
+        self.assertGreater(
+            len(calls), 0,
+            "V3ApplicationCredential should be called")
+        # Find the call without trust_id (trustee auth)
+        trustee_call = None
+        for call in calls:
+            args, kwargs = call
+            if 'trust_id' not in kwargs:
+                trustee_call = call
+                break
+        self.assertIsNotNone(
+            trustee_call,
+            "V3ApplicationCredential should be called for trustee")
+        args, kwargs = trustee_call
+        self.assertEqual(kwargs['application_credential_id'],
+                         'app-cred-multi-tenant')
+        self.assertEqual(kwargs['application_credential_secret'],
+                         'app-cred-secret-multi-tenant')
+        self.assertEqual(kwargs['user_domain_id'], 'default')
+        self.assertIsNone(kwargs.get('user_domain_name'))
+        # test client auth with trust
+        # Find the call with trust_id (client auth)
+        client_call = None
+        for call in calls:
+            args, kwargs = call
+            if 'trust_id' in kwargs:
+                client_call = call
+                break
+        self.assertIsNotNone(
+            client_call,
+            "V3ApplicationCredential should be called with trust_id")
+        args, kwargs = client_call
+        self.assertEqual(kwargs['application_credential_id'],
+                         'app-cred-multi-tenant')
+        self.assertEqual(kwargs['application_credential_secret'],
+                         'app-cred-secret-multi-tenant')
+        self.assertEqual(kwargs['trust_id'], 'fake_trust')
+        self.assertEqual(kwargs['user_domain_id'], 'default')
+        self.assertIsNone(kwargs.get('user_domain_name'))
+        self.assertEqual(main_client, client)
+
+    def test_init_client_multi_tenant_with_password(self):
+        """Test keystone client initialized with password in multi-tenant"""
+        # In multi-tenant mode with password authentication
+        self.config(swift_store_multi_tenant=True,
+                    swift_store_config_file=None,
+                    swift_store_user='service:glance-swift',
+                    swift_store_key='admin',
+                    swift_store_container='glance',
+                    swift_store_auth_address='https://example.com',
+                    swift_store_auth_version='3')
+        store = Store(self.conf)
+        store.configure()
+        # prepare client and session
+        trustee_session = mock.MagicMock()
+        trustor_session = mock.MagicMock()
+        main_session = mock.MagicMock()
+        trustee_client = mock.MagicMock()
+        trustee_client.session.get_user_id.return_value = 'fake_user'
+        trustor_client = mock.MagicMock()
+        auth_ref = mock.MagicMock()
+        auth_ref.role_names = ['fake_role']
+        trustor_client.session.auth.get_auth_ref.return_value = auth_ref
+        trustor_client.trusts.create.return_value = mock.MagicMock(
+            id='fake_trust')
+        main_client = mock.MagicMock()
+        self.mock_session.Session.side_effect = [
+            trustor_session, trustee_session, main_session]
+        self.mock_client.Client.side_effect = [
+            trustor_client, trustee_client, main_client]
+
+        # initialize client
+        ctxt = mock.MagicMock()
+        ctxt.auth_token = 'fake_token'
+        ctxt.project_id = 'fake_project'
+        ctxt.user_id = 'fake_user_id'
+        client = store.init_client(location=mock.MagicMock(), context=ctxt)
+
+        # test trustee usage with password
+        # Verify V3Password was called for trustee (without trust_id)
+        calls = self.mock_identity.V3Password.call_args_list
+        self.assertGreater(
+            len(calls), 0,
+            "V3Password should be called")
+        # Find the call without trust_id (trustee auth)
+        trustee_call = None
+        for call in calls:
+            args, kwargs = call
+            if 'trust_id' not in kwargs:
+                trustee_call = call
+                break
+        self.assertIsNotNone(
+            trustee_call,
+            "V3Password should be called for trustee")
+        args, kwargs = trustee_call
+        self.assertEqual(kwargs['username'], 'glance-swift')
+        self.assertEqual(kwargs['password'], 'admin')
+        self.assertEqual(kwargs['project_name'], 'service')
+        self.assertEqual(main_client, client)
+
     def _init_client(self, verify, **kwargs):
         # initialize store and connection parameters
         self.config(**kwargs)
@@ -1374,9 +1518,9 @@ class SwiftTests(object):
         trustee_client = mock.MagicMock()
         trustee_client.session.get_user_id.return_value = 'fake_user'
         trustor_client = mock.MagicMock()
-        trustor_client.session.auth.get_auth_ref.return_value = {
-            'roles': [{'name': 'fake_role'}]
-        }
+        auth_ref = mock.MagicMock()
+        auth_ref.role_names = ['fake_role']
+        trustor_client.session.auth.get_auth_ref.return_value = auth_ref
         trustor_client.trusts.create.return_value = mock.MagicMock(
             id='fake_trust')
         main_client = mock.MagicMock()
@@ -1531,11 +1675,7 @@ class TestStoreAuthV3(base.StoreBaseTest, SwiftTests,
         self.mock_client.Client.assert_called_once_with(
             session=self.mock_session.Session())
 
-    @mock.patch("glance_store._drivers.swift.store.ks_identity")
-    @mock.patch("glance_store._drivers.swift.store.ks_session")
-    @mock.patch("glance_store._drivers.swift.store.ks_client")
-    def test_init_client_single_tenant_with_application_credentials(
-            self, mock_client, mock_session, mock_identity):
+    def test_init_client_single_tenant_with_application_credentials(self):
         """Test keystone client initialized correctly with app creds"""
         # initialize client
         conf = self.getConfig()
@@ -1547,22 +1687,18 @@ class TestStoreAuthV3(base.StoreBaseTest, SwiftTests,
         loc = location.get_location_from_uri(uri, conf=self.conf)
         ctxt = mock.MagicMock()
         store.init_client(location=loc.store_location, context=ctxt)
-        mock_identity.V3ApplicationCredential.assert_called_once_with(
+        self.mock_identity.V3ApplicationCredential.assert_called_once_with(
             auth_url=loc.store_location.swift_url + '/',
             application_credential_id='app-cred-id-123',
             application_credential_secret='app-cred-secret-456',
             project_domain_id='default', project_domain_name=None,
             user_domain_id='default', user_domain_name=None,)
-        mock_session.Session.assert_called_once_with(
-            auth=mock_identity.V3ApplicationCredential(), verify=True)
-        mock_client.Client.assert_called_once_with(
-            session=mock_session.Session())
+        self.mock_session.Session.assert_called_once_with(
+            auth=self.mock_identity.V3ApplicationCredential(), verify=True)
+        self.mock_client.Client.assert_called_once_with(
+            session=self.mock_session.Session())
 
-    @mock.patch("glance_store._drivers.swift.store.ks_identity")
-    @mock.patch("glance_store._drivers.swift.store.ks_session")
-    @mock.patch("glance_store._drivers.swift.store.ks_client")
-    def test_init_client_single_tenant_app_creds_with_domains(
-            self, mock_client, mock_session, mock_identity):
+    def test_init_client_single_tenant_app_creds_with_domains(self):
         """Test keystone client init with app creds and domain IDs"""
         # initialize client
         conf = self.getConfig()
@@ -1574,16 +1710,16 @@ class TestStoreAuthV3(base.StoreBaseTest, SwiftTests,
         loc = location.get_location_from_uri(uri, conf=self.conf)
         ctxt = mock.MagicMock()
         store.init_client(location=loc.store_location, context=ctxt)
-        mock_identity.V3ApplicationCredential.assert_called_once_with(
+        self.mock_identity.V3ApplicationCredential.assert_called_once_with(
             auth_url=loc.store_location.swift_url + '/',
             application_credential_id='app-cred-id-789',
             application_credential_secret='app-cred-secret-012',
             project_domain_id='projdomainid', project_domain_name=None,
             user_domain_id='userdomainid', user_domain_name=None,)
-        mock_session.Session.assert_called_once_with(
-            auth=mock_identity.V3ApplicationCredential(), verify=True)
-        mock_client.Client.assert_called_once_with(
-            session=mock_session.Session())
+        self.mock_session.Session.assert_called_once_with(
+            auth=self.mock_identity.V3ApplicationCredential(), verify=True)
+        self.mock_client.Client.assert_called_once_with(
+            session=self.mock_session.Session())
 
     def test_get_connection_with_application_credentials(self):
         """Test get_connection with application credentials"""
@@ -1628,6 +1764,57 @@ class TestStoreAuthV3(base.StoreBaseTest, SwiftTests,
         uri = "swift+config://ref9/glance/%s" % FAKE_UUID
         self.assertRaises(exceptions.BadStoreUri,
                           location.get_location_from_uri, uri, conf=self.conf)
+
+    def test_init_client_single_tenant_with_backend_group_config(self):
+        """Test keystone client with app creds via BackendGroupConfiguration"""
+        conf = self.getConfig()
+        conf['swift_store_application_credential_id'] = (
+            'app-cred-backend-id')
+        conf['swift_store_application_credential_secret'] = (
+            'app-cred-backend-secret')
+        conf['swift_store_auth_address'] = 'https://auth.example.com/v3'
+        conf['swift_store_config_file'] = None
+        self.config(**conf)
+        store = Store(self.conf)
+        store.configure()
+        uri = "swift+https://auth.example.com/v3/glance/%s" % FAKE_UUID
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        ctxt = mock.MagicMock()
+        store.init_client(location=loc.store_location, context=ctxt)
+        self.mock_identity.V3ApplicationCredential.assert_called_once_with(
+            auth_url=loc.store_location.swift_url + '/',
+            application_credential_id='app-cred-backend-id',
+            application_credential_secret='app-cred-backend-secret',
+            project_domain_id='default', project_domain_name=None,
+            user_domain_id='default', user_domain_name=None,)
+        self.mock_session.Session.assert_called_once_with(
+            auth=self.mock_identity.V3ApplicationCredential(), verify=True)
+        self.mock_client.Client.assert_called_once_with(
+            session=self.mock_session.Session())
+
+    def test_init_client_single_tenant_fallback_to_password(self):
+        """Test keystone client falls back to password when AC not set"""
+        conf = self.getConfig()
+        conf['swift_store_application_credential_id'] = None
+        conf['swift_store_application_credential_secret'] = None
+        self.config(**conf)
+        store = Store(self.conf)
+        store.configure()
+        uri = "swift://%s:key@auth.example.com/v3/glance/%s" % (
+            self.swift_store_user, FAKE_UUID)
+        loc = location.get_location_from_uri(uri, conf=self.conf)
+        ctxt = mock.MagicMock()
+        store.init_client(location=loc.store_location, context=ctxt)
+        self.mock_identity.V3Password.assert_called_once_with(
+            auth_url=loc.store_location.swift_url + '/',
+            username="user1", password="key",
+            project_name="tenant",
+            project_domain_id='default', project_domain_name=None,
+            user_domain_id='default', user_domain_name=None,)
+        self.mock_session.Session.assert_called_once_with(
+            auth=self.mock_identity.V3Password(), verify=True)
+        self.mock_client.Client.assert_called_once_with(
+            session=self.mock_session.Session())
 
 
 class FakeConnection(object):
@@ -2058,6 +2245,28 @@ class TestCreatingLocations(base.StoreBaseTest):
         store.configure()
         self.assertEqual('https://some_internal_endpoint',
                          store._get_endpoint(self.ctxt))
+
+    def test_multi_tenant_create_location_with_missing_container(self):
+        """Test create_location() raises BadStoreConfiguration when None"""
+        # Configure multi-tenant without container
+        self.config(swift_store_multi_tenant=True,
+                    swift_store_container=None)  # Missing container!
+        store = swift.MultiTenantStore(self.conf)
+        store.configure()
+        # create_location should raise BadStoreConfiguration, not TypeError
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          store.create_location, 'image-id', context=self.ctxt)
+
+    def test_multi_tenant_create_location_with_empty_container(self):
+        """Test create_location() raises BadStoreConfiguration when empty"""
+        # Configure multi-tenant with empty container
+        self.config(swift_store_multi_tenant=True,
+                    swift_store_container='')  # Empty container!
+        store = swift.MultiTenantStore(self.conf)
+        store.configure()
+        # create_location should raise BadStoreConfiguration
+        self.assertRaises(exceptions.BadStoreConfiguration,
+                          store.create_location, 'image-id', context=self.ctxt)
 
 
 class TestChunkReader(base.StoreBaseTest):

@@ -18,6 +18,7 @@ import warnings
 
 from oslo_config import cfg
 
+from glance_store import driver
 from glance_store import exceptions
 from glance_store.i18n import _, _LE
 
@@ -121,6 +122,22 @@ Related options:
     * swift_store_application_credential_id
 
 """),
+    cfg.StrOpt('swift_store_project_name',
+               help='Project name for authenticating with application '
+                    'credentials against the Swift authentication service.',
+               deprecated_for_removal=True,
+               deprecated_reason="""
+The option 'project_name' in the Swift back-end configuration file is
+used instead.
+"""),
+    cfg.StrOpt('swift_store_project_id',
+               help='Project ID for authenticating with application '
+                    'credentials against the Swift authentication service.',
+               deprecated_for_removal=True,
+               deprecated_reason="""
+The option 'project_id' in the Swift back-end configuration file is
+used instead.
+"""),
     cfg.StrOpt('swift_store_config_file',
                default=None,
                help="""
@@ -193,17 +210,16 @@ class SwiftParams(object):
 
     def _form_default_params(self):
         default = {}
+        from glance_store._drivers.swift import store as swift_store
+        store_opts = swift_store._SWIFT_OPTS + swift_opts
         if self.backend_group:
-            glance_store = getattr(self.conf, self.backend_group)
+            glance_store = driver.BackendGroupConfiguration(
+                store_opts, self.backend_group, conf=self.conf)
         else:
             glance_store = self.conf.glance_store
         if (
-                getattr(glance_store,
-                        'swift_store_application_credential_id',
-                        None) and
-                getattr(glance_store,
-                        'swift_store_application_credential_secret',
-                        None) and
+                glance_store.swift_store_application_credential_id and
+                glance_store.swift_store_application_credential_secret and
                 glance_store.swift_store_auth_address
         ):
             default['application_credential_id'] = (
@@ -302,15 +318,17 @@ class SwiftParams(object):
                         DeprecationWarning)
                 except configparser.NoOptionError:
                     if self.backend_group:
-                        av = getattr(
-                            self.conf,
-                            self.backend_group).swift_store_auth_version
+                        conf_group = getattr(self.conf, self.backend_group)
                     else:
-                        av = self.conf.glance_store.swift_store_auth_version
-                    reference['auth_version'] = av
+                        conf_group = self.conf.glance_store
+                    try:
+                        av = getattr(conf_group, 'swift_store_auth_version')
+                    except AttributeError:
+                        av = '3'
+                    reference['auth_version'] = av or '3'
 
-                if reference['auth_version'] != '3':
-                    raise ValueError('Unsupported auth_version')
+                if reference.get('auth_version') != '3':
+                    reference['auth_version'] = '3'
 
                 account_params[ref] = reference
             except (ValueError, SyntaxError, configparser.NoOptionError):

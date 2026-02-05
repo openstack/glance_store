@@ -750,9 +750,12 @@ class StoreLocation(location.StoreLocation):
 
         HTTPS is assumed, unless 'swift+http' is specified.
         """
-        if self.auth_or_store_url.startswith('http'):
+        if (self.auth_or_store_url and
+                self.auth_or_store_url.startswith('http')):
             return self.auth_or_store_url
         else:
+            if not self.auth_or_store_url:
+                return None
             if self.scheme == 'swift+config':
                 if self.ssl_enabled:
                     self.scheme = 'swift+https'
@@ -816,17 +819,19 @@ class BaseStore(driver.Store):
 
     _CAPABILITIES = capabilities.BitMasks.RW_ACCESS
     CHUNKSIZE = 65536
-    OPTIONS = _SWIFT_OPTS + sutils.swift_opts
+    OPTIONS = _SWIFT_OPTS + sutils.swift_opts + buffered.BUFFERING_OPTS
 
     def get_schemes(self):
         return ('swift+https', 'swift', 'swift+http', 'swift+config')
 
     def configure(self, re_raise_bsc=False):
         if self.backend_group:
-            glance_conf = getattr(self.conf, self.backend_group)
+            glance_conf = driver.BackendGroupConfiguration(
+                self.OPTIONS, self.backend_group, conf=self.conf)
         else:
             glance_conf = self.conf.glance_store
 
+        self.store_conf = glance_conf
         _obj_size = self._option_get('swift_store_large_object_size')
         self.large_object_size = _obj_size * ONE_MB
         _chunk_size = self._option_get('swift_store_large_object_chunk_size')
@@ -918,14 +923,10 @@ class BaseStore(driver.Store):
             return 0
 
     def _option_get(self, param):
-        if self.backend_group:
-            result = getattr(getattr(self.conf, self.backend_group), param)
-        else:
-            result = getattr(self.conf.glance_store, param)
-
+        result = getattr(self.store_conf, param, None)
         if result is None:
             reason = (_("Could not find %(param)s in configuration options.")
-                      % param)
+                      % {'param': param})
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="swift",
                                                    reason=reason)
@@ -1289,12 +1290,18 @@ class SingleTenantStore(BaseStore):
     def __init__(self, conf, backend=None):
         super(SingleTenantStore, self).__init__(conf, backend=backend)
         self.backend_group = backend
+        if self.backend_group:
+            self.store_conf = driver.BackendGroupConfiguration(
+                self.OPTIONS, self.backend_group, conf=self.conf)
+        else:
+            self.store_conf = self.conf.glance_store
         self.ref_params = sutils.SwiftParams(self.conf,
                                              backend=backend).params
 
     def configure(self, re_raise_bsc=False):
         # set configuration before super so configure_add can override
-        self.auth_version = self._option_get('swift_store_auth_version')
+        self.auth_version = getattr(
+            self.store_conf, 'swift_store_auth_version', None)
         self.user_domain_id = None
         self.user_domain_name = None
         self.project_domain_id = None
@@ -1303,14 +1310,8 @@ class SingleTenantStore(BaseStore):
         super(SingleTenantStore, self).configure(re_raise_bsc=re_raise_bsc)
 
     def configure_add(self):
-        if self.backend_group:
-            default_ref = getattr(self.conf,
-                                  self.backend_group).default_swift_reference
-            self.container = getattr(self.conf,
-                                     self.backend_group).swift_store_container
-        else:
-            default_ref = self.conf.glance_store.default_swift_reference
-            self.container = self.conf.glance_store.swift_store_container
+        default_ref = self.store_conf.default_swift_reference
+        self.container = self.store_conf.swift_store_container
 
         default_swift_reference = self.ref_params.get(default_ref)
         if default_swift_reference:
@@ -1332,8 +1333,6 @@ class SingleTenantStore(BaseStore):
             'application_credential_id')
         self.application_credential_secret = default_swift_reference.get(
             'application_credential_secret')
-        self.project_name = default_swift_reference.get('project_name')
-        self.project_id = default_swift_reference.get('project_id')
         self.user_domain_id = default_swift_reference.get('user_domain_id')
         self.user_domain_name = default_swift_reference.get('user_domain_name')
         self.project_domain_id = default_swift_reference.get(
@@ -1395,19 +1394,46 @@ class SingleTenantStore(BaseStore):
             self.scheme, credstring, auth_or_store_url, container)
 
     def create_location(self, image_id, context=None):
+        if not hasattr(self, 'container') or not self.container:
+            self.container = self.store_conf.swift_store_container
+        if not hasattr(self, 'auth_address') or not self.auth_address:
+            default_ref = self.store_conf.default_swift_reference
+            if default_ref:
+                ref_params = sutils.SwiftParams(
+                    self.conf, backend=self.backend_group).params
+                default_swift_reference = ref_params.get(default_ref)
+                if default_swift_reference:
+                    self.auth_address = (
+                        default_swift_reference.get('auth_address'))
+                    self.user = default_swift_reference.get('user')
+                    self.key = default_swift_reference.get('key')
+                    self.application_credential_id = (
+                        default_swift_reference.get(
+                            'application_credential_id'))
+                    self.application_credential_secret = (
+                        default_swift_reference.get(
+                            'application_credential_secret'))
+                    self.project_name = default_swift_reference.get(
+                        'project_name')
+                    self.project_id = default_swift_reference.get(
+                        'project_id')
+        if not hasattr(self, 'scheme') or not self.scheme:
+            self.scheme = ('swift+http' if getattr(
+                self, 'auth_address', '').startswith('http://')
+                else 'swift+https')
         container_name = self.get_container_name(image_id, self.container)
         specs = {'scheme': self.scheme,
                  'container': container_name,
                  'obj': str(image_id),
-                 'auth_or_store_url': self.auth_address,
-                 'user': self.user,
-                 'key': self.key,
-                 'application_credential_id':
-                     self.application_credential_id,
-                 'application_credential_secret':
-                     self.application_credential_secret,
-                 'project_name': self.project_name,
-                 'project_id': self.project_id}
+                 'auth_or_store_url': getattr(self, 'auth_address', None),
+                 'user': getattr(self, 'user', None),
+                 'key': getattr(self, 'key', None),
+                 'application_credential_id': (
+                     getattr(self, 'application_credential_id', None)),
+                 'application_credential_secret': (
+                     getattr(self, 'application_credential_secret', None)),
+                 'project_name': getattr(self, 'project_name', None),
+                 'project_id': getattr(self, 'project_id', None)}
         return StoreLocation(specs, self.conf,
                              backend_group=self.backend_group)
 
@@ -1427,13 +1453,10 @@ class SingleTenantStore(BaseStore):
         :param default_image_container: container name from
                ``swift_store_container``
         """
-        if self.backend_group:
-            seed_num_chars = getattr(
-                self.conf,
-                self.backend_group).swift_store_multiple_containers_seed
-        else:
-            seed_num_chars = \
-                self.conf.glance_store.swift_store_multiple_containers_seed
+        glance_conf = (driver.BackendGroupConfiguration(
+            self.OPTIONS, self.backend_group, conf=self.conf)
+            if self.backend_group else self.conf.glance_store)
+        seed_num_chars = glance_conf.swift_store_multiple_containers_seed
 
         if seed_num_chars is None \
                 or seed_num_chars < 0 or seed_num_chars > 32:
@@ -1511,11 +1534,11 @@ class SingleTenantStore(BaseStore):
             LOG.info(reason)
             raise exceptions.BadStoreUri(message=reason)
 
-        os_options = {}
+        os_options = {
+            'endpoint_type': self.endpoint_type,
+            'service_type': self.service_type}
         if self.region:
             os_options['region_name'] = self.region
-        os_options['endpoint_type'] = self.endpoint_type
-        os_options['service_type'] = self.service_type
         if self.user_domain_id:
             os_options['user_domain_id'] = self.user_domain_id
         if self.user_domain_name:
@@ -1534,7 +1557,8 @@ class SingleTenantStore(BaseStore):
     def init_client(self, location, context=None):
         """Initialize keystone client with swift service user credentials"""
         if self.backend_group:
-            store_conf = getattr(self.conf, self.backend_group)
+            store_conf = driver.BackendGroupConfiguration(
+                self.OPTIONS, self.backend_group, conf=self.conf)
         else:
             store_conf = self.conf.glance_store
 
@@ -1543,13 +1567,10 @@ class SingleTenantStore(BaseStore):
             auth_url += '/'
 
         app_cred_id = (getattr(location, 'application_credential_id', None) or
-                       getattr(store_conf,
-                               'swift_store_application_credential_id',
-                               None))
+                       store_conf.swift_store_application_credential_id)
         app_cred_secret = (
             getattr(location, 'application_credential_secret', None) or
-            getattr(store_conf, 'swift_store_application_credential_secret',
-                    None))
+            store_conf.swift_store_application_credential_secret)
 
         if app_cred_id and app_cred_secret:
             app_cred = ks_identity.V3ApplicationCredential(
@@ -1674,10 +1695,27 @@ class MultiTenantStore(BaseStore):
             else:
                 raise
 
+    def _get_container_config(self):
+        """Get container configuration with proper backend fallback."""
+        if hasattr(self, 'container') and self.container:
+            return self.container
+
+        if self.backend_group:
+            return getattr(
+                self.conf,
+                self.backend_group).swift_store_container
+        return self.conf.glance_store.swift_store_container
+
     def create_location(self, image_id, context=None):
         ep = self._get_endpoint(context)
+        container = self._get_container_config()
+        if not container:
+            reason = _("swift_store_container must be set in the "
+                       "configuration.")
+            raise exceptions.BadStoreConfiguration(store_name="swift",
+                                                   reason=reason)
         specs = {'scheme': self.scheme,
-                 'container': self.container + '_' + str(image_id),
+                 'container': container + '_' + str(image_id),
                  'obj': str(image_id),
                  'auth_or_store_url': ep}
         return StoreLocation(specs, self.conf,
@@ -1697,15 +1735,17 @@ class MultiTenantStore(BaseStore):
             cacert=self.cacert)
 
     def init_client(self, location, context=None):
-        # read client parameters from config files
-        ref_params = sutils.SwiftParams(self.conf,
-                                        backend=self.backend_group).params
         if self.backend_group:
+            store_conf = driver.BackendGroupConfiguration(
+                self.OPTIONS, self.backend_group, conf=self.conf)
             default_ref = getattr(self.conf,
                                   self.backend_group).default_swift_reference
         else:
+            store_conf = self.conf.glance_store
             default_ref = self.conf.glance_store.default_swift_reference
 
+        ref_params = sutils.SwiftParams(self.conf,
+                                        backend=self.backend_group).params
         default_swift_reference = ref_params.get(default_ref)
         if not default_swift_reference:
             reason = _("default_swift_reference %s is "
@@ -1720,16 +1760,10 @@ class MultiTenantStore(BaseStore):
         app_cred_secret = default_swift_reference.get(
             'application_credential_secret')
         if not app_cred_id or not app_cred_secret:
-            if self.backend_group:
-                store_conf = getattr(self.conf, self.backend_group)
-            else:
-                store_conf = self.conf.glance_store
-            app_cred_id = getattr(store_conf,
-                                  'swift_store_application_credential_id',
-                                  None)
-            app_cred_secret = getattr(
-                store_conf, 'swift_store_application_credential_secret',
-                None)
+            app_cred_id = (
+                store_conf.swift_store_application_credential_id)
+            app_cred_secret = (
+                store_conf.swift_store_application_credential_secret)
         user_domain_id = default_swift_reference.get('user_domain_id')
         user_domain_name = default_swift_reference.get('user_domain_name')
         project_domain_id = default_swift_reference.get('project_domain_id')
@@ -1739,7 +1773,6 @@ class MultiTenantStore(BaseStore):
         if self.backend_group:
             self._set_url_prefix(context=context)
 
-        # create client for multitenant user(trustor)
         trustor_auth = ks_identity.V3Token(auth_url=auth_address,
                                            token=context.auth_token,
                                            project_id=context.project_id)
@@ -1747,9 +1780,11 @@ class MultiTenantStore(BaseStore):
                                           verify=self.ks_verify)
         trustor_client = ks_client.Client(session=trustor_sess)
         auth_ref = trustor_client.session.auth.get_auth_ref(trustor_sess)
-        roles = [t['name'] for t in auth_ref['roles']]
+        if hasattr(auth_ref, 'role_names'):
+            roles = auth_ref.role_names
+        else:
+            roles = [t['name'] for t in auth_ref['roles']]
 
-        # create client for trustee - glance user specified in swift config
         if app_cred_id and app_cred_secret:
             trustee_auth = ks_identity.V3ApplicationCredential(
                 auth_url=auth_address,
@@ -1778,17 +1813,14 @@ class MultiTenantStore(BaseStore):
                                           verify=self.ks_verify)
         trustee_client = ks_client.Client(session=trustee_sess)
 
-        # request glance user id - we will use it as trustee user
         trustee_user_id = trustee_client.session.get_user_id()
 
-        # create trust for trustee user
         trust_id = trustor_client.trusts.create(
             trustee_user=trustee_user_id, trustor_user=context.user_id,
             project=context.project_id, impersonation=True,
             role_names=roles
         ).id
-        # initialize a new client with trust and trustee credentials
-        # create client for glance trustee user
+
         if app_cred_id and app_cred_secret:
             client_auth = ks_identity.V3ApplicationCredential(
                 auth_url=auth_address,
@@ -1806,10 +1838,7 @@ class MultiTenantStore(BaseStore):
                 user_domain_id=user_domain_id,
                 user_domain_name=user_domain_name,
                 project_domain_id=project_domain_id,
-                project_domain_name=project_domain_name
-            )
-        # now we can authenticate against KS
-        # as trustee of user who provided token
+                project_domain_name=project_domain_name)
         client_sess = ks_session.Session(auth=client_auth,
                                          verify=self.ks_verify)
         return ks_client.Client(session=client_sess)
