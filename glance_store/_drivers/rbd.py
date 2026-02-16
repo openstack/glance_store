@@ -24,7 +24,6 @@ import urllib
 
 from eventlet import tpool
 from oslo_config import cfg
-from oslo_utils import encodeutils
 from oslo_utils import eventletutils
 from oslo_utils import units
 
@@ -374,7 +373,7 @@ class Store(driver.Store):
         with self.get_connection(conffile=self.conf_file,
                                  rados_id=self.user) as conn:
             if hasattr(conn, 'get_fsid'):
-                fsid = encodeutils.safe_decode(conn.get_fsid())
+                fsid = conn.get_fsid()
 
         if fsid and self.pool:
             # ensure nothing contains / or any other url-unsafe character
@@ -561,18 +560,7 @@ class Store(driver.Store):
                                  rados_id=self.user) as conn:
             fsid = None
             if hasattr(conn, 'get_fsid'):
-                # Librados's get_fsid is represented as binary
-                # in py3 instead of str as it is in py2.
-                # This is causing problems with ceph.
-                # Decode binary to str fixes these issues.
-                # Fix with encodeutils.safe_decode CAN BE REMOVED
-                # after librados's fix will be stable.
-                #
-                # More information:
-                # https://bugs.launchpad.net/glance-store/+bug/1816721
-                # https://bugs.launchpad.net/cinder/+bug/1816468
-                # https://tracker.ceph.com/issues/38381
-                fsid = encodeutils.safe_decode(conn.get_fsid())
+                fsid = conn.get_fsid()
             with conn.open_ioctx(self.pool) as ioctx:
                 order = int(math.log(self.WRITE_CHUNKSIZE, 2))
                 LOG.debug('creating image %s with order %d and size %d',
