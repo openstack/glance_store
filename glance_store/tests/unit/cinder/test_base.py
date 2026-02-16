@@ -87,7 +87,8 @@ class TestBaseBrickConnectorInterface(test_base.StoreBaseTest):
 
     def test_connect_volume(self):
         if self.connection_info['driver_volume_type'] == 'nfs':
-            self.skip('NFS tests have custom implementation of this method.')
+            self.skipTest('NFS tests have custom implementation of this '
+                          'method.')
         fake_vol = mock.MagicMock()
         fake_path = {'path': 'fake_dev_path'}
         self.mock_object(self.connector.conn, 'connect_volume',
