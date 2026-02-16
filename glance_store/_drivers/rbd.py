@@ -259,7 +259,8 @@ class ImageIterator(object):
                                            rados_id=self.user) as conn:
                 with conn.open_ioctx(self.pool) as ioctx:
                     with rbd.Image(ioctx, self.name,
-                                   snapshot=self.snapshot) as image:
+                                   snapshot=self.snapshot,
+                                   read_only=True) as image:
                         size = image.size()
                         bytes_left = size
                         while bytes_left > 0:
@@ -416,7 +417,8 @@ class Store(driver.Store):
             with conn.open_ioctx(target_pool) as ioctx:
                 try:
                     with rbd.Image(ioctx, loc.image,
-                                   snapshot=loc.snapshot) as image:
+                                   snapshot=loc.snapshot,
+                                   read_only=True) as image:
                         img_info = image.stat()
                         return img_info['size']
                 except rbd.ImageNotFound:
