@@ -1016,22 +1016,23 @@ class BaseStore(driver.Store):
                         else:
                             content_length = chunk_size
                         chunk_name = "%s-%05d" % (location.obj, chunk_id)
-                        # Check if actual data exceeds the specified
-                        # image_size
-                        if (image_size != 0 and
-                                combined_chunks_size > image_size):
-                            raise glance_store.Invalid(
-                                _("Size exceeds: expected "
-                                  "%(expected)d "
-                                  "bytes, got %(actual)d bytes") %
-                                {'expected': image_size,
-                                 'actual': combined_chunks_size})
 
                         with self.reader_class(
                                 image_file, checksum, os_hash_value,
                                 chunk_size, verifier,
                                 backend_group=self.backend_group) as reader:
                             if reader.is_zero_size is True:
+                                # EOF reached - validate size immediately
+                                if (image_size != 0 and
+                                        combined_chunks_size != image_size):
+                                    message = (_("Size mismatch: expected "
+                                                 "%(expected)d "
+                                                 "bytes, got %(actual)d "
+                                                 "bytes") %
+                                               {'expected': image_size,
+                                                'actual':
+                                                    combined_chunks_size})
+                                    raise glance_store.Invalid(message=message)
                                 LOG.debug('Not writing zero-length chunk.')
                                 break
 
@@ -1067,6 +1068,16 @@ class BaseStore(driver.Store):
 
                         chunk_id += 1
                         combined_chunks_size += bytes_read
+
+                        # Check if actual data exceeds the specified
+                        # image_size after reading and updating the size
+                        if (image_size != 0 and
+                                combined_chunks_size > image_size):
+                            raise glance_store.Invalid(
+                                _("Size exceeds: expected %(expected)d "
+                                  "bytes, got %(actual)d bytes") %
+                                {'expected': image_size,
+                                 'actual': combined_chunks_size})
 
                     # Validate total size after all chunks are uploaded
                     if image_size != 0 and combined_chunks_size != image_size:
