@@ -1,0 +1,18 @@
+---
+features:
+  - |
+    This release adds three new options for the s3 driver:
+
+    - ``s3_store_enable_data_integrity_protection`` (default: False)
+    - ``s3_store_request_checksum_calculation`` (default: 'when_required')
+    - ``s3_store_response_checksum_validation`` (default: 'when_required')
+
+    Users who use S3-compatible storage that does not implement checksum
+    calculation and validation must keep
+    ``s3_store_enable_data_integrity_protection`` set to False.
+
+fixes:
+  - |
+    `Bug #2121144 <https://bugs.launchpad.net/glance/+bug/2121144>`_:
+    Uploading an image to an S3-compatible backend no longer fails if the
+    backend does not support checksum calculation and validation.

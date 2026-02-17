@@ -39,6 +39,9 @@ S3_CONF = {
     's3_store_bucket': 'glance',
     's3_store_large_object_size': 9,  # over 9MB is large
     's3_store_large_object_chunk_size': 6,  # part size is 6MB
+    's3_store_enable_data_integrity_protection': False,
+    's3_store_request_checksum_calculation': 'when_required',
+    's3_store_response_checksum_validation': 'when_required',
 }
 
 
@@ -76,7 +79,10 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
                     s3_store_large_object_size=S3_CONF[
                         's3_store_large_object_size'
                     ],
-                    s3_store_large_object_chunk_size=6)
+                    s3_store_large_object_chunk_size=6,
+                    s3_store_enable_data_integrity_protection=False,
+                    s3_store_request_checksum_calculation='when_required',
+                    s3_store_response_checksum_validation='when_required')
 
         self.config(group='s3_region2',
                     s3_store_access_key='user',
@@ -86,7 +92,10 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
                     s3_store_large_object_size=S3_CONF[
                         's3_store_large_object_size'
                     ],
-                    s3_store_large_object_chunk_size=6)
+                    s3_store_large_object_chunk_size=6,
+                    s3_store_enable_data_integrity_protection=False,
+                    s3_store_request_checksum_calculation='when_required',
+                    s3_store_response_checksum_validation='when_required')
         # Ensure stores + locations cleared
         location.SCHEME_TO_CLS_BACKEND_MAP = {}
         store.create_multi_stores(self.conf)
@@ -252,3 +261,12 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
 
     def test_get_my_object_storage_location(self):
         self._test_get_my_object_storage_location()
+
+    def test_config_with_data_integrity_protection_disabled(self):
+        self._test_config_with_data_integrity_protection_disabled()
+
+    def test_config_with_data_integrity_protection_enabled(self):
+        self._test_config_with_data_integrity_protection_enabled()
+
+    def test_config_fallback_for_old_boto3(self):
+        self._test_config_fallback_for_old_boto3()

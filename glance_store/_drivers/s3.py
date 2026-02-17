@@ -242,6 +242,71 @@ Possible values:
     * An empty string to use the default CA cert bundle used by botocore
 
 """),
+    cfg.BoolOpt('s3_store_enable_data_integrity_protection',
+                default=False,
+                help="""
+Turn on S3 data integrity protections by enabling request checksum calculation
+and response checksum validation. Setting this to False is the same as setting
+the AWS_REQUEST_CHECKSUM_CALCULATION and AWS_RESPONSE_CHECKSUM_VALIDATION
+environment variables to "when_required". Setting this to True gives the user
+fine-grained control over the data integrity protections by using the
+s3_store_request_checksum_calculation and s3_store_response_checksum_validation
+options.
+
+This defaults to False as to not change the default behaviour in glance_store,
+which prevents upload failures when using S3-compatible storage backends that
+do not implement S3 data integrity protection.
+
+Related Options:
+    * s3_store_request_checksum_calculation
+    * s3_store_response_checksum_validation
+"""),
+    cfg.StrOpt('s3_store_request_checksum_calculation',
+               default='when_required',
+               choices=['when_required', 'when_supported'],
+               help="""
+Controls when checksums are calculated for S3 upload requests.
+
+This configuration option provides fine-grained control over request checksum
+calculation behavior. It maps directly to the botocore Config parameter
+request_checksum_calculation.
+
+Possible values:
+    * when_required - Only calculate checksums when required by the operation
+    * when_supported - Calculate checksums when supported by the operation
+
+This option is only used when s3_store_enable_data_integrity_protection is
+set to True. When s3_store_enable_data_integrity_protection is False, both
+request and response checksums use 'when_required' regardless of this setting.
+
+Related Options:
+    * s3_store_response_checksum_validation
+    * s3_store_enable_data_integrity_protection
+
+"""),
+    cfg.StrOpt('s3_store_response_checksum_validation',
+               default='when_required',
+               choices=['when_required', 'when_supported'],
+               help="""
+Controls when checksums are validated for S3 download responses.
+
+This configuration option provides fine-grained control over response checksum
+validation behavior. It maps directly to the botocore Config parameter
+response_checksum_validation.
+
+Possible values:
+    * when_required - Only validate checksums when required by the operation
+    * when_supported - Validate checksums when supported by the operation
+
+This option is only used when s3_store_enable_data_integrity_protection is
+set to True. When s3_store_enable_data_integrity_protection is False, both
+request and response checksums use 'when_required' regardless of this setting.
+
+Related Options:
+    * s3_store_request_checksum_calculation
+    * s3_store_enable_data_integrity_protection
+
+"""),
 ]
 
 
@@ -480,6 +545,12 @@ class Store(glance_store.driver.Store):
                 return result
             if param == 's3_store_cacert':
                 return result
+            if param == 's3_store_enable_data_integrity_protection':
+                return result
+            if param == 's3_store_request_checksum_calculation':
+                return result
+            if param == 's3_store_response_checksum_validation':
+                return result
             reason = _("Could not find %s in configuration options.") % param
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="s3",
@@ -499,7 +570,41 @@ class Store(glance_store.driver.Store):
 
         session = boto_session.Session(aws_access_key_id=loc.accesskey,
                                        aws_secret_access_key=loc.secretkey)
-        config = boto_client.Config(s3=calling_format)
+
+        # Determine checksum settings with precedence:
+        # 1. If s3_store_enable_data_integrity_protection is False,
+        #    use 'when_required' for both (data integrity protection disabled)
+        # 2. If s3_store_enable_data_integrity_protection is True,
+        #    use the fine-grained option values (default: 'when_required')
+        if not self._option_get('s3_store_enable_data_integrity_protection'):
+            # Data integrity protection disabled, use when_required for both
+            request_checksum = 'when_required'
+            response_checksum = 'when_required'
+        else:
+            # Data integrity protection enabled, use fine-grained options
+            request_checksum = self._option_get(
+                's3_store_request_checksum_calculation')
+            response_checksum = self._option_get(
+                's3_store_response_checksum_validation')
+
+        # Try to create Config with checksum parameters (boto3 >= 1.36.0)
+        # Fall back to Config without them for older versions
+        # NOTE(croelandt): This try/except block should be removed and
+        # simplified to always pass the checksum parameters once we require
+        # boto3 >= 1.36.0 in requirements.txt
+        try:
+            config = boto_client.Config(
+                s3=calling_format,
+                request_checksum_calculation=request_checksum,
+                response_checksum_validation=response_checksum,
+            )
+        except TypeError:
+            # boto3 < 1.36.0 doesn't support these parameters
+            LOG.warning("boto3 version does not support checksum control "
+                        "parameters. Upgrade to boto3 >= 1.36.0 to use "
+                        "s3_store_enable_data_integrity_protection and "
+                        "fine-grained checksum options.")
+            config = boto_client.Config(s3=calling_format)
         location = get_s3_location(s3_host)
 
         bucket_name = loc.bucket
