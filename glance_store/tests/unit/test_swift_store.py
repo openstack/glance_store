@@ -1068,6 +1068,81 @@ class SwiftTests(object):
         self.assertEqual(expected_swift_contents, new_image_contents)
         self.assertEqual(expected_swift_size, new_image_swift_size)
 
+    def test_add_large_object_final_chunk_content_length(self):
+        """
+        Test that the final chunk of a large object upload has the correct
+        content_length when the image size is not evenly divisible by the
+        chunk size.
+
+        Regression test for bug lp:2142214 - previously the final chunk
+        would declare content_length = chunk_size instead of the actual
+        remaining bytes, causing Swift to wait for data that would never
+        arrive and leading to idle timeouts.
+        """
+        # Create a 12KB image that will be split into chunks of 5KB
+        # This should result in: 5KB + 5KB + 2KB
+        expected_swift_size = 12 * units.Ki
+        expected_swift_contents = b"*" * expected_swift_size
+        expected_checksum = hashlib.md5(expected_swift_contents,
+                                        usedforsecurity=False).hexdigest()
+        expected_multihash = \
+            hashlib.sha256(expected_swift_contents).hexdigest()
+        expected_image_id = str(uuid.uuid4())
+        loc = 'swift+config://ref1/glance/%s'
+        expected_location = loc % (expected_image_id)
+        image_swift = io.BytesIO(expected_swift_contents)
+
+        # Track content_length for each put_object call
+        content_lengths = []
+
+        # Get reference to the already-mocked fake_put_object from fixtures
+        original_fake_put_object = swiftclient.client.put_object
+
+        def wrapper_track_length(url, token, container, name, contents,
+                                 **kwargs):
+            # Record the content_length parameter
+            content_lengths.append(kwargs.get('content_length'))
+            # Delegate to the original fake_put_object
+            return original_fake_put_object(url, token, container, name,
+                                            contents, **kwargs)
+
+        self.store = Store(self.conf)
+        self.store.configure()
+        orig_max_size = self.store.large_object_size
+        orig_temp_size = self.store.large_object_chunk_size
+
+        with mock.patch('swiftclient.client.put_object',
+                        side_effect=wrapper_track_length):
+            try:
+                # Set chunk size to 5KB so our 12KB image gets split unevenly
+                self.store.large_object_size = 5 * units.Ki
+                self.store.large_object_chunk_size = 5 * units.Ki
+                loc, size, checksum, multihash, _ = self.store.add(
+                    expected_image_id, image_swift, expected_swift_size,
+                    HASH_ALGO)
+            finally:
+                self.store.large_object_chunk_size = orig_temp_size
+                self.store.large_object_size = orig_max_size
+
+        self.assertEqual(expected_location, loc)
+        self.assertEqual(expected_swift_size, size)
+        self.assertEqual(expected_checksum, checksum)
+        self.assertEqual(expected_multihash, multihash)
+
+        # Verify we got 4 put_object calls:
+        # 3 chunks (5KB, 5KB, 2KB) + 1 manifest
+        self.assertEqual(4, len(content_lengths))
+
+        # First chunk: 5KB
+        self.assertEqual(5 * units.Ki, content_lengths[0])
+        # Second chunk: 5KB
+        self.assertEqual(5 * units.Ki, content_lengths[1])
+        # Third (final) chunk: 2KB (not 5KB!)
+        # This is the critical assertion - tests the bug fix
+        self.assertEqual(2 * units.Ki, content_lengths[2])
+        # Manifest has no content_length
+        self.assertIsNone(content_lengths[3])
+
     def test_add_already_existing(self):
         """
         Tests that adding an image with an existing identifier

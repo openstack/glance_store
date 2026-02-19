@@ -1006,7 +1006,8 @@ class BaseStore(driver.Store):
                         if image_size == 0:
                             content_length = None
                         else:
-                            content_length = chunk_size
+                            left = image_size - combined_chunks_size
+                            content_length = min(chunk_size, left)
                         chunk_name = "%s-%05d" % (location.obj, chunk_id)
 
                         with self.reader_class(
