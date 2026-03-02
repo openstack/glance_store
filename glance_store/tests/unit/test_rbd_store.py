@@ -309,18 +309,6 @@ class TestStore(base.StoreBaseTest,
         """Test creating image with configuration features."""
         self._test_create_image_conf_features()
 
-    def test_create_image_in_native_thread(self):
-        """Test creating image in native thread."""
-        self._test_create_image_in_native_thread()
-
-    def test_delete_image_in_native_thread(self):
-        """Test deleting image in native thread."""
-        self._test_delete_image_in_native_thread()
-
-    def test_rbd_proxy(self):
-        """Test RBD proxy functionality."""
-        self._test_rbd_proxy()
-
     def tearDown(self):
         """Clean up after tests."""
         self.assertEqual(self.called_commands_expected,

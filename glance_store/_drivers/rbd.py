@@ -22,9 +22,7 @@ import logging
 import math
 import urllib
 
-from eventlet import tpool
 from oslo_config import cfg
-from oslo_utils import eventletutils
 from oslo_utils import units
 
 from glance_store import capabilities
@@ -293,12 +291,6 @@ class Store(driver.Store):
     def get_schemes(self):
         return ('rbd',)
 
-    def RBDProxy(self):
-        if eventletutils.is_monkey_patched('thread'):
-            return tpool.Proxy(rbd.RBD())
-        else:
-            return rbd.RBD()
-
     @contextlib.contextmanager
     def get_connection(self, conffile, rados_id):
         client = rados.Rados(conffile=conffile, rados_id=rados_id)
@@ -440,9 +432,9 @@ class Store(driver.Store):
         features = conn.conf_get('rbd_default_features')
         if ((features is None) or (int(features) == 0)):
             features = rbd.RBD_FEATURE_LAYERING
-        self.RBDProxy().create(ioctx, image_name, size, order,
-                               old_format=False,
-                               features=int(features))
+        rbd.RBD().create(ioctx, image_name, size, order,
+                         old_format=False,
+                         features=int(features))
         return StoreLocation({
             'fsid': fsid,
             'pool': self.pool,
@@ -486,7 +478,7 @@ class Store(driver.Store):
                                 raise exceptions.InUseByStore()
 
                     # Then delete image.
-                    self.RBDProxy().remove(ioctx, image_name)
+                    rbd.RBD().remove(ioctx, image_name)
                 except rbd.ImageHasSnapshots:
                     log_msg = (_LW("Unable to remove image %(img_name)s: it "
                                    "has snapshot(s) left; trashing instead") %
