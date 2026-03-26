@@ -47,6 +47,8 @@ class TestConnectionManager(base.StoreBaseTest):
         store.backend_group = None
         store.conf_endpoint = None
         store.init_client.return_value = self.client
+        store.store_conf = mock.MagicMock()
+        store.store_conf.swift_store_expire_soon_interval = 60
         return store
 
     def test_basic_single_tenant_cm_init(self):
@@ -179,3 +181,34 @@ class TestConnectionManager(base.StoreBaseTest):
         # check that we don't update connection
         self.assertEqual(2, store.get_store_connection.call_count)
         self.assertEqual(2, self.client.session.get_auth_headers.call_count)
+
+    def test_reauth_uses_store_conf_expire_interval(self):
+        """LP #2146432: token refresh reads interval via store_conf."""
+        store = self.prepare_store()
+        store.store_conf = mock.MagicMock()
+        store.store_conf.swift_store_expire_soon_interval = 72
+
+        manager = connection_manager.SingleTenantConnectionManager(
+            store=store,
+            store_location=self.location,
+            allow_reauth=True)
+        auth_ref = mock.MagicMock()
+        self.client.session.auth.auth_ref = auth_ref
+        auth_ref.will_expire_soon.return_value = False
+        manager.get_connection()
+        auth_ref.will_expire_soon.assert_called_once_with(72)
+
+    def test_reauth_interval_none_uses_sixty(self):
+        store = self.prepare_store()
+        store.store_conf = mock.MagicMock()
+        store.store_conf.swift_store_expire_soon_interval = None
+
+        manager = connection_manager.SingleTenantConnectionManager(
+            store=store,
+            store_location=self.location,
+            allow_reauth=True)
+        auth_ref = mock.MagicMock()
+        self.client.session.auth.auth_ref = auth_ref
+        auth_ref.will_expire_soon.return_value = False
+        manager.get_connection()
+        auth_ref.will_expire_soon.assert_called_once_with(60)
