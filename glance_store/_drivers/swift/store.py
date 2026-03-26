@@ -483,11 +483,7 @@ def swift_retry_iter(resp_iter, length, store, location, manager):
     retries = 0
     bytes_read = 0
 
-    if store.backend_group:
-        rcount = getattr(store.conf,
-                         store.backend_group).swift_store_retry_get_count
-    else:
-        rcount = store.conf.glance_store.swift_store_retry_get_count
+    rcount = store.store_conf.swift_store_retry_get_count
 
     while retries <= rcount:
         try:
@@ -885,14 +881,10 @@ class BaseStore(driver.Store):
     @capabilities.check
     def get(self, location, connection=None,
             offset=0, chunk_size=None, context=None):
-        if self.backend_group:
-            glance_conf = getattr(self.conf, self.backend_group)
-        else:
-            glance_conf = self.conf.glance_store
-
         location = location.store_location
         # initialize manager to receive valid connections
-        allow_retry = glance_conf.swift_store_retry_get_count > 0
+        retry_get_count = self.store_conf.swift_store_retry_get_count
+        allow_retry = retry_get_count > 0
         with self.get_manager(location, context,
                               allow_reauth=allow_retry) as manager:
             (resp_headers, resp_body) = self._get_object(location,

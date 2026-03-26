@@ -1,0 +1,16 @@
+---
+fixes:
+  - |
+    Fixed a Swift download regression for multi-backend deployments: some code
+    read options from the raw Oslo config group, where grafted backends leave
+    unset values as ``None``, instead of using ``store_conf``
+    (``BackendGroupConfiguration``), which falls back to ``backend_defaults``.
+
+    Retry count and retry iterator configuration now read from ``store_conf``
+    (Oslo defaults apply when unset). Token-refresh interval uses ``store_conf``
+    with a driver fallback if still unset. This avoids ``TypeError`` on image
+    download (including when ``swift_store_retry_get_count`` is greater than
+    zero).
+
+    For more details, see `bug 2146432
+    <https://bugs.launchpad.net/glance/+bug/2146432>`_.

@@ -79,15 +79,12 @@ class SwiftConnectionManager(object):
             # if there is no way to execute it (cannot initialize trusts for
             # multi-tenant)
             auth_ref = self.client.session.auth.auth_ref
-            # if connection token is going to expire soon (keystone checks
-            # is token is going to expire or expired already)
-            if self.store.backend_group:
-                interval = getattr(
-                    self.store.conf, self.store.backend_group
-                ).swift_store_expire_soon_interval
-            else:
-                store_conf = self.store.conf.glance_store
-                interval = store_conf.swift_store_expire_soon_interval
+            # Use store_conf (BackendGroupConfiguration) so multi-backend
+            # grafting falls back to backend_defaults; raw oslo group attrs
+            # stay None for unset opts (LP #2146432).
+            interval = self.store.store_conf.swift_store_expire_soon_interval
+            if interval is None:
+                interval = 60
 
             if auth_ref.will_expire_soon(interval):
                 LOG.info(_LI("Requesting new token for swift connection."))
