@@ -45,6 +45,9 @@ S3_CONF = {
     's3_store_bucket': 'glance',
     's3_store_large_object_size': 9,        # over 9MB is large
     's3_store_large_object_chunk_size': 6,  # part size is 6MB
+    's3_store_enable_data_integrity_protection': False,
+    's3_store_request_checksum_calculation': 'when_required',
+    's3_store_response_checksum_validation': 'when_required',
 }
 
 
@@ -95,7 +98,10 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
                     s3_store_large_object_size=S3_CONF[
                         's3_store_large_object_size'
                     ],
-                    s3_store_large_object_chunk_size=6)
+                    s3_store_large_object_chunk_size=6,
+                    s3_store_enable_data_integrity_protection=False,
+                    s3_store_request_checksum_calculation='when_required',
+                    s3_store_response_checksum_validation='when_required')
 
         self.config(group='s3_region2',
                     s3_store_access_key='user',
@@ -105,7 +111,10 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
                     s3_store_large_object_size=S3_CONF[
                         's3_store_large_object_size'
                     ],
-                    s3_store_large_object_chunk_size=6)
+                    s3_store_large_object_chunk_size=6,
+                    s3_store_enable_data_integrity_protection=False,
+                    s3_store_request_checksum_calculation='when_required',
+                    s3_store_response_checksum_validation='when_required')
         # Ensure stores + locations cleared
         location.SCHEME_TO_CLS_BACKEND_MAP = {}
         store.create_multi_stores(self.conf)
@@ -554,3 +563,76 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
                                                              's3_region1',
                                                              conf=self.conf)
             self.assertRaises(exceptions.NotFound, self.store.delete, loc)
+
+    def test_config_with_data_integrity_protection_disabled(self):
+        self.config(s3_store_enable_data_integrity_protection=False,
+                    group='s3_region1')
+        self.store.configure()
+
+        mock_loc = mock.Mock()
+        mock_loc.accesskey = 'access_key'
+        mock_loc.secretkey = 'secret_key'
+        mock_loc.bucket = 'test_bucket'
+
+        with mock.patch('botocore.client.Config') as mock_config, \
+                mock.patch('boto3.session.Session.client'):
+            mock_config.return_value = mock.Mock()
+            self.store._create_s3_client(mock_loc)
+
+            mock_config.assert_called_once()
+            call_args = mock_config.call_args
+            self.assertEqual('when_required',
+                             call_args.kwargs['request_checksum_calculation'])
+            self.assertEqual('when_required',
+                             call_args.kwargs['response_checksum_validation'])
+
+    def test_config_with_data_integrity_protection_enabled(self):
+        self.config(s3_store_enable_data_integrity_protection=True,
+                    s3_store_request_checksum_calculation='when_supported',
+                    s3_store_response_checksum_validation='when_supported',
+                    group='s3_region1')
+        self.store.configure()
+
+        mock_loc = mock.Mock()
+        mock_loc.accesskey = 'access_key'
+        mock_loc.secretkey = 'secret_key'
+        mock_loc.bucket = 'test_bucket'
+
+        with mock.patch('botocore.client.Config') as mock_config, \
+                mock.patch('boto3.session.Session.client'):
+            mock_config.return_value = mock.Mock()
+            self.store._create_s3_client(mock_loc)
+
+            mock_config.assert_called_once()
+            call_args = mock_config.call_args
+            self.assertEqual('when_supported',
+                             call_args.kwargs['request_checksum_calculation'])
+            self.assertEqual('when_supported',
+                             call_args.kwargs['response_checksum_validation'])
+
+    def test_config_fallback_for_old_boto3(self):
+        mock_loc = mock.Mock()
+        mock_loc.accesskey = 'access_key'
+        mock_loc.secretkey = 'secret_key'
+        mock_loc.bucket = 'test_bucket'
+
+        def config_side_effect(*args, **kwargs):
+            if 'request_checksum_calculation' in kwargs:
+                raise TypeError("Unexpected keyword argument")
+            return mock.Mock()
+
+        with mock.patch('botocore.client.Config',
+                        side_effect=config_side_effect) as mock_config, \
+                mock.patch('boto3.session.Session.client'):
+            self.store._create_s3_client(mock_loc)
+
+            self.assertEqual(2, mock_config.call_count)
+            first_call_kwargs = mock_config.call_args_list[0].kwargs
+            self.assertIn('request_checksum_calculation', first_call_kwargs)
+            self.assertIn('response_checksum_validation', first_call_kwargs)
+
+            second_call_kwargs = mock_config.call_args_list[1].kwargs
+            self.assertNotIn('request_checksum_calculation',
+                             second_call_kwargs)
+            self.assertNotIn('response_checksum_validation',
+                             second_call_kwargs)
