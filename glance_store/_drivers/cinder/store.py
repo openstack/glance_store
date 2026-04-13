@@ -467,6 +467,21 @@ Possible values:
     * True or False
 
 """),
+    cfg.IntOpt('cinder_attachment_retry_attempts',
+               min=1,
+               default=5,
+               help="""
+Maximum number of retry attempts for cinder attachment create operations.
+
+When creating a volume attachment, cinder may be unable to complete the
+request due to transient issues (e.g., volume in transitional state). This
+option specifies the maximum number of times to retry the attachment_create
+operation before giving up.
+
+Possible values:
+    * A positive integer
+
+"""),
 ]
 
 CINDER_SESSION = None
@@ -558,7 +573,7 @@ class Store(glance_store.driver.Store):
                 self.OPTIONS, self.backend_group, conf=self.conf)
         else:
             self.store_conf = self.conf.glance_store
-        self.volume_api = cinder_utils.API()
+        self.volume_api = cinder_utils.API(config=self.store_conf)
         if os_brick:
             os_brick.setup(CONF)
         # The purpose of this map is to store the connector object for a

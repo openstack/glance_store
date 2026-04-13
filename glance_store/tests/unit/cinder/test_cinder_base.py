@@ -1010,3 +1010,11 @@ class TestCinderStoreBase(object):
             fake_socket.side_effect = [socket.gaierror, fake_socket_return]
             res = self.store._get_host_ip('fake_host')
             self.assertEqual(fake_ip, res)
+
+    def _test_cinder_attachment_retry_attempts_custom(self,
+                                                      group='glance_store'):
+        # Test custom value for cinder_attachment_retry_attempts config
+        self.config(cinder_attachment_retry_attempts=10, group=group)
+        self.store.configure()
+        self.assertEqual(
+            10, self.store.store_conf.cinder_attachment_retry_attempts)

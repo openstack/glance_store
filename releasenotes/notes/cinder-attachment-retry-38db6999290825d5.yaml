@@ -1,0 +1,13 @@
+---
+features:
+  - |
+    Added a new configuration option ``cinder_attachment_retry_attempts``
+    to configure the number of retries that needs can be attempted when
+    trying to attach the image-volume. The default value is ``5``.
+fixes:
+  - |
+    `Bug #2148167 <https://bugs.launchpad.net/cinder/+bug/2148167>`_:
+    Fixed issue when trying to attach the image-volume simultaneously.
+    Added a new configuration option ``cinder_attachment_retry_attempts``
+    to allow more time for attachment create operation to finish when
+    image is being consumed simultaneously. The default value is ``5``.

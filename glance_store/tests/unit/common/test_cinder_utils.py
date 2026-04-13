@@ -52,6 +52,11 @@ class CinderUtilsTestCase(base.BaseTestCase):
             'uuid': '3e1a7217-104e-41c1-b177-a37c491129a0',
             'system uuid': '98755544-c749-40ed-b30a-a1cb27b2a46d',
             'nqn': 'fake_nqn'}
+        # Error message template for volume status errors
+        self.volume_status_error_msg = (
+            'Volume {volume_id} status must be available or in-use or '
+            'downloading to reserve, but the current status is '
+            '{current_status}.')
 
     def test_attachment_create(self):
         self.volume_api.attachment_create(self.fake_client, self.fake_vol_id)
@@ -77,11 +82,14 @@ class CinderUtilsTestCase(base.BaseTestCase):
     @mock.patch('time.sleep', new=mock.Mock())
     def test_attachment_create_retries(self):
 
-        fake_attach_id = 'fake-attach-id'
+        fake_attach_id = '12345678-1234-5678-1234-567812345678'
         # Make create fail two times and succeed on the third attempt.
+        # Use error messages that match the retry condition
+        error_msg = self.volume_status_error_msg.format(
+            volume_id=self.fake_vol_id, current_status='reserved')
         self.fake_client.attachments.create.side_effect = [
-            cinder_exception.BadRequest(400),
-            cinder_exception.BadRequest(400),
+            cinder_exception.BadRequest(400, message=error_msg),
+            cinder_exception.BadRequest(400, message=error_msg),
             fake_attach_id]
 
         # Make sure we get a clean result.
@@ -89,8 +97,8 @@ class CinderUtilsTestCase(base.BaseTestCase):
             self.fake_client, self.fake_vol_id)
 
         self.assertEqual(fake_attach_id, fake_attachment_id)
-        # Assert that we called attachment create three times due to the retry
-        # decorator.
+        # Assert that we called attachment create three times due to the
+        # retry decorator.
         self.fake_client.attachments.create.assert_has_calls([
             mock.call(self.fake_vol_id, None, mode=None),
             mock.call(self.fake_vol_id, None, mode=None),
@@ -177,3 +185,151 @@ class CinderUtilsTestCase(base.BaseTestCase):
             mock.call(self.fake_attach_id),
             mock.call(self.fake_attach_id),
             mock.call(self.fake_attach_id)])
+
+    def test_api_init_with_no_config(self):
+        # Test API initialization without config
+        api = cinder_utils.API()
+        self.assertEqual(5, api.attachment_create_retry_attempts)
+
+    def test_api_init_with_config_custom_retry_attempts(self):
+        # Test API initialization with custom retry attempts
+        fake_config = FakeObject(cinder_attachment_retry_attempts=3)
+        api = cinder_utils.API(config=fake_config)
+        self.assertEqual(3, api.attachment_create_retry_attempts)
+
+    @mock.patch('time.sleep', new=mock.Mock())
+    def test_attachment_create_retries_with_custom_attempts(self):
+        # Test that custom retry attempts are respected
+        fake_config = FakeObject(cinder_attachment_retry_attempts=2)
+        volume_api = cinder_utils.API(config=fake_config)
+
+        fake_attach_id = '12345678-1234-5678-1234-567812345678'
+        # Make create fail once and succeed on second attempt
+        error_msg = self.volume_status_error_msg.format(
+            volume_id=self.fake_vol_id, current_status='reserved')
+        self.fake_client.attachments.create.side_effect = [
+            cinder_exception.BadRequest(400, message=error_msg),
+            fake_attach_id]
+
+        # Should succeed on second attempt
+        result = volume_api.attachment_create(
+            self.fake_client, self.fake_vol_id)
+
+        self.assertEqual(fake_attach_id, result)
+        # Should have called twice
+        self.assertEqual(2, self.fake_client.attachments.create.call_count)
+
+    @mock.patch('time.sleep', new=mock.Mock())
+    def test_attachment_create_max_retries_exceeded(self):
+        # Test that retries stop after max attempts
+        fake_config = FakeObject(cinder_attachment_retry_attempts=3)
+        volume_api = cinder_utils.API(config=fake_config)
+
+        # Make all calls fail with retryable error
+        error_msg = self.volume_status_error_msg.format(
+            volume_id=self.fake_vol_id, current_status='reserved')
+        self.fake_client.attachments.create.side_effect = \
+            cinder_exception.BadRequest(400, message=error_msg)
+
+        # Should raise after 3 attempts
+        self.assertRaises(
+            cinder_exception.BadRequest,
+            volume_api.attachment_create,
+            self.fake_client, self.fake_vol_id)
+
+        # Should have called 3 times
+        self.assertEqual(3, self.fake_client.attachments.create.call_count)
+
+    def test_retry_on_bad_request_with_status_must_be_available_or_downloading(self):  # noqa
+        # Test that BadRequest with "status must be available or
+        # downloading" is retried
+        error = cinder_exception.BadRequest(
+            400,
+            message='status must be available or downloading to reserve')
+        self.assertTrue(cinder_utils._retry_on_bad_request(error))
+
+    def test_retry_on_bad_request_with_status_available_or_in_use_or_downloading(self):  # noqa
+        # Test that BadRequest with "status must be" and "to reserve" is
+        # retried
+        error = cinder_exception.BadRequest(
+            400,
+            message='Volume status must be available or in-use or '
+                    'downloading to reserve')
+        self.assertTrue(cinder_utils._retry_on_bad_request(error))
+
+    def test_retry_on_bad_request_with_other_error(self):
+        # Test that BadRequest with other errors is not retried
+        error = cinder_exception.BadRequest(
+            400, message='Invalid input received')
+        self.assertFalse(cinder_utils._retry_on_bad_request(error))
+
+    @mock.patch('time.sleep', new=mock.Mock())
+    @mock.patch('glance_store.common.cinder_utils.LOG')
+    def test_attachment_create_retry_logging(self, mock_log):
+        # Test that retry attempts are logged correctly
+        fake_attach_id = '12345678-1234-5678-1234-567812345678'
+        # Make create fail twice with status error and succeed on third
+        error_msg = self.volume_status_error_msg.format(
+            volume_id=self.fake_vol_id, current_status='reserved')
+        self.fake_client.attachments.create.side_effect = [
+            cinder_exception.BadRequest(400, message=error_msg),
+            cinder_exception.BadRequest(400, message=error_msg),
+            fake_attach_id]
+
+        result = self.volume_api.attachment_create(
+            self.fake_client, self.fake_vol_id)
+
+        self.assertEqual(fake_attach_id, result)
+
+        # Check that debug logs were called for retries
+        self.assertEqual(2, mock_log.debug.call_count)
+
+        # Check first retry log (should extract 'reserved' state)
+        first_call = mock_log.debug.call_args_list[0]
+        self.assertIn('Attachment create failed for volume',
+                      first_call[0][0])
+        # The second positional argument contains the dict
+        log_dict = first_call[0][1]
+        self.assertIn('state', log_dict)
+        self.assertEqual('reserved', log_dict['state'])
+
+    @mock.patch('time.sleep', new=mock.Mock())
+    @mock.patch('glance_store.common.cinder_utils.LOG')
+    def test_attachment_create_retry_volume_state_extraction(self, mock_log):
+        # Test volume state extraction from error message
+        fake_attach_id = '12345678-1234-5678-1234-567812345678'
+        error_msg = self.volume_status_error_msg.format(
+            volume_id=self.fake_vol_id, current_status='in-use')
+        self.fake_client.attachments.create.side_effect = [
+            cinder_exception.BadRequest(400, message=error_msg),
+            fake_attach_id]
+
+        result = self.volume_api.attachment_create(
+            self.fake_client, self.fake_vol_id)
+
+        self.assertEqual(fake_attach_id, result)
+
+        # Verify debug log was called
+        mock_log.debug.assert_called_once()
+        # The second positional argument contains the dict
+        log_dict = mock_log.debug.call_args[0][1]
+
+        # Should have extracted 'in-use' as the volume state
+        self.assertEqual('in-use', log_dict['state'])
+
+    @mock.patch('time.sleep', new=mock.Mock())
+    def test_attachment_create_no_retry_on_non_status_bad_request(self):
+        # Test that BadRequest errors not related to status are not retried
+        self.fake_client.attachments.create.side_effect = \
+            cinder_exception.BadRequest(400,
+                                        message='Invalid connector format')
+
+        # Should raise immediately without retries
+        self.assertRaises(
+            cinder_exception.BadRequest,
+            self.volume_api.attachment_create,
+            self.fake_client, self.fake_vol_id)
+
+        # Should have only called once (no retries)
+        self.assertEqual(1,
+                         self.fake_client.attachments.create.call_count)

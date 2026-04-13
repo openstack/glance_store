@@ -87,6 +87,7 @@ class OptsTestCase(base.StoreBaseTest):
             'cinder_use_multipath',
             'cinder_enforce_multipath',
             'cinder_do_extend_attached',
+            'cinder_attachment_retry_attempts',
             'default_swift_reference',
             'https_insecure',
             'filesystem_store_chunk_size',

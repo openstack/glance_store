@@ -49,12 +49,35 @@ def _retry_on_internal_server_error(e):
 
 def _retry_on_bad_request(e):
     if isinstance(e, cinder_exception.BadRequest):
-        return True
+        # Only retry on specific volume status errors
+        error_msg = str(e).lower()
+        expected_messages = (
+            'status must be available or downloading to reserve',
+            'status must be available or in-use or downloading to reserve',
+        )
+        # Check for either of the two expected error patterns
+        for message in expected_messages:
+            if message in error_msg:
+                return True
     return False
 
 
 class API(object):
     """API for interacting with the cinder."""
+
+    def __init__(self, config=None):
+        """Initialize the API with optional configuration.
+
+        :param config: Configuration object containing retry parameters
+        """
+        self.config = config
+        # Set retry parameter with defaults
+        if config:
+            self.attachment_create_retry_attempts = getattr(
+                config, 'cinder_attachment_retry_attempts', 5)
+        else:
+            # Default value when no config is provided (24 seconds)
+            self.attachment_create_retry_attempts = 5
 
     @handle_exceptions
     def create(self, client, size, name,
@@ -79,10 +102,6 @@ class API(object):
     def delete(self, client, volume_id):
         client.volumes.delete(volume_id)
 
-    @retrying.retry(stop_max_attempt_number=5,
-                    retry_on_exception=_retry_on_bad_request,
-                    wait_exponential_multiplier=1000,
-                    wait_exponential_max=10000)
     @handle_exceptions
     def attachment_create(self, client, volume_id, connector=None,
                           mountpoint=None, mode=None):
@@ -105,27 +124,77 @@ class API(object):
             cinderclient.v3.attachments.VolumeAttachment object with a backward
             compatible connection_info dict
         """
-        if connector and mountpoint and 'mountpoint' not in connector:
-            connector['mountpoint'] = mountpoint
+        # Create a retry decorator with configurable retry attempts
+        retry_decorator = retrying.retry(
+            stop_max_attempt_number=self.attachment_create_retry_attempts,
+            retry_on_exception=_retry_on_bad_request,
+            wait_exponential_multiplier=1000,
+            wait_exponential_max=10000
+        )
 
-        try:
-            attachment_ref = client.attachments.create(
-                volume_id, connector, mode=mode)
-            return attachment_ref
-        except cinder_exception.ClientException as ex:
-            with excutils.save_and_reraise_exception():
-                # While handling simultaneous requests, the volume can be
-                # in different states and we retry on attachment_create
-                # until the volume reaches a valid state for attachment.
-                # Hence, it is better to not log 400 cases as no action
-                # from users is needed in this case
-                if getattr(ex, 'code', None) != 400:
-                    LOG.error(_LE('Create attachment failed for volume '
-                                  '%(volume_id)s. Error: %(msg)s '
-                                  'Code: %(code)s'),
-                              {'volume_id': volume_id,
-                               'msg': str(ex),
-                               'code': getattr(ex, 'code', None)})
+        # This count is only used for logging purpose
+        retry_attempts = 0
+
+        @retry_decorator
+        def _do_attachment_create():
+            nonlocal retry_attempts
+            retry_attempts += 1
+            if connector and mountpoint and 'mountpoint' not in connector:
+                connector['mountpoint'] = mountpoint
+
+            try:
+                attachment_ref = client.attachments.create(
+                    volume_id, connector, mode=mode)
+                return attachment_ref
+            except cinder_exception.ClientException as ex:
+                with excutils.save_and_reraise_exception():
+                    # NOTE(whoami-rajat): While handling simultaneous
+                    # requests, the volume can be in different states and we
+                    # retry on attachment_create until the volume reaches a
+                    # valid state for attachment. Hence, it is better to not
+                    # log 400 cases as no action from users is needed in this
+                    # case.
+                    if getattr(ex, 'code', None) != 400:
+                        LOG.error(_LE('Create attachment failed for volume '
+                                      '%(volume_id)s. Error: %(msg)s '
+                                      'Code: %(code)s'),
+                                  {'volume_id': volume_id,
+                                   'msg': str(ex),
+                                   'code': getattr(ex, 'code', None)})
+
+                    # Log DEBUG message for every retry attempt
+                    if (retry_attempts < self.attachment_create_retry_attempts
+                            and _retry_on_bad_request(ex)):
+                        volume_state = '<unknown>'
+                        error_msg = str(ex)
+                        # NOTE(whoami-rajat): Doing a GET API call to cinder
+                        # for logging the volume status would add overhead
+                        # for simultaneous requests. The status already exists
+                        # in the error message, we just need to extract it.
+                        if 'current status is' in error_msg:
+                            try:
+                                # Example log:
+                                # "... but the current status is reserved."
+                                status_part = error_msg.split(
+                                    'current status is')[1]
+                                volume_state = (status_part.split('.')[0]
+                                                .strip())
+                            except (IndexError, AttributeError):
+                                pass
+
+                        # compute the wait time based on the values we passed
+                        # when defining the retry decorator above
+                        wait_time_s = min((2 ** (retry_attempts)), 10)
+
+                        LOG.debug(
+                            'Attachment create failed for volume '
+                            '%(volume_id)s. Volume state: %(state)s. '
+                            'Retrying in %(wait_time)d seconds.',
+                            {'volume_id': volume_id,
+                             'state': volume_state,
+                             'wait_time': wait_time_s})
+
+        return _do_attachment_create()
 
     @handle_exceptions
     def attachment_get(self, client, attachment_id):

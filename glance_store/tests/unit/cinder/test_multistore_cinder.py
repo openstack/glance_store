@@ -344,3 +344,6 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
                 application_credential_secret='cinder1_ac_secret',
                 auth_url='cinder1_auth_address')
             fake_session.assert_called_once_with(auth=fake_auth, verify=True)
+
+    def test_multistore_cinder_attachment_retry_attempts_custom(self):
+        self._test_cinder_attachment_retry_attempts_custom(group='cinder1')

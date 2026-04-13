@@ -199,3 +199,6 @@ class TestCinderStore(base.StoreBaseTest,
             fake_ac_method.assert_not_called()
             fake_password_method.assert_called_once()
             fake_session.assert_called_once_with(auth=fake_auth, verify=True)
+
+    def test_cinder_attachment_retry_attempts_custom(self):
+        self._test_cinder_attachment_retry_attempts_custom()
