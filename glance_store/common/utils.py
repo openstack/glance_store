@@ -24,10 +24,6 @@ import uuid
 
 from oslo_concurrency import lockutils
 
-from time import sleep
-
-from glance_store.i18n import _
-
 
 LOG = logging.getLogger(__name__)
 
@@ -73,37 +69,6 @@ def chunkiter(fp, chunk_size=65536):
             break
 
 
-def cooperative_iter(iter):
-    """
-    Return an iterator which schedules after each
-    iteration. This can prevent eventlet thread starvation.
-
-    :param iter: an iterator to wrap
-    """
-    try:
-        for chunk in iter:
-            sleep(0)
-            yield chunk
-    except Exception as err:
-        msg = _("Error: cooperative_iter exception %s") % err
-        LOG.error(msg)
-        raise
-
-
-def cooperative_read(fd):
-    """
-    Wrap a file descriptor's read with a partial function which schedules
-    after each read. This can prevent eventlet thread starvation.
-
-    :param fd: a file descriptor to wrap
-    """
-    def readfn(*args):
-        result = fd.read(*args)
-        sleep(0)
-        return result
-    return readfn
-
-
 def get_hasher(hash_algo, usedforsecurity=True):
     """
     Returns the required hasher, given the hashing algorithm.
@@ -117,42 +82,3 @@ def get_hasher(hash_algo, usedforsecurity=True):
         return hashlib.md5(usedforsecurity=usedforsecurity)
     else:
         return hashlib.new(str(hash_algo))
-
-
-class CooperativeReader(object):
-    """
-    An eventlet thread friendly class for reading in image data.
-
-    When accessing data either through the iterator or the read method
-    we perform a sleep to allow a co-operative yield. When there is more than
-    one image being uploaded/downloaded this prevents eventlet thread
-    starvation, ie allows all threads to be scheduled periodically rather than
-    having the same thread be continuously active.
-    """
-    def __init__(self, fd):
-        """
-        :param fd: Underlying image file object
-        """
-        self.fd = fd
-        self.iterator = None
-        # NOTE(markwash): if the underlying supports read(), overwrite the
-        # default iterator-based implementation with cooperative_read which
-        # is more straightforward
-        if hasattr(fd, 'read'):
-            self.read = cooperative_read(fd)
-
-    def read(self, length=None):
-        """Return the next chunk of the underlying iterator.
-
-        This is replaced with cooperative_read in __init__ if the underlying
-        fd already supports read().
-        """
-        if self.iterator is None:
-            self.iterator = self.__iter__()
-        try:
-            return next(self.iterator)
-        except StopIteration:
-            return b''
-
-    def __iter__(self):
-        return cooperative_iter(self.fd.__iter__())
