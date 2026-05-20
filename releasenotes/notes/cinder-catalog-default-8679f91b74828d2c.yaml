@@ -1,0 +1,14 @@
+---
+upgrade:
+  - |
+    Cinder: Changed default value of ``cinder_catalog_info``
+    from ``volumev3::publicURL`` to ``block-storage:cinder:publicURL``
+    as the official service name and service type for cinder
+    is ``cinder`` and ``block-storage`` respectively.
+deprecations:
+  - |
+    Cinder: Deprecated the default value of ``cinder_catalog_info``
+    which was ``volumev3::publicURL``.
+    The new default ``block-storage:cinder:publicURL`` is set
+    as the official service name and service type for cinder
+    is ``cinder`` and ``block-storage`` respectively.
