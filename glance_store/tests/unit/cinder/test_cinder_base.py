@@ -509,6 +509,9 @@ class TestCinderStoreBase(object):
             (image_file, image_size) = self.store.get(loc,
                                                       context=self.context)
 
+            # Verify that the iterator returned is CinderVolumeIterator
+            self.assertIsInstance(image_file,
+                                  cinder.CinderVolumeIterator)
             expected_num_chunks = 2
             data = b""
             num_chunks = 0
@@ -1018,3 +1021,11 @@ class TestCinderStoreBase(object):
         self.store.configure()
         self.assertEqual(
             10, self.store.store_conf.cinder_attachment_retry_attempts)
+
+    def _test_cinder_volume_iterator_closes_on_completion(self):
+        # Test CinderVolumeIterator closes underlying iterator
+        mock_iterator = mock.MagicMock()
+        mock_iterator.__next__.side_effect = [b'chunk1', StopIteration]
+        volume_iterator = cinder.CinderVolumeIterator(mock_iterator)
+        list(volume_iterator)
+        mock_iterator.close.assert_called_once()

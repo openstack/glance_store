@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    `Bug #2154211 <https://bugs.launchpad.net/glance-store/+bug/2154211>`_:
+    Fixed issue with the volume iterator detaching the volume after the
+    get image call is finished causing the volume to be in transitional
+    state and deletion fails if attempted immediately.

@@ -202,3 +202,6 @@ class TestCinderStore(base.StoreBaseTest,
 
     def test_cinder_attachment_retry_attempts_custom(self):
         self._test_cinder_attachment_retry_attempts_custom()
+
+    def test_cinder_volume_iterator_closes_on_completion(self):
+        self._test_cinder_volume_iterator_closes_on_completion()

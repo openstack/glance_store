@@ -552,6 +552,45 @@ class StoreLocation(glance_store.location.StoreLocation):
             raise exceptions.BadStoreUri(message=reason)
 
 
+class CinderVolumeIterator:
+    def __init__(self, iterator):
+        self._closed = False
+        self._iterator = iterator
+        try:
+            self._next = next(self._iterator)
+            self._has_next = True
+        except StopIteration:
+            self._has_next = False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if not self._has_next:
+            raise StopIteration
+
+        current = self._next
+        try:
+            self._next = next(self._iterator)
+        # Ideally the iterator should raise StopIteration
+        # when there are no more chunks left but the
+        # iterator is a combination of _open_cinder_volume
+        # (yielding the device) and _cinder_volume_data_iterator
+        # (yielding the chunk) so it's possible to have other
+        # exceptions that could be raised from the iterator so
+        # catching Exception (generic).
+        except Exception:
+            self._has_next = False
+            self.close()
+        return current
+
+    def close(self):
+        if not self._closed:
+            self._closed = True
+            if hasattr(self._iterator, 'close'):
+                self._iterator.close()
+
+
 class Store(glance_store.driver.Store):
 
     """Cinder backend store adapter."""
@@ -998,7 +1037,8 @@ class Store(glance_store.driver.Store):
             iterator = self._cinder_volume_data_iterator(
                 client, volume, size, offset=offset,
                 chunk_size=self.READ_CHUNKSIZE, partial_length=chunk_size)
-            return (iterator, chunk_size or size)
+            volume_iterator = CinderVolumeIterator(iterator)
+            return (volume_iterator, chunk_size or size)
         except cinder_exception.NotFound:
             reason = _("Failed to get image size due to "
                        "volume can not be found: %s") % loc.volume_id

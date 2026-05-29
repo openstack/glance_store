@@ -347,3 +347,6 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
 
     def test_multistore_cinder_attachment_retry_attempts_custom(self):
         self._test_cinder_attachment_retry_attempts_custom(group='cinder1')
+
+    def test_cinder_volume_iterator_closes_on_completion(self):
+        self._test_cinder_volume_iterator_closes_on_completion()
