@@ -113,7 +113,7 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
         self.backend = 's3_region1'
 
     def test_location_url_prefix_is_set(self):
-        expected_url_prefix = "s3+https://user:key@s3-region1.com/glance"
+        expected_url_prefix = "s3+https://s3-region1.com/glance"
         self.assertEqual(expected_url_prefix, self.store.url_prefix)
 
     def test_get_invalid_bucket_name(self):
@@ -127,6 +127,9 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
 
     def test_get(self):
         self._test_get()
+
+    def test_get_credential_free_uri(self):
+        self._test_get_credential_free_uri()
 
     def test_partial_get(self):
         self._test_partial_get()
@@ -194,8 +197,6 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
         backend_conf = getattr(self.conf, self.backend)
 
         expected_location = test_s3_store_base.format_s3_location(
-            backend_conf.s3_store_access_key,
-            backend_conf.s3_store_secret_key,
             backend_conf.s3_store_host,
             backend_conf.s3_store_bucket,
             expected_image_id)
@@ -270,3 +271,12 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
 
     def test_config_fallback_for_old_boto3(self):
         self._test_config_fallback_for_old_boto3()
+
+    def test_parse_uri_credential_free(self):
+        self._test_parse_uri_credential_free()
+
+    def test_get_uri_returns_credential_free(self):
+        self._test_get_uri_returns_credential_free()
+
+    def test_create_s3_client_uses_config_credentials(self):
+        self._test_create_s3_client_uses_config_credentials()

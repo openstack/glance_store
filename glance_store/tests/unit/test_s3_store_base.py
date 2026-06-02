@@ -43,8 +43,8 @@ S3_CONF = {
 }
 
 
-def format_s3_location(user, key, authurl, bucket, obj):
-    """Helper method that returns a S3 store URI given the component pieces."""
+def format_s3_location(authurl, bucket, obj):
+    """Helper method that returns a credential-free S3 store URI."""
     scheme = 's3'
     if authurl.startswith('https://'):
         scheme = 's3+https'
@@ -52,7 +52,7 @@ def format_s3_location(user, key, authurl, bucket, obj):
     elif authurl.startswith('http://'):
         authurl = authurl[len('http://'):]
     authurl = authurl.strip('/')
-    return "%s://%s:%s@%s/%s/%s" % (scheme, user, key, authurl, bucket, obj)
+    return "%s://%s/%s/%s" % (scheme, authurl, bucket, obj)
 
 
 class TestS3StoreBase(object):
@@ -86,11 +86,11 @@ class TestS3StoreBase(object):
 
                 if self.multistore:
                     loc = location.get_location_from_uri_and_backend(
-                        "s3://user:key@auth_address/%s/%s" % (bucket, key),
+                        "s3://auth_address/%s/%s" % (bucket, key),
                         self.backend, conf=self.conf)
                 else:
                     loc = location.get_location_from_uri(
-                        "s3://user:key@auth_address/%s/%s" % (bucket, key),
+                        "s3://auth_address/%s/%s" % (bucket, key),
                         conf=self.conf)
                 (image_s3, image_size) = self.store.get(loc)
 
@@ -102,6 +102,59 @@ class TestS3StoreBase(object):
                 for chunk in image_s3:
                     data += chunk
                 self.assertEqual(expected_data, data)
+
+    def _test_get_credential_free_uri(self):
+        """Test get() with a credential-free URI uses config credentials.
+
+        When the stored URI has no embedded credentials, _create_s3_client()
+        must fall back to the store's configured access_key / secret_key.
+        """
+        backend_conf = getattr(self.conf, self.backend)
+        bucket = backend_conf.s3_store_bucket
+        key = str(uuid.uuid4())
+        fixture_object = {
+            'Body': io.BytesIO(b"*" * 5 * units.Ki),
+            'ContentLength': 5 * units.Ki
+        }
+        fake_s3_client = botocore.session.get_session().create_client('s3')
+
+        credential_free_url = format_s3_location(
+            backend_conf.s3_store_host, bucket, key)
+
+        with (
+            stub.Stubber(fake_s3_client) as stubber,
+            mock.patch.object(boto3.session.Session,
+                              'client') as mock_client,
+            mock.patch('boto3.session.Session') as mock_session_cls,
+        ):
+            stubber.add_response(method='head_object',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': bucket, 'Key': key})
+            stubber.add_response(method='get_object',
+                                 service_response=fixture_object,
+                                 expected_params={
+                                     'Bucket': bucket, 'Key': key})
+            mock_client.return_value = fake_s3_client
+            mock_session_cls.return_value.client.return_value = (
+                fake_s3_client)
+
+            if self.multistore:
+                loc = location.get_location_from_uri_and_backend(
+                    credential_free_url,
+                    self.backend, conf=self.conf)
+            else:
+                loc = location.get_location_from_uri(
+                    credential_free_url, conf=self.conf)
+
+            (image_s3, image_size) = self.store.get(loc)
+            data = b"".join(image_s3)
+
+        self.assertEqual(5 * units.Ki, image_size)
+        self.assertEqual(b"*" * 5 * units.Ki, data)
+        mock_session_cls.assert_called_once_with(
+            aws_access_key_id=backend_conf.s3_store_access_key,
+            aws_secret_access_key=backend_conf.s3_store_secret_key)
 
     def _test_get_non_existing(self):
         """Test trying to retrieve a s3 that doesn't exist raises an error."""
@@ -123,7 +176,7 @@ class TestS3StoreBase(object):
                     boto3.session.Session, "client") as mock_client:
                 mock_client.return_value = fake_s3_client
 
-                uri = "s3://user:key@auth_address/%s/%s" % (bucket, key)
+                uri = "s3://auth_address/%s/%s" % (bucket, key)
                 if self.multistore:
                     loc = location.get_location_from_uri_and_backend(
                         uri, self.backend, conf=self.conf)
@@ -143,8 +196,6 @@ class TestS3StoreBase(object):
         backend_conf = getattr(self.conf, self.backend)
 
         expected_location = format_s3_location(
-            backend_conf.s3_store_access_key,
-            backend_conf.s3_store_secret_key,
             backend_conf.s3_store_host,
             backend_conf.s3_store_bucket,
             expected_image_id)
@@ -190,6 +241,7 @@ class TestS3StoreBase(object):
                 self.assertEqual(expected_s3_size, size)
                 self.assertEqual(expected_checksum, checksum)
                 self.assertEqual(expected_multihash, multihash)
+                self.assertNotIn('@', loc)
 
     def _test_add_singlepart_size_exceeding_max_size(self):
         """Test size validation during add for singlepart upload."""
@@ -304,8 +356,6 @@ class TestS3StoreBase(object):
         backend_conf = getattr(self.conf, self.backend)
 
         expected_location = format_s3_location(
-            backend_conf.s3_store_access_key,
-            backend_conf.s3_store_secret_key,
             backend_conf.s3_store_host,
             backend_conf.s3_store_bucket,
             expected_image_id)
@@ -388,8 +438,6 @@ class TestS3StoreBase(object):
         backend_conf = getattr(self.conf, self.backend)
 
         expected_location = format_s3_location(
-            backend_conf.s3_store_access_key,
-            backend_conf.s3_store_secret_key,
             backend_conf.s3_store_host,
             backend_conf.s3_store_bucket,
             expected_image_id)
@@ -653,7 +701,7 @@ class TestS3StoreBase(object):
                     boto3.session.Session, "client") as mock_client:
                 mock_client.return_value = fake_s3_client
 
-                uri = "s3://user:key@auth_address/%s/%s" % (bucket, key)
+                uri = "s3://auth_address/%s/%s" % (bucket, key)
                 if self.multistore:
                     loc = location.get_location_from_uri_and_backend(
                         uri, self.backend, conf=self.conf)
@@ -677,44 +725,39 @@ class TestS3StoreBase(object):
         self.assertEqual(s3.get_s3_location('https://' + host + ':80/'), loc)
 
     def _test_get_invalid_bucket_name(self):
-        """Test that invalid bucket names raise appropriate exceptions"""
-        if self.multistore:
-            self.config(s3_store_bucket_url_format='virtual',
-                        group=self.backend)
-            invalid_buckets = ['not.dns.compliant', 'aa', 'bucket-']
-            for bucket in invalid_buckets:
+        """Test that invalid bucket names in store config raise exceptions."""
+        invalid_buckets = ['not.dns.compliant', 'aa', 'bucket-']
+        for bucket in invalid_buckets:
+            if self.multistore:
+                self.config(s3_store_bucket_url_format='virtual',
+                            s3_store_bucket=bucket,
+                            group=self.backend)
+                self.store.configure()
                 loc = location.get_location_from_uri_and_backend(
-                    "s3+https://user:key@auth_address/%s/key" % bucket,
+                    "s3+https://auth_address/%s/key" % bucket,
                     self.backend, conf=self.conf)
-                self.assertRaises(boto_exceptions.InvalidDNSNameError,
-                                  self.store.get, loc)
-        else:
-            self.config(s3_store_bucket_url_format='virtual')
-            invalid_buckets = ['not.dns.compliant', 'aa', 'bucket-']
-            for bucket in invalid_buckets:
+            else:
+                self.config(s3_store_bucket_url_format='virtual',
+                            s3_store_bucket=bucket)
+                self.store.configure()
                 loc = location.get_location_from_uri(
-                    "s3://user:key@auth_address/%s/key" % bucket,
+                    "s3://auth_address/%s/key" % bucket,
                     conf=self.conf)
-                self.assertRaises(boto_exceptions.InvalidDNSNameError,
-                                  self.store.get, loc)
+            self.assertRaises(boto_exceptions.InvalidDNSNameError,
+                              self.store.get, loc)
 
     def _test_client_custom_region_name(self):
         """Test a custom s3_store_region_name in config"""
         if self.multistore:
-            mock_loc = mock.MagicMock()
-            mock_loc.accesskey = 'abcd'
-            mock_loc.secretkey = 'efgh'
-            mock_loc.bucket = 'bucket1'
-
             with mock.patch.object(
                     boto3.session.Session, "client") as mock_client:
-                self.store._create_s3_client(mock_loc)
+                self.store._create_s3_client()
                 mock_client.assert_called_with(
                     config=mock.ANY,
                     endpoint_url='https://s3-region1.com',
                     region_name='custom_region_name',
                     service_name='s3',
-                    use_ssl=False,
+                    use_ssl=True,
                     verify='path/to/cert/bundle.pem',
                 )
         else:
@@ -723,14 +766,9 @@ class TestS3StoreBase(object):
             self.config(s3_store_bucket_url_format='path')
             self.store.configure()
 
-            mock_loc = mock.MagicMock()
-            mock_loc.accesskey = 'abcd'
-            mock_loc.secretkey = 'efgh'
-            mock_loc.bucket = 'bucket1'
-
             with mock.patch.object(
                     boto3.session.Session, "client") as mock_client:
-                self.store._create_s3_client(mock_loc)
+                self.store._create_s3_client()
                 mock_client.assert_called_with(
                     config=mock.ANY,
                     endpoint_url='http://example.com',
@@ -743,20 +781,15 @@ class TestS3StoreBase(object):
     def _test_client_custom_ca_cert_bundle(self):
         """Test a custom s3_store_cacert in config"""
         if self.multistore:
-            mock_loc = mock.MagicMock()
-            mock_loc.accesskey = 'abcd'
-            mock_loc.secretkey = 'efgh'
-            mock_loc.bucket = 'bucket1'
-
             with mock.patch.object(
                     boto3.session.Session, "client") as mock_client:
-                self.store._create_s3_client(mock_loc)
+                self.store._create_s3_client()
                 mock_client.assert_called_with(
                     config=mock.ANY,
                     endpoint_url='https://s3-region1.com',
                     region_name='custom_region_name',
                     service_name='s3',
-                    use_ssl=False,
+                    use_ssl=True,
                     verify='path/to/cert/bundle.pem',
                 )
         else:
@@ -765,14 +798,9 @@ class TestS3StoreBase(object):
             self.config(s3_store_bucket_url_format='path')
             self.store.configure()
 
-            mock_loc = mock.MagicMock()
-            mock_loc.accesskey = 'abcd'
-            mock_loc.secretkey = 'efgh'
-            mock_loc.bucket = 'bucket1'
-
             with mock.patch.object(
                     boto3.session.Session, "client") as mock_client:
-                self.store._create_s3_client(mock_loc)
+                self.store._create_s3_client()
                 mock_client.assert_called_with(
                     config=mock.ANY,
                     endpoint_url='http://example.com',
@@ -786,11 +814,11 @@ class TestS3StoreBase(object):
         """Test that partial get operations raise appropriate exceptions"""
         if self.multistore:
             loc = location.get_location_from_uri_and_backend(
-                "s3+https://user:key@auth_address/glance/%s" % FAKE_UUID,
+                "s3+https://auth_address/glance/%s" % FAKE_UUID,
                 self.backend, conf=self.conf)
         else:
             loc = location.get_location_from_uri(
-                "s3://user:key@auth_address/glance/%s" % FAKE_UUID,
+                "s3://auth_address/glance/%s" % FAKE_UUID,
                 conf=self.conf)
         self.assertRaises(exceptions.StoreRandomGetNotSupported,
                           self.store.get, loc, chunk_size=1)
@@ -884,8 +912,6 @@ class TestS3StoreBase(object):
                                         usedforsecurity=False).hexdigest()
         expected_multihash = hashlib.sha256(expected_s3_contents).hexdigest()
         expected_location = format_s3_location(
-            S3_CONF['s3_store_access_key'],
-            S3_CONF['s3_store_secret_key'],
             'http://s3-region2.com',
             S3_CONF['s3_store_bucket'],
             expected_image_id)
@@ -935,16 +961,10 @@ class TestS3StoreBase(object):
                     group=self.backend)
         self.store.configure()
 
-        # Create a mock location with required attributes
-        mock_loc = mock.Mock()
-        mock_loc.accesskey = 'access_key'
-        mock_loc.secretkey = 'secret_key'
-        mock_loc.bucket = 'test_bucket'
-
         with mock.patch('botocore.client.Config') as mock_config, \
                 mock.patch('boto3.session.Session.client'):
             mock_config.return_value = mock.Mock()
-            self.store._create_s3_client(mock_loc)
+            self.store._create_s3_client()
 
             # When data integrity protection is disabled,
             # both checksum options should be 'when_required'
@@ -964,16 +984,10 @@ class TestS3StoreBase(object):
                     group=self.backend)
         self.store.configure()
 
-        # Create a mock location with required attributes
-        mock_loc = mock.Mock()
-        mock_loc.accesskey = 'access_key'
-        mock_loc.secretkey = 'secret_key'
-        mock_loc.bucket = 'test_bucket'
-
         with mock.patch('botocore.client.Config') as mock_config, \
                 mock.patch('boto3.session.Session.client'):
             mock_config.return_value = mock.Mock()
-            self.store._create_s3_client(mock_loc)
+            self.store._create_s3_client()
 
             # When data integrity protection is enabled,
             # checksum options should use the configured values
@@ -986,12 +1000,6 @@ class TestS3StoreBase(object):
 
     def _test_config_fallback_for_old_boto3(self):
         """Test Config fallback when boto3 < 1.36.0 (no checksum support)."""
-        # Create a mock location with required attributes
-        mock_loc = mock.Mock()
-        mock_loc.accesskey = 'access_key'
-        mock_loc.secretkey = 'secret_key'
-        mock_loc.bucket = 'test_bucket'
-
         # Simulate old boto3 version by making Config raise TypeError
         # when checksum parameters are passed
         def config_side_effect(*args, **kwargs):
@@ -1002,7 +1010,7 @@ class TestS3StoreBase(object):
         with mock.patch('botocore.client.Config',
                         side_effect=config_side_effect) as mock_config, \
                 mock.patch('boto3.session.Session.client'):
-            self.store._create_s3_client(mock_loc)
+            self.store._create_s3_client()
 
             # Should have been called twice: once with checksum params
             # (which failed), then without them
@@ -1021,3 +1029,40 @@ class TestS3StoreBase(object):
                              second_call_kwargs)
             self.assertNotIn('response_checksum_validation',
                              second_call_kwargs)
+
+    def _test_parse_uri_credential_free(self):
+        """parse_uri on credential-free URL sets host, bucket, and key."""
+        uri = 's3://s3.example.com/mybucket/myimage'
+        if self.multistore:
+            loc = location.get_location_from_uri_and_backend(
+                uri, self.backend, conf=self.conf)
+        else:
+            loc = location.get_location_from_uri(uri, conf=self.conf)
+        store_loc = loc.store_location
+        self.assertEqual('mybucket', store_loc.bucket)
+        self.assertEqual('myimage', store_loc.key)
+        self.assertEqual('s3.example.com', store_loc.s3serviceurl)
+
+    def _test_get_uri_returns_credential_free(self):
+        """get_uri() returns a credential-free URI."""
+        uri = 's3://s3.example.com/mybucket/myimage'
+        if self.multistore:
+            loc = location.get_location_from_uri_and_backend(
+                uri, self.backend, conf=self.conf)
+        else:
+            loc = location.get_location_from_uri(uri, conf=self.conf)
+        result = loc.store_location.get_uri()
+        self.assertNotIn('@', result)
+        self.assertIn('mybucket', result)
+        self.assertIn('myimage', result)
+        self.assertEqual('s3://s3.example.com/mybucket/myimage', result)
+
+    def _test_create_s3_client_uses_config_credentials(self):
+        """_create_s3_client uses store config credentials, not URL creds."""
+        with mock.patch('boto3.session.Session') as mock_session, \
+                mock.patch('botocore.client.Config'):
+            mock_session.return_value.client.return_value = mock.Mock()
+            self.store._create_s3_client()
+            mock_session.assert_called_once_with(
+                aws_access_key_id=self.store.access_key,
+                aws_secret_access_key=self.store.secret_key)
