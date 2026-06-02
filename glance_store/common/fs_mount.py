@@ -10,207 +10,100 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import collections
-import contextlib
+import json
 import logging
 import os
-import socket
-import threading
 
+from oslo_concurrency import lockutils
 from oslo_concurrency import processutils
 from oslo_config import cfg
 
-from glance_store import exceptions
 from glance_store.i18n import _LE, _LW
 
 
 LOG = logging.getLogger(__name__)
 
-HOST = socket.gethostname()
 CONF = cfg.CONF
 
 
-class HostMountStateManagerMeta(type):
-    _instance = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instance:
-            cls._instance[cls] = super(
-                HostMountStateManagerMeta, cls).__call__(*args, **kwargs)
-        return cls._instance[cls]
-
-
-class _HostMountStateManager(metaclass=HostMountStateManagerMeta):
-    """A global manager of filesystem mounts.
-
-    _HostMountStateManager manages a _HostMountState object for the current
-    glance node. Primarily it creates one on object initialization and returns
-    it via get_state().
-
-    _HostMountStateManager manages concurrency itself. Independent callers do
-    not need to consider interactions between multiple _HostMountStateManager
-    calls when designing their own locking.
-
-    """
-    # Reset state of global _HostMountStateManager
-    state = None
-    use_count = 0
-
-    # Guards both state and use_count
-    cond = threading.Condition()
-
-    def __init__(self, host):
-        """Initialise a new _HostMountState
-
-        We will block before creating a new state until all operations
-        using a previous state have completed.
-
-        :param host: host
-        """
-        # Wait until all operations using a previous state are
-        # complete before initialising a new one. Note that self.state is
-        # already None, set either by initialisation or by host_down. This
-        # means the current state will not be returned to any new callers,
-        # and use_count will eventually reach zero.
-        # We do this to avoid a race between _HostMountState initialisation
-        # and an on-going mount/unmount operation
-        self.host = host
-        while self.use_count != 0:
-            self.cond.wait()
-
-        # Another thread might have initialised state while we were
-        # waiting
-        if self.state is None:
-            LOG.debug('Initialising _HostMountState')
-            self.state = _HostMountState()
-            backends = []
-            enabled_backends = CONF.enabled_backends
-            if enabled_backends:
-                for backend in enabled_backends:
-                    if enabled_backends[backend] == 'cinder':
-                        backends.append(backend)
-            else:
-                backends.append('glance_store')
-
-            for backend in backends:
-                mountpoint = getattr(CONF, backend).cinder_mount_point_base
-                # This is currently designed for cinder nfs backend only.
-                # Later can be modified to work with other *fs backends.
-                mountpoint = os.path.join(mountpoint, 'nfs')
-                # There will probably be the same rootwrap file for all stores,
-                # generalizing this will be done in a later refactoring
-                rootwrap = getattr(CONF, backend).rootwrap_config
-                rootwrap = ('sudo glance-rootwrap %s' % rootwrap)
-                dirs = []
-                # fetch the directories in the mountpoint path
-                if os.path.isdir(mountpoint):
-                    dirs = os.listdir(mountpoint)
-                else:
-                    continue
-                if not dirs:
-                    return
-                for dir in dirs:
-                    # for every directory in the mountpath, we
-                    # unmount it (if mounted) and remove it
-                    dir = os.path.join(mountpoint, dir)
-                    with self.get_state() as mount_state:
-                        if os.path.exists(dir) and not os.path.ismount(dir):
-                            try:
-                                os.rmdir(dir)
-                            except Exception as ex:
-                                LOG.debug(
-                                    "Couldn't remove directory "
-                                    "%(mountpoint)s: %(reason)s",
-                                    {'mountpoint': mountpoint,
-                                     'reason': ex})
-                        else:
-                            mount_state.umount(None, dir, HOST, rootwrap)
-
-    @contextlib.contextmanager
-    def get_state(self):
-        """Return the current mount state.
-
-        _HostMountStateManager will not permit a new state object to be
-        created while any previous state object is still in use.
-
-        :rtype: _HostMountState
-        """
-
-        # We hold the instance lock here so that if a _HostMountState is
-        # currently initialising we'll wait for it to complete rather than
-        # fail.
-        with self.cond:
-            state = self.state
-            if state is None:
-                LOG.error('Host not initialized')
-                raise exceptions.HostNotInitialized(host=self.host)
-            self.use_count += 1
-        try:
-            LOG.debug('Got _HostMountState')
-            yield state
-        finally:
-            with self.cond:
-                self.use_count -= 1
-                self.cond.notify_all()
-
-
 class _HostMountState(object):
-    """A data structure recording all managed mountpoints and the
-    attachments in use for each one. _HostMountState ensures that the glance
-    node only attempts to mount a single mountpoint in use by multiple
-    attachments once, and that it is not unmounted until it is no longer in use
-    by any attachments.
+    """Manages filesystem mount operations and tracks attachment counts for
+    each mountpoint. _HostMountState ensures that the glance node only attempts
+    to mount a single mountpoint once, regardless of how many attachments use
+    it, and it is not unmounted until the attachment count reaches zero.
 
-    Callers should not create a _HostMountState directly, but should obtain
-    it via:
-
-      with mount.get_manager().get_state() as state:
-        state.mount(...)
+    This implementation uses file-based state management to coordinate between
+    multiple worker processes. Each mountpoint's state is stored in
+    a separate JSON file containing the attachment count.
 
     _HostMountState manages concurrency itself. Independent callers do not need
     to consider interactions between multiple _HostMountState calls when
     designing their own locking.
     """
 
-    class _MountPoint(object):
-        """A single mountpoint, and the set of attachments in use on it."""
-        def __init__(self):
-            # A guard for operations on this mountpoint
-            # N.B. Care is required using this lock, as it will be deleted
-            # if the containing _MountPoint is deleted.
-            self.lock = threading.Lock()
+    def _get_state_file_path(self, mountpoint):
+        """Generate a state file path for the given mountpoint.
 
-            # The set of attachments on this mountpoint.
-            self.attachments = set()
+        Creates a state file in the _state subdirectory using the
+        mountpoint basename as the filename.
 
-        def add_attachment(self, vol_name, host):
-            self.attachments.add((vol_name, host))
-
-        def remove_attachment(self, vol_name, host):
-            self.attachments.remove((vol_name, host))
-
-        def in_use(self):
-            return len(self.attachments) > 0
-
-    def __init__(self):
-        """Initialise _HostMountState"""
-
-        self.mountpoints = collections.defaultdict(self._MountPoint)
-
-    @contextlib.contextmanager
-    def _get_locked(self, mountpoint):
-        """Get a locked mountpoint object
-
-        :param mountpoint: The path of the mountpoint whose object we should
-                           return.
-        :rtype: _HostMountState._MountPoint
+        :param mountpoint: The mountpoint path
+        :returns: Path to the state file
+        :rtype: str
         """
-        while True:
-            mount = self.mountpoints[mountpoint]
-            with mount.lock:
-                if self.mountpoints[mountpoint] is mount:
-                    yield mount
-                    break
+
+        # return '_state' subdirectory within the mountpoint's base directory
+        state_dir = os.path.join(os.path.dirname(mountpoint), '_state')
+        # Extract the mountpoint name from the full path in SHA256 hash format
+        mountpoint_name = os.path.basename(mountpoint)
+        state_file = os.path.join(state_dir,
+                                  'mount_state_%s.json' % mountpoint_name)
+        return state_file
+
+    def _get_state(self, mountpoint):
+        """Get the current state for a mountpoint.
+
+        :param mountpoint: The mountpoint path
+        :returns: State dictionary, defaults to {"attachment_count": 0} if file
+                  doesn't exist or fails to read.
+        :rtype: dict
+        """
+        state_file = self._get_state_file_path(mountpoint)
+        state = {"attachment_count": 0}
+        try:
+            with open(state_file, 'r') as f:
+                state = json.load(f)
+                # Ensure attachment_count is an integer
+                if "attachment_count" in state:
+                    state["attachment_count"] = int(state["attachment_count"])
+        except FileNotFoundError:
+            # File doesn't exist yet, use default state
+            pass
+        except (IOError, ValueError, json.JSONDecodeError) as e:
+            LOG.warning("Failed to read state file %s: %s", state_file, e)
+        return state
+
+    def _save_state(self, mountpoint, state):
+        """Save the state for a mountpoint.
+
+        Writes state atomically using a temporary file and rename.
+        Creates the state directory if it doesn't exist.
+
+        :param mountpoint: The mountpoint path
+        :param state: The state dictionary to save
+        """
+        state_file = self._get_state_file_path(mountpoint)
+        state_dir = os.path.dirname(state_file)
+        temp_file = state_file + '.tmp'
+        try:
+            os.makedirs(state_dir, mode=0o755, exist_ok=True)
+            # Write state atomically using a temporary file
+            with open(temp_file, 'w') as f:
+                json.dump(state, f)
+            os.rename(temp_file, state_file)
+        except Exception as e:
+            LOG.error("Failed to write state file %s: %s", state_file, e)
+            raise
 
     def mount(self, fstype, export, vol_name, mountpoint, host,
               rootwrap_helper, options):
@@ -227,7 +120,9 @@ class _HostMountState(object):
                        mounted. e.g. for nfs 'host.example.com:/mountpoint'.
         :param vol_name: The name of the volume on the remote filesystem.
         :param mountpoint: The directory where the filesystem will be
-                           mounted on the local compute host.
+                           mounted on the local compute host. Must be unique
+                           to prevent state file and lock collisions between
+                           different mounts.
         :param host: The host the volume will be attached to.
         :param options: An arbitrary list of additional arguments to be
                         passed to the mount command immediate before export
@@ -236,15 +131,20 @@ class _HostMountState(object):
 
         LOG.debug('_HostMountState.mount(fstype=%(fstype)s, '
                   'export=%(export)s, vol_name=%(vol_name)s, %(mountpoint)s, '
-                  'options=%(options)s)',
+                  'options=%(options)s, host=%(host)s)',
                   {'fstype': fstype, 'export': export, 'vol_name': vol_name,
-                   'mountpoint': mountpoint, 'options': options})
-        with self._get_locked(mountpoint) as mount:
+                   'mountpoint': mountpoint, 'options': options, 'host': host})
+
+        @lockutils.synchronized('fs_mount_%s' % os.path.basename(mountpoint),
+                                external=True)
+        def _mount_with_lock():
             if not os.path.ismount(mountpoint):
                 LOG.debug('Mounting %(mountpoint)s',
                           {'mountpoint': mountpoint})
 
-                os.makedirs(mountpoint)
+                # Create mountpoint directory if it doesn't exist
+                if not os.path.exists(mountpoint):
+                    os.makedirs(mountpoint, mode=0o755, exist_ok=True)
 
                 mount_cmd = ['mount', '-t', fstype]
                 if options is not None:
@@ -263,22 +163,21 @@ class _HostMountState(object):
                         # unusual so we'll log it.
                         LOG.exception(_LE('Error mounting %(fstype)s export '
                                           '%(export)s on %(mountpoint)s. '
-                                          'Continuing because mountpount is '
+                                          'Continuing because mountpoint is '
                                           'mounted despite this.'),
                                       {'fstype': fstype, 'export': export,
                                        'mountpoint': mountpoint})
 
                     else:
-                        # If the mount failed there's no reason for us to keep
-                        # a record of it. It will be created again if the
-                        # caller retries.
-
-                        # Delete while holding lock
-                        del self.mountpoints[mountpoint]
-
+                        # If the mount failed, don't increment attachment count
                         raise
 
-            mount.add_attachment(vol_name, host)
+            state = self._get_state(mountpoint)
+            # Increment attachment count and add metadata
+            state["attachment_count"] = state.get("attachment_count", 0) + 1
+            self._save_state(mountpoint, state)
+
+        _mount_with_lock()
 
         LOG.debug('_HostMountState.mount() for %(mountpoint)s '
                   'completed successfully',
@@ -294,32 +193,72 @@ class _HostMountState(object):
         :param host: The host the volume was attached to.
         """
         LOG.debug('_HostMountState.umount(vol_name=%(vol_name)s, '
-                  'mountpoint=%(mountpoint)s)',
-                  {'vol_name': vol_name, 'mountpoint': mountpoint})
-        with self._get_locked(mountpoint) as mount:
-            try:
-                mount.remove_attachment(vol_name, host)
-            except KeyError:
+                  'mountpoint=%(mountpoint)s, host=%(host)s)',
+                  {'vol_name': vol_name, 'mountpoint': mountpoint,
+                   'host': host})
+
+        @lockutils.synchronized('fs_mount_%s' % os.path.basename(mountpoint),
+                                external=True)
+        def _umount_with_lock():
+            state = self._get_state(mountpoint)
+            current_count = state.get("attachment_count", 0)
+            if current_count == 0:
                 LOG.warning(_LW("Request to remove attachment "
                                 "(%(vol_name)s, %(host)s) from "
-                                "%(mountpoint)s, but we don't think it's in "
-                                "use."),
+                                "%(mountpoint)s, but attachment count is "
+                                "already %(count)d."),
                             {'vol_name': vol_name, 'host': host,
-                             'mountpoint': mountpoint})
+                             'mountpoint': mountpoint,
+                             'count': current_count})
 
-            if not mount.in_use():
+                # Check if mountpoint is still mounted despite count reached
+                # zero. If so, attempt to unmount as recovery measure.
                 mounted = os.path.ismount(mountpoint)
-
                 if mounted:
+                    LOG.warning(
+                        _LW("Mountpoint %(mountpoint)s is still mounted "
+                            "despite attachment count being 0. Attempting to "
+                            "unmount as recovery measure."),
+                        {'mountpoint': mountpoint})
+
                     mounted = self._real_umount(mountpoint, rootwrap_helper)
 
-                # Delete our record entirely if it's unmounted
-                if not mounted:
-                    del self.mountpoints[mountpoint]
+                    # Delete state file if successfully unmounted
+                    if not mounted:
+                        try:
+                            state_file = self._get_state_file_path(mountpoint)
+                            os.remove(state_file)
+                        except OSError as e:
+                            LOG.warning("Failed to remove state file %s: %s",
+                                        state_file, e)
 
-            LOG.debug('_HostMountState.umount() for %(mountpoint)s '
-                      'completed successfully',
-                      {'mountpoint': mountpoint})
+                return
+
+            # Decrement attachment count
+            new_count = current_count - 1
+            state["attachment_count"] = new_count
+            if new_count == 0:
+                mounted = self._real_umount(mountpoint, rootwrap_helper)
+                # Delete state file if successfully unmounted
+                if not mounted:
+                    try:
+                        state_file = self._get_state_file_path(mountpoint)
+                        os.remove(state_file)
+                    except OSError as e:
+                        LOG.warning("Failed to remove state file %s: %s",
+                                    state_file, e)
+                else:
+                    # update state despite failed to unmount
+                    self._save_state(mountpoint, state)
+            else:
+                # Still has attachments, update state
+                self._save_state(mountpoint, state)
+
+        _umount_with_lock()
+
+        LOG.debug('_HostMountState.umount() for %(mountpoint)s '
+                  'completed successfully',
+                  {'mountpoint': mountpoint})
 
     def _real_umount(self, mountpoint, rootwrap_helper):
         # Unmount and delete a mountpoint.
@@ -347,20 +286,18 @@ class _HostMountState(object):
         return True
 
 
-__manager__ = _HostMountStateManager(HOST)
+__state__ = _HostMountState()
 
 
 def mount(fstype, export, vol_name, mountpoint, host, rootwrap_helper,
           options=None):
     """A convenience wrapper around _HostMountState.mount()"""
 
-    with __manager__.get_state() as mount_state:
-        mount_state.mount(fstype, export, vol_name, mountpoint, host,
-                          rootwrap_helper, options)
+    __state__.mount(fstype, export, vol_name, mountpoint, host,
+                    rootwrap_helper, options)
 
 
 def umount(vol_name, mountpoint, host, rootwrap_helper):
     """A convenience wrapper around _HostMountState.umount()"""
 
-    with __manager__.get_state() as mount_state:
-        mount_state.umount(vol_name, mountpoint, host, rootwrap_helper)
+    __state__.umount(vol_name, mountpoint, host, rootwrap_helper)
