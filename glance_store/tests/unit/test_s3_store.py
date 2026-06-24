@@ -64,6 +64,9 @@ class TestStore(base.StoreBaseTest,
     def test_get(self):
         self._test_get()
 
+    def test_get_credential_free_uri(self):
+        self._test_get_credential_free_uri()
+
     def test_partial_get(self):
         self._test_partial_get()
 
@@ -126,3 +129,12 @@ class TestStore(base.StoreBaseTest,
 
     def test_config_fallback_for_old_boto3(self):
         self._test_config_fallback_for_old_boto3()
+
+    def test_parse_uri_credential_free(self):
+        self._test_parse_uri_credential_free()
+
+    def test_get_uri_returns_credential_free(self):
+        self._test_get_uri_returns_credential_free()
+
+    def test_create_s3_client_uses_config_credentials(self):
+        self._test_create_s3_client_uses_config_credentials()

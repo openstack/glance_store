@@ -366,15 +366,13 @@ class StoreLocation(glance_store.location.StoreLocation):
 
     An S3 URI can look like any of the following:
 
-        s3://accesskey:secretkey@s3.amazonaws.com/bucket/key-id
-        s3+https://accesskey:secretkey@s3.amazonaws.com/bucket/key-id
+        s3://s3.amazonaws.com/bucket/key-id
+        s3+https://s3.amazonaws.com/bucket/key-id
 
     The s3+https:// URIs indicate there is an HTTPS s3service URL
     """
     def process_specs(self):
         self.scheme = self.specs.get('scheme', 's3')
-        self.accesskey = self.specs.get('accesskey')
-        self.secretkey = self.specs.get('secretkey')
         s3_host = self.specs.get('s3serviceurl')
         self.bucket = self.specs.get('bucket')
         self.key = self.specs.get('key')
@@ -386,34 +384,24 @@ class StoreLocation(glance_store.location.StoreLocation):
             s3_host = s3_host[len('http://'):].strip('/')
         self.s3serviceurl = s3_host.strip('/')
 
-    def _get_credstring(self):
-        if self.accesskey:
-            return '%s:%s@' % (self.accesskey, self.secretkey)
-        return ''
-
     def get_uri(self):
-        return "%s://%s%s/%s/%s" % (self.scheme, self._get_credstring(),
-                                    self.s3serviceurl, self.bucket, self.key)
+        return "%s://%s/%s/%s" % (self.scheme, self.s3serviceurl,
+                                  self.bucket, self.key)
 
     def parse_uri(self, uri):
-        """Parse URLs.
-
-        Note that an Amazon AWS secret key can contain the forward slash,
-        which is entirely retarded, and breaks urlparse miserably.
-        This function works around that issue.
+        """Parse an S3 URI to extract the scheme, service URL, bucket,
+        and key components.
         """
         # Make sure that URIs that contain multiple schemes, such as:
-        # s3://accesskey:secretkey@https://s3.amazonaws.com/bucket/key-id
+        # s3://https://s3.amazonaws.com/bucket/key-id
         # are immediately rejected.
         if uri.count('://') != 1:
             reason = ("URI cannot contain more than one occurrence "
                       "of a scheme. If you have specified a URI like "
-                      "s3://accesskey:secretkey@"
-                      "https://s3.amazonaws.com/bucket/key-id"
+                      "s3://https://s3.amazonaws.com/bucket/key-id"
                       ", you need to change it to use the "
                       "s3+https:// scheme, like so: "
-                      "s3+https://accesskey:secretkey@"
-                      "s3.amazonaws.com/bucket/key-id")
+                      "s3+https://s3.amazonaws.com/bucket/key-id")
             LOG.info("Invalid store uri: %s", reason)
             raise exceptions.BadStoreUri(uri=uri)
 
@@ -423,21 +411,7 @@ class StoreLocation(glance_store.location.StoreLocation):
         self.scheme = pieces.scheme
         path = pieces.path.strip('/')
         netloc = pieces.netloc.strip('/')
-        entire_path = (netloc + '/' + path).strip('/')
-
-        if '@' in uri:
-            creds, path = entire_path.split('@')
-            cred_parts = creds.split(':')
-
-            try:
-                self.accesskey = cred_parts[0]
-                self.secretkey = cred_parts[1]
-            except IndexError:
-                LOG.error("Badly formed S3 credentials")
-                raise exceptions.BadStoreUri(uri=uri)
-        else:
-            self.accesskey = None
-            path = entire_path
+        path = (netloc + '/' + path).strip('/')
         try:
             path_parts = path.split('/')
             self.key = path_parts.pop()
@@ -457,7 +431,7 @@ class Store(glance_store.driver.Store):
 
     _CAPABILITIES = capabilities.BitMasks.RW_ACCESS
     OPTIONS = _S3_OPTS
-    EXAMPLE_URL = "s3://<ACCESS_KEY>:<SECRET_KEY>@<S3_URL>/<BUCKET>/<OBJ>"
+    EXAMPLE_URL = "s3://<S3_URL>/<BUCKET>/<OBJ>"
 
     READ_CHUNKSIZE = 64 * units.Ki
     WRITE_CHUNKSIZE = 5 * units.Mi
@@ -524,9 +498,8 @@ class Store(glance_store.driver.Store):
         elif s3_host.startswith('https://'):
             s3_host = s3_host[len('https://'):]
 
-        self._url_prefix = "%s://%s:%s@%s/%s" % (self.scheme, self.access_key,
-                                                 self.secret_key, s3_host,
-                                                 self.bucket)
+        self._url_prefix = "%s://%s/%s" % (self.scheme, s3_host,
+                                           self.bucket)
 
     def _option_get(self, param):
         if self.backend_group:
@@ -557,19 +530,17 @@ class Store(glance_store.driver.Store):
                                                    reason=reason)
         return result
 
-    def _create_s3_client(self, loc):
+    def _create_s3_client(self):
         """Create a client object to use when connecting to S3.
 
-        :param loc: `glance_store.location.Location` object, supplied
-                    from glance_store.location.get_location_from_uri()
         :returns: An object with credentials to connect to S3
         """
         s3_host = self._option_get('s3_store_host')
         url_format = self._option_get('s3_store_bucket_url_format')
         calling_format = {'addressing_style': url_format}
 
-        session = boto_session.Session(aws_access_key_id=loc.accesskey,
-                                       aws_secret_access_key=loc.secretkey)
+        session = boto_session.Session(aws_access_key_id=self.access_key,
+                                       aws_secret_access_key=self.secret_key)
 
         # Determine checksum settings with precedence:
         # 1. If s3_store_enable_data_integrity_protection is False,
@@ -607,7 +578,7 @@ class Store(glance_store.driver.Store):
             config = boto_client.Config(s3=calling_format)
         location = get_s3_location(s3_host)
 
-        bucket_name = loc.bucket
+        bucket_name = self.bucket
         if (url_format == 'virtual' and
                 not boto_utils.check_dns_name(bucket_name)):
             raise boto_exceptions.InvalidDNSNameError(bucket_name=bucket_name)
@@ -626,7 +597,7 @@ class Store(glance_store.driver.Store):
             service_name='s3',
             endpoint_url=endpoint_url,
             region_name=region_name,
-            use_ssl=(loc.scheme == 's3+https'),
+            use_ssl=(self.scheme == 's3+https'),
             verify=None if store_cacert == '' else store_cacert,
             config=config)
 
@@ -639,7 +610,7 @@ class Store(glance_store.driver.Store):
         "returns: tuple of: (1) S3 client object, (2) Bucket name,
                   (3) Image Object name
         """
-        return self._create_s3_client(loc), loc.bucket, loc.key
+        return self._create_s3_client(), loc.bucket, loc.key
 
     @capabilities.check
     def get(self, location, offset=0, chunk_size=None, context=None):
@@ -723,9 +694,7 @@ class Store(glance_store.driver.Store):
         loc = StoreLocation(store_specs={'scheme': self.scheme,
                                          'bucket': self.bucket,
                                          'key': image_id,
-                                         's3serviceurl': self.full_s3_host,
-                                         'accesskey': self.access_key,
-                                         'secretkey': self.secret_key},
+                                         's3serviceurl': self.full_s3_host},
                             conf=self.conf,
                             backend_group=self.backend_group)
 
