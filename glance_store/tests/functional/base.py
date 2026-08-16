@@ -28,6 +28,7 @@ UUID2 = 'e03cf3b1-3070-4497-a37d-9703edfb615b'
 UUID3 = '0d7f89b2-e236-45e9-b081-561cd3102e92'
 UUID4 = '165e9681-ea56-46b0-a84c-f148c752ef8b'
 IMAGE_BITS = b'I am a bootable image, I promise'
+DEFAULT_IDENTITY_VERSION = '3'
 
 
 class Base(testtools.TestCase):
@@ -46,7 +47,8 @@ class Base(testtools.TestCase):
         self.project_name = auth["project_name"]
         self.user_domain_id = auth["user_domain_id"]
         self.project_domain_id = auth["project_domain_id"]
-        self.keystone_version = creds.get_api_version('identity')
+        self.keystone_version = (
+            creds.get_api_version('identity') or DEFAULT_IDENTITY_VERSION)
         self.cinder_version = creds.get_api_version('volume')
         self.region_name = creds.get_region_name()
         # auth_url in devstack clouds.yaml is unversioned
