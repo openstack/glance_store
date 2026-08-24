@@ -147,7 +147,6 @@
       - ^glance_store/tests/.*$
       - ^doc/.*$
       - ^releasenotes/.*$
-      - ^tools/.*$
       - ^tox.ini$
 
 - job:
@@ -171,7 +170,6 @@
       - ^glance_store/tests/.*$
       - ^doc/.*$
       - ^releasenotes/.*$
-      - ^tools/.*$
       - ^tox.ini$
 
 - project:
