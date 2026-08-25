@@ -104,6 +104,7 @@ class OptsTestCase(base.StoreBaseTest):
             'rbd_store_ceph_conf',
             'rbd_store_chunk_size',
             'rbd_store_pool',
+            'rbd_store_data_pool',
             'rbd_store_user',
             'rbd_thin_provisioning',
             'rados_connect_timeout',

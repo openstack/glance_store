@@ -502,7 +502,8 @@ class TestRBDStoreBase(object):
                              location.specs['snapshot'])
 
         create_mock.assert_called_once_with(ioctxt, name, size, order,
-                                            old_format=False, features=3)
+                                            old_format=False, features=3,
+                                            data_pool=None)
 
     def _test_add_with_thick_provisioning(self):
         """Test adding image with thick provisioning."""
