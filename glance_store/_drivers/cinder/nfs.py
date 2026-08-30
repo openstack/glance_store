@@ -55,11 +55,9 @@ class NfsBrickConnector(base.BaseBrickConnectorInterface):
     def get_hash_str(base_str):
         """Returns string representing SHA256 hash of base_str in hex format.
 
-        If base_str is a Unicode string, encode it to UTF-8.
+        :returns: The SHA256 hash string of base_str
         """
-        if isinstance(base_str, str):
-            base_str = base_str.encode('utf-8')
-        return hashlib.sha256(base_str).hexdigest()
+        return hashlib.sha256(base_str.encode('utf-8')).hexdigest()
 
     def connect_volume(self, volume):
         # The format info of nfs volumes is exposed via attachment_get
