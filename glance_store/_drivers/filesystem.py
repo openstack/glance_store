@@ -56,61 +56,13 @@ exist and verifies write access to the user under which
 store may not be available for adding new images.
 
 NOTE: This directory is used only when filesystem store is used as a
-storage backend. Either ``filesystem_store_datadir`` or
-``filesystem_store_datadirs`` option must be specified in
-``glance-api.conf``. If both options are specified, a
-``BadStoreConfiguration`` will be raised and the filesystem store
-may not be available for adding new images.
+storage backend. The ``filesystem_store_datadir`` option must be
+specified in ``glance-api.conf``.
 
 Possible values:
     * A valid path to a directory
 
 Related options:
-    * ``filesystem_store_datadirs``
-    * ``filesystem_store_file_perm``
-
-"""),
-    cfg.MultiStrOpt('filesystem_store_datadirs',
-                    deprecated_for_removal=True,
-                    deprecated_since='Flamingo',
-                    deprecated_reason="""
-Users willing to use multiple data directories should configure multiple
-filesystem stores instead of using filesystem_store_datadirs.
-
-This option is scheduled for removal in the H development cycle.
-""",
-                    help="""
-List of directories and their priorities to which the filesystem
-backend store writes images.
-
-The filesystem store can be configured to store images in multiple
-directories as opposed to using a single directory specified by the
-``filesystem_store_datadir`` configuration option. When using
-multiple directories, each directory can be given an optional
-priority to specify the preference order in which they should
-be used. Priority is an integer that is concatenated to the
-directory path with a colon where a higher value indicates higher
-priority. When two directories have the same priority, the directory
-with most free space is used. When no priority is specified, it
-defaults to zero.
-
-More information on configuring filesystem store with multiple store
-directories can be found at
-https://docs.openstack.org/glance/latest/configuration/configuring.html
-
-NOTE: This directory is used only when filesystem store is used as a
-storage backend. Either ``filesystem_store_datadir`` or
-``filesystem_store_datadirs`` option must be specified in
-``glance-api.conf``. If both options are specified, a
-``BadStoreConfiguration`` will be raised and the filesystem store
-may not be available for adding new images.
-
-Possible values:
-    * List of strings of the following form:
-        * ``<a valid directory path>:<optional integer priority>``
-
-Related options:
-    * ``filesystem_store_datadir``
     * ``filesystem_store_file_perm``
 
 """),
@@ -449,39 +401,37 @@ class Store(glance_store.driver.Store):
                             "owner-group and/or other-users to datadir: %s")
                         % datadir)
 
-    def _create_image_directories(self, directory_paths):
+    def _create_image_directory(self, datadir):
         """
-        Create directories to write image files if
-        it does not exist.
+        Create directory to write image files if it does not exist.
 
-        :directory_paths is a list of directories belonging to glance store.
-        :raises: BadStoreConfiguration exception if creating a directory fails.
+        :datadir a directory belonging to glance_store
+        :raises: BadStoreConfiguration exception if directory creation fails.
         """
-        for datadir in directory_paths:
-            if os.path.exists(datadir):
+        if os.path.exists(datadir):
+            self._check_write_permission(datadir)
+            self._set_exec_permission(datadir)
+        else:
+            msg = _("Directory to write image files does not exist "
+                    "(%s). Creating.") % datadir
+            LOG.info(msg)
+            try:
+                os.makedirs(datadir)
                 self._check_write_permission(datadir)
                 self._set_exec_permission(datadir)
-            else:
-                msg = _("Directory to write image files does not exist "
-                        "(%s). Creating.") % datadir
-                LOG.info(msg)
-                try:
-                    os.makedirs(datadir)
+            except (IOError, OSError):
+                if os.path.exists(datadir):
+                    # NOTE(markwash): If the path now exists, some other
+                    # process must have beat us in the race condition.
+                    # But it doesn't hurt, so we can safely ignore
+                    # the error.
                     self._check_write_permission(datadir)
                     self._set_exec_permission(datadir)
-                except (IOError, OSError):
-                    if os.path.exists(datadir):
-                        # NOTE(markwash): If the path now exists, some other
-                        # process must have beat us in the race condition.
-                        # But it doesn't hurt, so we can safely ignore
-                        # the error.
-                        self._check_write_permission(datadir)
-                        self._set_exec_permission(datadir)
-                        continue
-                    reason = _("Unable to create datadir: %s") % datadir
-                    LOG.error(reason)
-                    raise exceptions.BadStoreConfiguration(
-                        store_name="filesystem", reason=reason)
+                    return
+                reason = _("Unable to create datadir: %s") % datadir
+                LOG.error(reason)
+                raise exceptions.BadStoreConfiguration(
+                    store_name="filesystem", reason=reason)
 
     def _validate_metadata(self, metadata_file):
         """Validate metadata against json schema.
@@ -532,7 +482,6 @@ class Store(glance_store.driver.Store):
         itself, it should raise `exceptions.BadStoreConfiguration`
         """
         fdir = self.store_conf.filesystem_store_datadir
-        fdirs = self.store_conf.filesystem_store_datadirs
         fstore_perm = self.store_conf.filesystem_store_file_perm
         meta_file = self.store_conf.filesystem_store_metadata_file
 
@@ -547,16 +496,9 @@ class Store(glance_store.driver.Store):
         threshold = self.store_conf.filesystem_store_threadpool_threshold
         self.timeout_executor = TimeoutExecutor(timeout, pool_size, threshold)
 
-        if not (fdir or fdirs):
-            reason = (_("Specify at least 'filesystem_store_datadir' or "
-                        "'filesystem_store_datadirs' option"))
-            LOG.error(reason)
-            raise exceptions.BadStoreConfiguration(store_name="filesystem",
-                                                   reason=reason)
-
-        if fdir and fdirs:
-            reason = (_("Specify either 'filesystem_store_datadir' or "
-                        "'filesystem_store_datadirs' option"))
+        if not fdir:
+            reason = (_("The 'filesystem_store_datadir' option must be "
+                        "specified"))
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="filesystem",
                                                    reason=reason)
@@ -573,94 +515,15 @@ class Store(glance_store.driver.Store):
                 raise exceptions.BadStoreConfiguration(store_name="filesystem",
                                                        reason=reason)
 
-        self.multiple_datadirs = False
-        directory_paths = set()
-        if fdir:
-            self.datadir = fdir
-            directory_paths.add(self.datadir)
-        else:
-            self.multiple_datadirs = True
-            self.priority_data_map = {}
-            for datadir in fdirs:
-                (datadir_path,
-                 priority) = self._get_datadir_path_and_priority(datadir)
-                priority_paths = self.priority_data_map.setdefault(
-                    priority, [])
-                self._check_directory_paths(datadir_path, directory_paths,
-                                            priority_paths)
-                directory_paths.add(datadir_path)
-                priority_paths.append(datadir_path)
+        self.datadir = fdir
 
-            self.priority_list = sorted(self.priority_data_map,
-                                        reverse=True)
+        self._create_image_directory(self.datadir)
 
-        self._create_image_directories(directory_paths)
         if self.backend_group:
-            self._set_url_prefix()
+            self._url_prefix = "%s://%s" % ('file', self.datadir)
 
         if meta_file:
             self._validate_metadata(meta_file)
-
-    def _set_url_prefix(self):
-        path = self._find_best_datadir(0)
-        self._url_prefix = "%s://%s" % ('file', path)
-
-    def _check_directory_paths(self, datadir_path, directory_paths,
-                               priority_paths):
-        """
-        Checks if directory_path is already present in directory_paths.
-
-        :datadir_path is directory path.
-        :datadir_paths is set of all directory paths.
-        :raises: BadStoreConfiguration exception if same directory path is
-               already present in directory_paths.
-        """
-        if datadir_path in directory_paths:
-            msg = (_("Directory %(datadir_path)s specified "
-                     "multiple times in filesystem_store_datadirs "
-                     "option of filesystem configuration") %
-                   {'datadir_path': datadir_path})
-
-            # If present with different priority it's a bad configuration
-            if datadir_path not in priority_paths:
-                LOG.exception(msg)
-                raise exceptions.BadStoreConfiguration(
-                    store_name="filesystem", reason=msg)
-
-            # Present with same prio (exact duplicate) only deserves a warning
-            LOG.warning(msg)
-
-    def _get_datadir_path_and_priority(self, datadir):
-        """
-        Gets directory paths and its priority from
-        filesystem_store_datadirs option in glance-api.conf.
-
-        :param datadir: is directory path with its priority.
-        :returns: datadir_path as directory path
-                 priority as priority associated with datadir_path
-        :raises: BadStoreConfiguration exception if priority is invalid or
-               empty directory path is specified.
-        """
-        priority = 0
-        parts = [part.strip() for part in datadir.rsplit(":", 1)]
-        datadir_path = parts[0]
-        if len(parts) == 2 and parts[1]:
-            try:
-                priority = int(parts[1])
-            except ValueError:
-                msg = (_("Invalid priority value %(priority)s in "
-                         "filesystem configuration") % {'priority': priority})
-                LOG.exception(msg)
-                raise exceptions.BadStoreConfiguration(
-                    store_name="filesystem", reason=msg)
-
-        if not datadir_path:
-            msg = _("Invalid directory specified in filesystem configuration")
-            LOG.exception(msg)
-            raise exceptions.BadStoreConfiguration(
-                store_name="filesystem", reason=msg)
-
-        return datadir_path, priority
 
     def _resolve_location(self, location):
         filepath = location.store_location.path
@@ -777,43 +640,6 @@ class Store(glance_store.driver.Store):
         total_available_space = stvfs_result.f_bavail * stvfs_result.f_bsize
         return max(0, total_available_space)
 
-    def _find_best_datadir(self, image_size):
-        """Finds the best datadir by priority and free space.
-
-        Traverse directories returning the first one that has sufficient
-        free space, in priority order. If two suitable directories have
-        the same priority, choose the one with the most free space
-        available.
-        :param image_size: size of image being uploaded.
-        :returns: best_datadir as directory path of the best priority datadir.
-        :raises: exceptions.StorageFull if there is no datadir in
-                self.priority_data_map that can accommodate the image.
-        """
-        if not self.multiple_datadirs:
-            return self.datadir
-
-        best_datadir = None
-        max_free_space = 0
-        for priority in self.priority_list:
-            for datadir in self.priority_data_map.get(priority):
-                free_space = self._get_capacity_info(datadir)
-                if free_space >= image_size and free_space > max_free_space:
-                    max_free_space = free_space
-                    best_datadir = datadir
-
-            # If datadir is found which can accommodate image and has maximum
-            # free space for the given priority then break the loop,
-            # else continue to lookup further.
-            if best_datadir:
-                break
-        else:
-            msg = (_("There is no enough disk space left on the image "
-                     "storage media. requested=%s") % image_size)
-            LOG.exception(msg)
-            raise exceptions.StorageFull(message=msg)
-
-        return best_datadir
-
     @glance_store.driver.back_compat_add
     @capabilities.check
     def add(self, image_id, image_file, image_size, hashing_algo, context=None,
@@ -842,8 +668,7 @@ class Store(glance_store.driver.Store):
               is the supplied image ID.
         """
 
-        datadir = self._find_best_datadir(image_size)
-        filepath = os.path.join(datadir, str(image_id))
+        filepath = os.path.join(self.datadir, str(image_id))
 
         if os.path.exists(filepath):
             raise exceptions.Duplicate(image=filepath)

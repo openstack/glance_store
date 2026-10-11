@@ -275,9 +275,6 @@ class TestMultiStore(base.MultiStoreBaseTest,
     def test_delete_forbidden(self):
         self._test_delete_forbidden()
 
-    def test_configure_add_with_multi_datadirs(self):
-        self._test_configure_add_with_multi_datadirs()
-
     def test_configure_add_with_metadata_file_success(self):
         self._test_configure_add_with_metadata_file_success()
 
@@ -301,18 +298,6 @@ class TestMultiStore(base.MultiStoreBaseTest,
 
     def test_add_check_metadata_list_id_or_mountpoint_is_not_string(self):
         self._test_add_check_metadata_list_id_or_mountpoint_is_not_string()
-
-    def test_configure_add_same_dir_multiple_times(self):
-        self._test_configure_add_same_dir_multiple_times()
-
-    def test_configure_add_same_dir_multiple_times_same_priority(self):
-        self._test_configure_add_same_dir_multiple_times_same_priority()
-
-    def test_add_with_multiple_dirs(self):
-        self._test_add_with_multiple_dirs()
-
-    def test_add_with_multiple_dirs_storage_full(self):
-        self._test_add_with_multiple_dirs_storage_full()
 
     def test_configure_add_with_file_perm(self):
         self._test_configure_add_with_file_perm()

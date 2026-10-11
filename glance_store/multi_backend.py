@@ -131,8 +131,6 @@ def register_store_opts(conf, reserved_stores=None):
                 cfg.StrOpt('filesystem_store_datadir',
                            default='/var/lib/glance/{}'.format(key),
                            help=FS_CONF_DATADIR_HELP.format(key)),
-                cfg.MultiStrOpt('filesystem_store_datadirs',
-                                help="""Not used"""),
                 cfg.StrOpt('filesystem_store_metadata_file',
                            help="""Not used"""),
                 cfg.IntOpt('filesystem_store_file_perm',

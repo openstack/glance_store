@@ -34,14 +34,13 @@ class TestStoreBase(base.StoreBaseTest):
     def test_configure_does_not_raise_on_missing_driver_conf(self, mock_log):
         self.config(stores=['file'], group='glance_store')
         self.config(filesystem_store_datadir=None, group='glance_store')
-        self.config(filesystem_store_datadirs=None, group='glance_store')
         for (__, store_instance) in backend._load_stores(self.conf):
             store_instance.configure()
             mock_log.warning.assert_called_once_with(
                 "Failed to configure store correctly: Store filesystem "
-                "could not be configured correctly. Reason: Specify "
-                "at least 'filesystem_store_datadir' or "
-                "'filesystem_store_datadirs' option Disabling add method.")
+                "could not be configured correctly. Reason: The "
+                "'filesystem_store_datadir' option must be specified "
+                "Disabling add method.")
 
 
 class TestMultiStoreBase(base.MultiStoreBaseTest):
