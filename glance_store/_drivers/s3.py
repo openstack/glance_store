@@ -156,6 +156,7 @@ Related Options:
 """),
     cfg.StrOpt('s3_store_bucket_url_format',
                default='auto',
+               choices=('auto', 'virtual', 'path'),
                help="""
 The S3 calling format used to determine the object.
 
