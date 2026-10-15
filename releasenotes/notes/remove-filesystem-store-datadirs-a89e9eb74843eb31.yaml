@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    The ``filesystem_store_datadirs`` option has been removed after being
+    deprecated in the Flamingo release. Operators willing to use multiple
+    filesystem stores should use the multistore feature instead.

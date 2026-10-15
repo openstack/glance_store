@@ -92,7 +92,6 @@ class OptsTestCase(base.StoreBaseTest):
             'https_insecure',
             'filesystem_store_chunk_size',
             'filesystem_store_datadir',
-            'filesystem_store_datadirs',
             'filesystem_store_file_perm',
             'filesystem_store_metadata_file',
             'filesystem_store_thread_pool_size',
