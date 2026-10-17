@@ -227,7 +227,7 @@ class TestStore(base.StoreBaseTest,
         self._test_build_vim_cookie_header_expired_noverify()
 
     def test_add_ioerror(self):
-        """Test handling of IOError during add."""
+        """Test handling of OSError during add."""
         self._test_add_ioerror()
 
     def test_qs_sort_with_literal_question_mark(self):

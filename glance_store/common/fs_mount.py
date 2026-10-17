@@ -79,7 +79,7 @@ class _HostMountState(object):
         except FileNotFoundError:
             # File doesn't exist yet, use default state
             pass
-        except (IOError, ValueError, json.JSONDecodeError) as e:
+        except (OSError, ValueError, json.JSONDecodeError) as e:
             LOG.warning("Failed to read state file %s: %s", state_file, e)
         return state
 

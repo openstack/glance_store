@@ -238,7 +238,7 @@ class TestMultiCinderStore(base.MultiStoreBaseTest,
             self.assertFalse(type_match)
 
     def test_cinder_add_volume_full(self):
-        e = IOError()
+        e = OSError()
         volume_file = io.BytesIO()
         e.errno = errno.ENOSPC
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()),

@@ -532,7 +532,7 @@ class TestVMwareStoreBase(object):
             self.assertFalse(mock_api_session.called)
 
     def _test_add_ioerror(self):
-        """Test handling of IOError during add."""
+        """Test handling of OSError during add."""
         with mock.patch.object(
                 vm_store.Store, 'select_datastore') as mock_select_ds:
             with mock.patch.object(
@@ -544,7 +544,7 @@ class TestVMwareStoreBase(object):
                 image = io.BytesIO(expected_contents)
                 self.session = mock.Mock()
                 with mock.patch('requests.Session.request') as HttpConn:
-                    HttpConn.request.side_effect = IOError
+                    HttpConn.request.side_effect = OSError
                     if self.multistore:
                         self.assertRaises(exceptions.BackendException,
                                           self.store.add,

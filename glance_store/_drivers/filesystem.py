@@ -396,7 +396,7 @@ class Store(glance_store.driver.Store):
                 if not mode & stat.S_IXGRP:
                     # chmod g+x
                     os.chmod(datadir, mode | stat.S_IXGRP)
-        except (IOError, OSError):
+        except OSError:
             LOG.warning(_LW("Unable to set execution permission of "
                             "owner-group and/or other-users to datadir: %s")
                         % datadir)
@@ -419,7 +419,7 @@ class Store(glance_store.driver.Store):
                 os.makedirs(datadir)
                 self._check_write_permission(datadir)
                 self._set_exec_permission(datadir)
-            except (IOError, OSError):
+            except OSError:
                 if os.path.exists(datadir):
                     # NOTE(markwash): If the path now exists, some other
                     # process must have beat us in the race condition.
@@ -465,7 +465,7 @@ class Store(glance_store.driver.Store):
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(
                 store_name="filesystem", reason=reason)
-        except IOError as ioe:
+        except OSError as ioe:
             reason = _('The path for the metadata file %(file)s could '
                        'not be accessed: '
                        '%(ioe)s.') % dict(file=metadata_file,
@@ -697,7 +697,7 @@ class Store(glance_store.driver.Store):
                         f.seek(0, os.SEEK_END)
                     else:
                         f.write(buf)
-        except IOError as e:
+        except OSError as e:
             if e.errno != errno.EACCES:
                 self._delete_partial(filepath, image_id)
             errors = {errno.EFBIG: exceptions.StorageFull(),
@@ -734,7 +734,7 @@ class Store(glance_store.driver.Store):
             perm = int(str(fstore_perm), 8)
             try:
                 os.chmod(filepath, perm)
-            except (IOError, OSError):
+            except OSError:
                 LOG.warning(_LW("Unable to set permission to image: %s") %
                             filepath)
 

@@ -391,7 +391,7 @@ class TestFilerStoreBase(object):
         image_file = io.BytesIO(file_contents)
 
         with mock.patch.object(builtins, 'open') as popen:
-            e = IOError()
+            e = OSError()
             e.errno = errno
             popen.side_effect = e
 

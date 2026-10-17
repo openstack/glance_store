@@ -600,7 +600,7 @@ class Store(glance_store.Store):
         url = loc.https_url
         try:
             response = session.put(url, data=data, headers=headers)
-        except IOError as e:
+        except OSError as e:
             # TODO(sigmavirus24): Figure out what the new exception type would
             # be in requests.
             # When a session is not authenticated, the socket is closed by
@@ -611,7 +611,7 @@ class Store(glance_store.Store):
             # and continue to look into the response.
             msg = _LE('Communication error sending http %(method)s request '
                       'to the url %(url)s.\n'
-                      'Got IOError %(e)s') % {'method': 'PUT',
+                      'Got OSError %(e)s') % {'method': 'PUT',
                                               'url': url,
                                               'e': e}
             LOG.error(msg)

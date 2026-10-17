@@ -1251,8 +1251,8 @@ class Store(glance_store.driver.Store):
             else:
                 self._offline_extend(client, volume, write_props)
             failed = False
-        except IOError as e:
-            # Convert IOError reasons to Glance Store exceptions
+        except OSError as e:
+            # Convert OSError reasons to Glance Store exceptions
             errors = {errno.EFBIG: exceptions.StorageFull(),
                       errno.ENOSPC: exceptions.StorageFull(),
                       errno.EACCES: exceptions.StorageWriteDenied()}

@@ -140,7 +140,7 @@ class BufferedReader(object):
             read_size = min(to_buffer, READ_SIZE)
             try:
                 buf = self.fd.read(read_size)
-            except IOError as e:
+            except OSError as e:
                 # We actually don't know what exactly self.fd is. And as a
                 # result we don't know which exception it may raise. To pass
                 # the retry mechanism inside swift client we must limit the

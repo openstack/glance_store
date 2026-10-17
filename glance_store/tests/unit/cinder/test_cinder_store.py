@@ -98,7 +98,7 @@ class TestCinderStore(base.StoreBaseTest,
         self.store._check_context(mock.MagicMock(service_catalog='fake'))
 
     def test_cinder_add_volume_full(self):
-        e = IOError()
+        e = OSError()
         volume_file = io.BytesIO()
         e.errno = errno.ENOSPC
         fake_volume = mock.MagicMock(id=str(uuid.uuid4()),

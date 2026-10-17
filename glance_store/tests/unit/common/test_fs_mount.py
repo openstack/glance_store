@@ -421,8 +421,8 @@ class HostMountStateTestCase(base.BaseTestCase):
             self.assertEqual(result, {"attachment_count": 0})
 
     def test_get_state_file_read_ioerror(self):
-        """Test _get_state returns default when IOError occurs"""
-        with mock.patch('builtins.open', side_effect=IOError()):
+        """Test _get_state returns default when OSError occurs"""
+        with mock.patch('builtins.open', side_effect=OSError()):
             result = self.m._get_state('/test/mountpoint')
             self.assertEqual(result, {"attachment_count": 0})
 

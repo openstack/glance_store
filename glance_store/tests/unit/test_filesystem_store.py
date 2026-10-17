@@ -202,10 +202,10 @@ class TestStore(base.StoreBaseTest,
 
     def test_add_other_failure(self):
         """
-        Tests that a non-space-related IOError does not raise a
+        Tests that a non-space-related OSError does not raise a
         StorageFull exceptions.
         """
-        self._do_test_add_write_failure(errno.ENOTDIR, IOError)
+        self._do_test_add_write_failure(errno.ENOTDIR, OSError)
 
     def test_add_cleanup_on_read_failure(self):
         self._test_add_cleanup_on_read_failure()

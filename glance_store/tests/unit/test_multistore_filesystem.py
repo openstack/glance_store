@@ -259,9 +259,9 @@ class TestMultiStore(base.MultiStoreBaseTest,
                                         exceptions.StorageWriteDenied)
 
     def test_add_other_failure(self):
-        """Tests other IOErrors do not raise a StorageFull exception."""
+        """Tests other OSErrors do not raise a StorageFull exception."""
         self._do_test_add_write_failure(
-            errno.ENOTDIR, IOError)
+            errno.ENOTDIR, OSError)
 
     def test_add_cleanup_on_read_failure(self):
         self._test_add_cleanup_on_read_failure()
