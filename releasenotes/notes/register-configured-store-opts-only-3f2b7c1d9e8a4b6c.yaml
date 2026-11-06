@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    ``register_store_opts()`` now only loads the drivers of the stores listed
+    in ``enabled_backends`` instead of every installed driver. Previously,
+    drivers whose optional dependencies were not installed (for example
+    ``os-brick`` for the cinder store) logged ``Could not load`` errors at
+    service startup even when they were not configured.
