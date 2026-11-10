@@ -56,6 +56,7 @@ class BitMasks(enum.IntEnum):
     RW_RANDOM = 0b00111111
     # driver is stateless and can be reused safely
     DRIVER_REUSABLE = 0b01000000
+    TEMP_URL = 0b10000000
 
 
 class StoreCapability(object):
@@ -151,14 +152,16 @@ def check(store_op_fun):
         op_cap_map = {
             'get': get_capabilities,
             'add': [BitMasks.WRITE_ACCESS],
-            'delete': [BitMasks.WRITE_ACCESS]}
+            'delete': [BitMasks.WRITE_ACCESS],
+            'get_temp_url': [BitMasks.TEMP_URL]}
 
         op_exec_map = {
             'get': (exceptions.StoreRandomGetNotSupported
                     if kwargs.get('offset') or kwargs.get('chunk_size') else
                     exceptions.StoreGetNotSupported),
             'add': exceptions.StoreAddDisabled,
-            'delete': exceptions.StoreDeleteNotSupported}
+            'delete': exceptions.StoreDeleteNotSupported,
+            'get_temp_url': exceptions.TempURLNotSupported}
 
         op = store_op_fun.__name__.lower()
 

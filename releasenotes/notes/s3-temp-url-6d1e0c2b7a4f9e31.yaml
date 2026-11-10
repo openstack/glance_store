@@ -1,0 +1,20 @@
+---
+features:
+  - |
+    Stores can now generate temporary URLs to their images, through the new
+    ``get_temp_url()`` method of the store drivers and the
+    ``glance_store.get_temp_url()`` multi-store helper. Whoever holds such a
+    URL can read the image data straight from the backend, without
+    credentials, until it expires. Stores that give them have the new
+    ``TEMP_URL`` capability. The S3 driver supports it: a temporary URL is a
+    presigned ``GET`` of the image object, signed with SigV4. It is disabled
+    by default; enable it per store with ``s3_store_temp_url_enabled`` and
+    set how long a URL stays valid with ``s3_store_temp_url_expiry`` (60
+    seconds by default, at most 300). URLs are signed for ``s3_store_region_name``, else for the
+    region ``s3_store_host`` implies, else for ``us-east-1``: set
+    ``s3_store_region_name`` for a bucket in another region. With an
+    ``http://`` ``s3_store_host``, temporary URLs travel in clear and can be
+    replayed by anyone on the path until they expire: use HTTPS. When
+    temporary URLs are enabled, the S3 driver also redacts the secrets of
+    presigned URLs (the signature and the credential) from the ``botocore``
+    debug logs, where they would otherwise be written while the URL is signed.

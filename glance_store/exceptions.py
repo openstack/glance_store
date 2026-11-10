@@ -184,3 +184,7 @@ class HostNotInitialized(GlanceStoreException):
 class TimeoutError(GlanceStoreException):
     message = _("Operation timed out after %(timeout)ds. Check storage "
                 "health and connectivity.")
+
+
+class TempURLNotSupported(GlanceStoreException):
+    message = _("This store does not provide temporary URLs.")

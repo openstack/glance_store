@@ -608,6 +608,14 @@ def get(uri, backend, offset=0, chunk_size=None, context=None):
     raise exceptions.NotFound(_("Image not found in any configured backend"))
 
 
+def get_temp_url(uri, backend, context=None):
+    """Returns a temporary URL to the image data and its expiry time."""
+    loc = location.get_location_from_uri_and_backend(
+        uri, backend, conf=CONF)
+    store = get_store_from_store_identifier(backend)
+    return store.get_temp_url(loc, context=context)
+
+
 def get_known_schemes_for_multi_store():
     """Returns list of known schemes."""
     return location.SCHEME_TO_CLS_BACKEND_MAP.keys()

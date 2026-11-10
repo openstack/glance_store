@@ -122,6 +122,8 @@ class OptsTestCase(base.StoreBaseTest):
             's3_store_enable_data_integrity_protection',
             's3_store_request_checksum_calculation',
             's3_store_response_checksum_validation',
+            's3_store_temp_url_enabled',
+            's3_store_temp_url_expiry',
             'swift_store_expire_soon_interval',
             'swift_store_admin_tenants',
             'swift_store_auth_address',
