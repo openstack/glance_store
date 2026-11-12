@@ -467,28 +467,25 @@ class TestS3StoreBase(object):
                                      "Bucket": backend_conf.s3_store_bucket,
                                      "Key": expected_image_id,
                                  })
-            parts = []
-            remaining_image_size = expected_s3_size
+            parts = [{'ETag': 'ETag', 'PartNumber': i + 1}
+                     for i in range(num_parts)]
             large_chunk_size = backend_conf.s3_store_large_object_chunk_size
             chunk_size = large_chunk_size * units.Mi
-            for i in range(num_parts):
-                part_number = i + 1
-                stubber.add_response(
-                    method='upload_part',
-                    service_response={'ETag': 'ETag'},
-                    expected_params={
-                        "Bucket": backend_conf.s3_store_bucket,
-                        "Key": expected_image_id,
-                        "Body": botocore.stub.ANY,
-                        'ContentLength': chunk_size,
-                        "PartNumber": part_number,
-                        "UploadId": 'UploadId'
-                    })
-                parts.append({'ETag': 'ETag', 'PartNumber': part_number})
+            uploaded_parts = {}
 
-                remaining_image_size -= chunk_size
-                if remaining_image_size < chunk_size:
-                    chunk_size = remaining_image_size
+            def fake_upload_part(**kwargs):
+                part_num = kwargs['PartNumber']
+                uploaded_parts[part_num] = {
+                    'Bucket': kwargs.get('Bucket'),
+                    'Key': kwargs.get('Key'),
+                    'UploadId': kwargs.get('UploadId'),
+                    'ContentLength': kwargs.get('ContentLength'),
+                    'Body': kwargs['Body'].getvalue(),
+                }
+                return {'ETag': 'ETag'}
+
+            fake_s3_client.upload_part = mock.MagicMock(
+                side_effect=fake_upload_part)
 
             stubber.add_response(method='complete_multipart_upload',
                                  service_response={
@@ -525,6 +522,21 @@ class TestS3StoreBase(object):
                 self.assertEqual(expected_s3_size, size)
                 self.assertEqual(expected_checksum, checksum)
                 self.assertEqual(expected_multihash, multihash)
+                self.assertEqual(num_parts, len(uploaded_parts))
+
+                remaining_size = expected_s3_size
+                for part_num in range(1, num_parts + 1):
+                    expected_length = min(chunk_size, remaining_size)
+                    part_info = uploaded_parts[part_num]
+                    self.assertEqual(backend_conf.s3_store_bucket,
+                                     part_info['Bucket'])
+                    self.assertEqual(expected_image_id, part_info['Key'])
+                    self.assertEqual('UploadId', part_info['UploadId'])
+                    self.assertEqual(expected_length,
+                                     part_info['ContentLength'])
+                    self.assertEqual(b"*" * expected_length,
+                                     part_info['Body'])
+                    remaining_size -= expected_length
 
     def _test_add_multipart_size_exceeding_max_size(self):
         """Test size validation during multipart upload."""
@@ -811,17 +823,215 @@ class TestS3StoreBase(object):
                 )
 
     def _test_partial_get(self):
-        """Test that partial get operations raise appropriate exceptions"""
+        """Test a "partial" retrieval of an image in chunks."""
+        bucket, key = 'glance', str(uuid.uuid4())
+        fixture_object = {
+            'Body': io.BytesIO(b"*" * 5),
+            'ContentLength': 5,
+            'ContentRange': 'bytes 3-7/10',
+            'ResponseMetadata': {'HTTPStatusCode': 206},
+        }
+        fake_s3_client = botocore.session.get_session().create_client('s3')
+
+        with stub.Stubber(fake_s3_client) as stubber:
+            stubber.add_response(method='head_object',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': bucket,
+                                     'Key': key
+                                 })
+            stubber.add_response(method='get_object',
+                                 service_response=fixture_object,
+                                 expected_params={
+                                     'Bucket': bucket,
+                                     'Key': key,
+                                     'Range': 'bytes=3-7'
+                                 })
+
+            with mock.patch.object(boto3.session.Session,
+                                   "client") as mock_client:
+                mock_client.return_value = fake_s3_client
+
+                if self.multistore:
+                    loc = location.get_location_from_uri_and_backend(
+                        "s3://user:key@auth_address/%s/%s" % (bucket, key),
+                        self.backend, conf=self.conf)
+                else:
+                    loc = location.get_location_from_uri(
+                        "s3://user:key@auth_address/%s/%s" % (bucket, key),
+                        conf=self.conf)
+                (image_s3, image_size) = self.store.get(loc, offset=3,
+                                                        chunk_size=5)
+
+                self.assertEqual(5, image_size)
+
+                expected_data = b"*" * 5
+                data = b""
+
+                for chunk in image_s3:
+                    data += chunk
+                self.assertEqual(expected_data, data)
+
+        # Test partial get with offset only (chunk_size=None)
+        fixture_offset_only = {
+            'Body': io.BytesIO(b"*" * 10),
+            'ContentLength': 10,
+            'ContentRange': 'bytes 3-12/13',
+            'ResponseMetadata': {'HTTPStatusCode': 206},
+        }
+        with stub.Stubber(fake_s3_client) as stubber:
+            stubber.add_response(method='head_object',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': bucket,
+                                     'Key': key
+                                 })
+            stubber.add_response(method='get_object',
+                                 service_response=fixture_offset_only,
+                                 expected_params={
+                                     'Bucket': bucket,
+                                     'Key': key,
+                                     'Range': 'bytes=3-'
+                                 })
+
+            with mock.patch.object(boto3.session.Session,
+                                   "client") as mock_client:
+                mock_client.return_value = fake_s3_client
+
+                if self.multistore:
+                    loc = location.get_location_from_uri_and_backend(
+                        "s3://user:key@auth_address/%s/%s" % (bucket, key),
+                        self.backend, conf=self.conf)
+                else:
+                    loc = location.get_location_from_uri(
+                        "s3://user:key@auth_address/%s/%s" % (bucket, key),
+                        conf=self.conf)
+                (image_s3, image_size) = self.store.get(loc, offset=3)
+
+                self.assertEqual(10, image_size)
+
+    def _test_get_out_of_range(self):
+        """Test that out-of-range requests raise Invalid."""
+        bucket, key = 'glance', str(uuid.uuid4())
+        fake_s3_client = botocore.session.get_session().create_client('s3')
+
         if self.multistore:
             loc = location.get_location_from_uri_and_backend(
-                "s3+https://auth_address/glance/%s" % FAKE_UUID,
+                "s3://user:key@auth_address/%s/%s" % (bucket, key),
                 self.backend, conf=self.conf)
         else:
             loc = location.get_location_from_uri(
-                "s3://auth_address/glance/%s" % FAKE_UUID,
+                "s3://user:key@auth_address/%s/%s" % (bucket, key),
                 conf=self.conf)
-        self.assertRaises(exceptions.StoreRandomGetNotSupported,
-                          self.store.get, loc, chunk_size=1)
+
+        # Backend returns InvalidRange (HTTP 416)
+        with stub.Stubber(fake_s3_client) as stubber:
+            stubber.add_response(method='head_object',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': bucket,
+                                     'Key': key
+                                 })
+            stubber.add_client_error(
+                method='get_object',
+                service_error_code='InvalidRange',
+                service_message='The requested range is not satisfiable',
+                http_status_code=416,
+                expected_params={
+                    'Bucket': bucket,
+                    'Key': key,
+                    'Range': 'bytes=1000-1004'
+                }
+            )
+
+            with mock.patch.object(boto3.session.Session,
+                                   "client") as mock_client:
+                mock_client.return_value = fake_s3_client
+                self.assertRaises(exceptions.Invalid,
+                                  self.store.get, loc, offset=1000,
+                                  chunk_size=5)
+
+    def _test_get_out_of_range_status_code_416(self):
+        """Test out-of-range requests with HTTP 416 and non-InvalidRange
+        error code.
+        """
+        bucket, key = 'glance', str(uuid.uuid4())
+        fake_s3_client = botocore.session.get_session().create_client('s3')
+
+        if self.multistore:
+            loc = location.get_location_from_uri_and_backend(
+                "s3://user:key@auth_address/%s/%s" % (bucket, key),
+                self.backend, conf=self.conf)
+        else:
+            loc = location.get_location_from_uri(
+                "s3://user:key@auth_address/%s/%s" % (bucket, key),
+                conf=self.conf)
+
+        # Backend returns HTTP 416 with a non-standard error code
+        with stub.Stubber(fake_s3_client) as stubber:
+            stubber.add_response(method='head_object',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': bucket,
+                                     'Key': key
+                                 })
+            stubber.add_client_error(
+                method='get_object',
+                service_error_code='416',
+                service_message='Requested Range Not Satisfiable',
+                http_status_code=416,
+                expected_params={
+                    'Bucket': bucket,
+                    'Key': key,
+                    'Range': 'bytes=1000-1004'
+                }
+            )
+
+            with mock.patch.object(boto3.session.Session,
+                                   "client") as mock_client:
+                mock_client.return_value = fake_s3_client
+                self.assertRaises(exceptions.Invalid,
+                                  self.store.get, loc, offset=1000,
+                                  chunk_size=5)
+
+    def _test_get_full_object_416(self):
+        """Test that HTTP 416 during full-object GET propagates ClientError."""
+        bucket, key = 'glance', str(uuid.uuid4())
+        fake_s3_client = botocore.session.get_session().create_client('s3')
+
+        if self.multistore:
+            loc = location.get_location_from_uri_and_backend(
+                "s3://user:key@auth_address/%s/%s" % (bucket, key),
+                self.backend, conf=self.conf)
+        else:
+            loc = location.get_location_from_uri(
+                "s3://user:key@auth_address/%s/%s" % (bucket, key),
+                conf=self.conf)
+
+        # Backend returns 416 during full-object get (no range header)
+        with stub.Stubber(fake_s3_client) as stubber:
+            stubber.add_response(method='head_object',
+                                 service_response={},
+                                 expected_params={
+                                     'Bucket': bucket,
+                                     'Key': key
+                                 })
+            stubber.add_client_error(
+                method='get_object',
+                service_error_code='InvalidRange',
+                service_message='The requested range is not satisfiable',
+                http_status_code=416,
+                expected_params={
+                    'Bucket': bucket,
+                    'Key': key
+                }
+            )
+
+            with mock.patch.object(boto3.session.Session,
+                                   "client") as mock_client:
+                mock_client.return_value = fake_s3_client
+                self.assertRaises(boto_exceptions.ClientError,
+                                  self.store.get, loc)
 
     def _test_get_s3_good_location(self):
         """Test that the s3 location can be derived from the host"""
