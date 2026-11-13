@@ -133,6 +133,22 @@
           "$TEMPEST_CONFIG":
             image-feature-enabled:
               do_secure_hash: False
+    irrelevant-files:
+      - ^\.gitignore$
+      - ^\.gitreview$
+      - ^LICENSE$
+      - ^.*\.rst$
+      - ^test-requirements.txt$
+      - ^glance_store/_drivers/cinder/.*$
+      - ^glance_store/_drivers/swift/.*$
+      - ^glance_store/_drivers/filesystem*$
+      - ^glance_store/_drivers/http.*$
+      - ^glance_store/_drivers/s3.*$
+      - ^glance_store/tests/.*$
+      - ^doc/.*$
+      - ^releasenotes/.*$
+      - ^tools/.*$
+      - ^tox.ini$
 
 - job:
     name: cross-glance-tox-functional
@@ -146,6 +162,8 @@
       - openstack/glance
       - openstack/glance_store
     irrelevant-files:
+      - ^\.gitignore$
+      - ^\.gitreview$
       - ^LICENSE$
       - ^.*\.rst$
       - ^test-requirements.txt$
@@ -154,7 +172,7 @@
       - ^doc/.*$
       - ^releasenotes/.*$
       - ^tools/.*$
-      - ^tox.ini/.*$
+      - ^tox.ini$
 
 - project:
     templates:
@@ -166,20 +184,7 @@
     check:
       jobs:
         - cross-glance-tox-functional
-        - glance_store-src-ceph-tempest:
-            irrelevant-files:
-              - ^doc/.*$
-              - ^releasenotes/.*$
-              - ^.*\.rst$
-              - ^(test-|)requirements.txt$
-              - ^setup.cfg$
-              - ^tox.ini$
-              - ^glance_store/_drivers/cinder/.*$
-              - ^glance_store/_drivers/swift/.*$
-              - ^glance_store/_drivers/filesystem*$
-              - ^glance_store/_drivers/http.*$
-              - ^glance_store/_drivers/s3.*$
-              - ^glance_store/tests/.*$
+        - glance_store-src-ceph-tempest
 
     experimental:
       jobs:
