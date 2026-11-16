@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    `Bug 2174622 <https://bugs.launchpad.net/glance-store/+bug/2174622>`_:
+    Store lookups no longer mutate the live ``enabled_backends``
+    configuration. This prevents reserved stores from leaking into later
+    discovery responses and avoids iteration failures in callers that
+    inspect the configured backends.

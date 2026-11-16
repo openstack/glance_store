@@ -86,3 +86,11 @@ class TestMultiStoreBase(base.MultiStoreBaseTest):
         # reserved store name
         self.assertEqual('consuming_service_reserved_store',
                          store.backend_group)
+
+    def test_store_lookups_do_not_mutate_enabled_backends(self):
+        original_backends = dict(self.conf.enabled_backends)
+
+        multi_backend.get_store_from_store_identifier('fast')
+        multi_backend.get_store_weight('fast')
+
+        self.assertEqual(original_backends, self.conf.enabled_backends)

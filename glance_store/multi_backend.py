@@ -334,7 +334,7 @@ def get_store_weight(store_identifier):
     Given a store identifier, return the appropriate weight of store
     from memory.
     """
-    enabled_backends = CONF.enabled_backends
+    enabled_backends = dict(CONF.enabled_backends)
     enabled_backends.update(_RESERVED_STORES)
 
     try:
@@ -363,7 +363,7 @@ def get_store_from_store_identifier(store_identifier):
     for handling that scheme.
     """
     scheme_map = {}
-    enabled_backends = CONF.enabled_backends
+    enabled_backends = dict(CONF.enabled_backends)
     enabled_backends.update(_RESERVED_STORES)
 
     try:
