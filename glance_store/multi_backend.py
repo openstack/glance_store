@@ -105,18 +105,26 @@ def _list_driver_opts():
     # diff of the changes though not relevant as only order has changed. See
     # some more details at bug 1619487.
     drivers = sorted([ext.name for ext in mgr])
-    handled_drivers = []  # Used to handle backwards-compatible entries
+    handled_opts = []  # Used to handle backwards-compatible entries
     for store_entry in drivers:
-        driver_cls = _load_multi_store(None, store_entry, False)
-        if driver_cls and driver_cls not in handled_drivers:
-            if getattr(driver_cls, 'OPTIONS', None) is not None:
-                driver_opts[store_entry] = driver_cls.OPTIONS
-            handled_drivers.append(driver_cls)
+        opts = _get_driver_opts(store_entry)
+        if opts is not None and not any(opts is h for h in handled_opts):
+            driver_opts[store_entry] = opts
+            handled_opts.append(opts)
 
     # NOTE(zhiyan): This separated approach could list
     # store options before all driver ones, which easier
     # to read and configure by operator.
     return driver_opts
+
+
+def _get_driver_opts(store_entry):
+    """Return the options of a store driver, or None if it has none.
+
+    Only the driver of the given entry point is imported.
+    """
+    driver_cls = _load_multi_store(None, store_entry, False)
+    return getattr(driver_cls, 'OPTIONS', None)
 
 
 def register_store_opts(conf, reserved_stores=None):
@@ -146,14 +154,15 @@ def register_store_opts(conf, reserved_stores=None):
             LOG.debug("Registering options for reserved store: {}".format(key))
             conf.register_opts(fs_conf_template, group=key)
 
-    driver_opts = _list_driver_opts()
-    for backend in configured_backends:
-        for opt_list in driver_opts:
-            if configured_backends[backend] not in opt_list:
-                continue
-
+    # NOTE(mgagne): Only load the drivers of the configured backends.
+    # Listing the options of every installed driver would import all of
+    # them, logging errors for the ones whose optional dependencies are
+    # not installed (e.g. os-brick for cinder) even when they are unused.
+    for backend, store_entry in configured_backends.items():
+        driver_opts = _get_driver_opts(store_entry)
+        if driver_opts is not None:
             LOG.debug("Registering options for group %s", backend)
-            conf.register_opts(driver_opts[opt_list], group=backend)
+            conf.register_opts(driver_opts, group=backend)
 
 
 def _load_multi_store(conf, store_entry,
