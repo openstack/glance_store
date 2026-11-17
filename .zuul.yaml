@@ -35,48 +35,29 @@
         s-proxy: true
 
 - job:
-    name: glance_store-tox-cinder-tips-base
-    parent: tox
-    abstract: true
-    description: Abstract job for glance_store vs. cinder
-    nodeset: ubuntu-noble
-    required-projects:
+    name: glance_store-tox-py314-cinder-tips
+    parent: openstack-tox-py314
+    description: |
+      glance_store py314 unit tests vs. cinder masters
+    required-projects: &cinder_required_projects
       - name: openstack/os-brick
       - name: openstack/python-cinderclient
 
 - job:
-    name: glance_store-tox-py3-cinder-tips
-    parent: glance_store-tox-cinder-tips-base
+    name: glance_store-tox-py314-keystone-tips
+    parent: openstack-tox-py314
     description: |
-      glance_store py3 unit tests vs. cinder masters
-    vars:
-      tox_envlist: py3
-
-- job:
-    name: glance_store-tox-keystone-tips-base
-    parent: tox
-    abstract: true
-    description: Abstract job for glance_store vs. keystone
-    nodeset: ubuntu-noble
-    required-projects:
+      glance_store py314 unit tests vs. keystone masters
+    required-projects: &keystone_required_projects
       - name: openstack/keystoneauth
       - name: openstack/python-keystoneclient
 
 - job:
-    name: glance_store-tox-py3-keystone-tips
-    parent: glance_store-tox-keystone-tips-base
+    name: glance_store-tox-py314-oslo-tips
+    parent: openstack-tox-py314
     description: |
-      glance_store py3 unit tests vs. keystone masters
-    vars:
-      tox_envlist: py3
-
-- job:
-    name: glance_store-tox-oslo-tips-base
-    parent: tox
-    abstract: true
-    description: Abstract job for glance_store vs. oslo
-    nodeset: ubuntu-noble
-    required-projects:
+      glance_store py314 unit tests vs. oslo masters
+    required-projects: &oslo_required_projects
       - name: openstack/oslo.concurrency
       - name: openstack/oslo.config
       - name: openstack/oslo.i18n
@@ -88,29 +69,12 @@
       - name: openstack/stevedore
 
 - job:
-    name: glance_store-tox-py3-oslo-tips
-    parent: glance_store-tox-oslo-tips-base
+    name: glance_store-tox-py314-swift-tips
+    parent: openstack-tox-py314
     description: |
-      glance_store py3 unit tests vs. oslo masters
-    vars:
-      tox_envlist: py3
-
-- job:
-    name: glance_store-tox-swift-tips-base
-    parent: tox
-    abstract: true
-    description: Abstract job for glance_store vs. swift
-    nodeset: ubuntu-noble
-    required-projects:
+      glance_store py314 unit tests vs. swift masters
+    required-projects: &swift_required_projects
       - name: openstack/python-swiftclient
-
-- job:
-    name: glance_store-tox-py3-swift-tips
-    parent: glance_store-tox-swift-tips-base
-    description: |
-      glance_store py3 unit tests vs. swift masters
-    vars:
-      tox_envlist: py3
 
 - job:
     name: glance_store-src-ceph-tempest
@@ -202,11 +166,11 @@
         # to define these jobs in the openstack/project-config repo.
         # That would make us less agile in adjusting these tests, so we
         # aren't doing that either.
-        - glance_store-tox-py3-cinder-tips:
+        - glance_store-tox-py314-cinder-tips:
             branches: master
-        - glance_store-tox-py3-keystone-tips:
+        - glance_store-tox-py314-keystone-tips:
             branches: master
-        - glance_store-tox-py3-oslo-tips:
+        - glance_store-tox-py314-oslo-tips:
             branches: master
-        - glance_store-tox-py3-swift-tips:
+        - glance_store-tox-py314-swift-tips:
             branches: master
