@@ -16,6 +16,7 @@
 """Storage backend for S3 or Storage Servers that follow the S3 Protocol"""
 
 from concurrent import futures
+import datetime
 import io
 import logging
 import math
@@ -34,6 +35,7 @@ except ImportError:
     boto_utils = None
 
 from oslo_config import cfg
+from oslo_utils import timeutils
 from oslo_utils import units
 
 import glance_store
@@ -50,6 +52,8 @@ DEFAULT_LARGE_OBJECT_SIZE = 100          # 100M
 DEFAULT_LARGE_OBJECT_CHUNK_SIZE = 10     # 10M
 DEFAULT_LARGE_OBJECT_MIN_CHUNK_SIZE = 5  # 5M
 DEFAULT_THREAD_POOLS = 10                # 10 pools
+DEFAULT_TEMP_URL_EXPIRY = 60             # 1 minute
+MAX_TEMP_URL_EXPIRY = 300                # 5 minutes
 MAX_PART_NUM = 10000                     # 10000 upload parts
 
 _S3_OPTS = [
@@ -308,7 +312,96 @@ Related Options:
     * s3_store_enable_data_integrity_protection
 
 """),
+    cfg.BoolOpt('s3_store_temp_url_enabled',
+                default=False,
+                help="""
+Allow Glance to generate temporary URLs to the images of this store.
+
+A temporary URL is a presigned S3 URL: whoever holds it can read the image
+data straight from S3, without credentials, until it expires. Consumers
+such as Nova can then download images without going through the Glance API.
+Who may ask for one is controlled by the ``generate_image_temp_url`` policy
+of Glance.
+
+Clients given a temporary URL must be able to reach ``s3_store_host``. The
+URL is signed with SigV4 for ``s3_store_region_name``, else for the region
+``s3_store_host`` implies, else for ``us-east-1``: set
+``s3_store_region_name`` when the bucket is in another region. With an
+``http://`` ``s3_store_host``, temporary URLs travel in clear, and anyone
+on the path can replay them until they expire: use HTTPS. Consumers such
+as Nova only accept HTTPS URLs.
+
+Possible values:
+    * True
+    * False
+
+Related Options:
+    * s3_store_temp_url_expiry
+    * s3_store_region_name
+
+"""),
+    cfg.IntOpt('s3_store_temp_url_expiry',
+               default=DEFAULT_TEMP_URL_EXPIRY,
+               min=1,
+               max=MAX_TEMP_URL_EXPIRY,
+               help="""
+How long, in seconds, a temporary URL to an image of this store stays valid.
+
+S3 checks the expiry when a request starts, so a download started before it
+completes even if it lasts longer. Keep it short: until it expires, the URL
+gives access to the image data to anyone holding it.
+
+Possible values:
+    * Any integer between 1 and 300 (5 minutes)
+
+Related Options:
+    * s3_store_temp_url_enabled
+
+"""),
 ]
+
+# Loggers that can emit the secrets of a presigned URL while it is generated.
+# botocore.auth is the only one in the Glance process, since nothing here
+# fetches the URL. If that ever changes, urllib3.connectionpool,
+# urllib3.util.retry and urllib3.poolmanager log it too.
+_REDACTED_LOGGERS = ('botocore.auth',)
+
+_PRESIGNED_SECRET_RE = re.compile(
+    r'(X-Amz-(?:Signature|Credential|Security-Token))=[^&\s"\'\\]+',
+    re.IGNORECASE)
+
+
+class _PresignedURLFilter(logging.Filter):
+    """Redact the secrets of presigned URLs from log records.
+
+    botocore logs the canonical request (which carries the X-Amz-Credential
+    query parameter) and, in a separate record, the bare signature. Together
+    they are enough to rebuild a valid presigned URL, so both are redacted.
+    Host, bucket, key and expiry are left alone to keep the logs useful.
+    """
+
+    def filter(self, record):
+        message = record.getMessage()
+        if message.startswith('Signature:'):
+            message = 'Signature:\n<redacted>'
+        else:
+            message = _PRESIGNED_SECRET_RE.sub(r'\1=<redacted>', message)
+        record.msg = message
+        record.args = ()
+        return True
+
+
+def _install_log_redaction():
+    """Attach a _PresignedURLFilter to the loggers in _REDACTED_LOGGERS.
+
+    Safe to call many times: a logger gets at most one filter. The filter is
+    set on the loggers themselves rather than on handlers, so it applies
+    whichever handlers the service configures.
+    """
+    for name in _REDACTED_LOGGERS:
+        log = logging.getLogger(name)
+        if not any(isinstance(f, _PresignedURLFilter) for f in log.filters):
+            log.addFilter(_PresignedURLFilter())
 
 
 class UploadPart(object):
@@ -460,6 +553,12 @@ class Store(glance_store.driver.Store):
         self.access_key = self._option_get('s3_store_access_key')
         self.secret_key = self._option_get('s3_store_secret_key')
         self.bucket = self._option_get('s3_store_bucket')
+        self.temp_url_expiry = self._option_get('s3_store_temp_url_expiry')
+        if self._option_get('s3_store_temp_url_enabled'):
+            self.set_capabilities(capabilities.BitMasks.TEMP_URL)
+            _install_log_redaction()
+        else:
+            self.unset_capabilities(capabilities.BitMasks.TEMP_URL)
 
         self.scheme = 's3'
         if self.s3_host.startswith('https://'):
@@ -526,15 +625,19 @@ class Store(glance_store.driver.Store):
                 return result
             if param == 's3_store_response_checksum_validation':
                 return result
+            if param == 's3_store_temp_url_enabled':
+                return result
             reason = _("Could not find %s in configuration options.") % param
             LOG.error(reason)
             raise exceptions.BadStoreConfiguration(store_name="s3",
                                                    reason=reason)
         return result
 
-    def _create_s3_client(self):
+    def _create_s3_client(self, signature_version=None):
         """Create a client object to use when connecting to S3.
 
+        :param signature_version: botocore signature version, its default
+                                  when None
         :returns: An object with credentials to connect to S3
         """
         s3_host = self._option_get('s3_store_host')
@@ -568,6 +671,7 @@ class Store(glance_store.driver.Store):
         try:
             config = boto_client.Config(
                 s3=calling_format,
+                signature_version=signature_version,
                 request_checksum_calculation=request_checksum,
                 response_checksum_validation=response_checksum,
             )
@@ -577,7 +681,8 @@ class Store(glance_store.driver.Store):
                         "parameters. Upgrade to boto3 >= 1.36.0 to use "
                         "s3_store_enable_data_integrity_protection and "
                         "fine-grained checksum options.")
-            config = boto_client.Config(s3=calling_format)
+            config = boto_client.Config(
+                s3=calling_format, signature_version=signature_version)
         location = get_s3_location(s3_host)
 
         bucket_name = self.bucket
@@ -704,6 +809,31 @@ class Store(glance_store.driver.Store):
 
         key = s3_client.head_object(Bucket=bucket, Key=key)
         return key['ContentLength']
+
+    @capabilities.check
+    def get_temp_url(self, location, context=None):
+        """
+        Takes a `glance_store.location.Location` object that indicates
+        where to find the image file, and returns a presigned URL to read it
+
+        :param location: `glance_store.location.Location` object, supplied
+                         from glance_store.location.get_location_from_uri()
+        :returns: tuple of: (1) the presigned URL, (2) its expiry time, as a
+                  timezone-aware UTC datetime
+        :raises: `glance_store.exceptions.TempURLNotSupported` if
+                 s3_store_temp_url_enabled is False
+        """
+        loc = location.store_location
+        # NOTE(mklejn): Without a region, botocore would presign with
+        # deprecated SigV2. That's true for at least 1.35.99 and 1.36.0
+        s3_client = self._create_s3_client(signature_version='s3v4')
+        bucket, key = loc.bucket, loc.key
+        expires_at = timeutils.utcnow(with_timezone=True).replace(
+            microsecond=0) + datetime.timedelta(seconds=self.temp_url_expiry)
+        url = s3_client.generate_presigned_url(
+            'get_object', Params={'Bucket': bucket, 'Key': key},
+            ExpiresIn=self.temp_url_expiry, HttpMethod='GET')
+        return url, expires_at
 
     @capabilities.check
     def add(self, image_id, image_file, image_size, hashing_algo, context=None,

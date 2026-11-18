@@ -15,13 +15,16 @@
 
 import hashlib
 import io
+import logging
 from unittest import mock
+import urllib
 import uuid
 
 import boto3
 import botocore
 from botocore import exceptions as boto_exceptions
 from botocore import stub
+import fixtures
 from oslo_utils import units
 
 from glance_store._drivers import s3
@@ -1276,3 +1279,213 @@ class TestS3StoreBase(object):
             mock_session.assert_called_once_with(
                 aws_access_key_id=self.store.access_key,
                 aws_secret_access_key=self.store.secret_key)
+
+    def _get_temp_url_location(self, bucket, key):
+        uri = "s3+https://s3.example.com/%s/%s" % (bucket, key)
+        if self.multistore:
+            return location.get_location_from_uri_and_backend(
+                uri, self.backend, conf=self.conf)
+        return location.get_location_from_uri(uri, conf=self.conf)
+
+    def _configure_temp_url(self, **kwargs):
+        if self.multistore:
+            self.config(group=self.backend, **kwargs)
+        else:
+            self.config(**kwargs)
+        self.store.configure()
+
+    def _test_get_temp_url(self):
+        """Test that temporary URL is a presigned GET of the image object."""
+        self._configure_temp_url(s3_store_host='https://s3.example.com',
+                                 s3_store_region_name='region1',
+                                 s3_store_bucket_url_format='path',
+                                 s3_store_temp_url_enabled=True,
+                                 s3_store_temp_url_expiry=120)
+        self.assertTrue(self.store.is_capable(
+            capabilities.BitMasks.TEMP_URL))
+        loc = self._get_temp_url_location('glance', FAKE_UUID)
+
+        url, expires_at = self.store.get_temp_url(loc)
+
+        parsed = urllib.parse.urlparse(url)
+        query = urllib.parse.parse_qs(parsed.query)
+        self.assertEqual('https', parsed.scheme)
+        self.assertEqual('s3.example.com', parsed.netloc)
+        self.assertEqual('/glance/%s' % FAKE_UUID, parsed.path)
+        self.assertEqual(['AWS4-HMAC-SHA256'], query['X-Amz-Algorithm'])
+        self.assertEqual(['120'], query['X-Amz-Expires'])
+        self.assertIn('X-Amz-Signature', query)
+
+    def _test_get_temp_url_no_region(self):
+        """Test that temporary URL is signed with SigV4 without a region."""
+        self._configure_temp_url(s3_store_host='https://s3.example.com',
+                                 s3_store_region_name='',
+                                 s3_store_bucket_url_format='path',
+                                 s3_store_temp_url_enabled=True)
+        loc = self._get_temp_url_location('glance', FAKE_UUID)
+
+        url, _ = self.store.get_temp_url(loc)
+
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        self.assertEqual(['AWS4-HMAC-SHA256'], query['X-Amz-Algorithm'])
+        self.assertNotIn('Signature', query)
+
+    def _test_get_temp_url_disabled(self):
+        """Test no temporary URL is given when they're disabled."""
+        self.assertFalse(self.store.is_capable(
+            capabilities.BitMasks.TEMP_URL))
+        loc = self._get_temp_url_location('glance', FAKE_UUID)
+        with mock.patch.object(boto3.session.Session,
+                               "client") as mock_client:
+            self.assertRaises(exceptions.TempURLNotSupported,
+                              self.store.get_temp_url, loc)
+            mock_client.assert_not_called()
+
+    def _test_temp_url_expiry_out_of_range(self):
+        """Test that expiry stays between 1 second and 5 minutes."""
+        self.assertEqual(300, s3.MAX_TEMP_URL_EXPIRY)
+        for expiry in (0, s3.MAX_TEMP_URL_EXPIRY + 1):
+            self.assertRaises(ValueError, self._configure_temp_url,
+                              s3_store_temp_url_expiry=expiry)
+
+    def _test_temp_url_expiry_default(self):
+        """Test that temporary URL lasts one minute by default."""
+        self._configure_temp_url(s3_store_host='https://s3.example.com',
+                                 s3_store_region_name='region1',
+                                 s3_store_bucket_url_format='path',
+                                 s3_store_temp_url_enabled=True)
+        loc = self._get_temp_url_location('glance', FAKE_UUID)
+
+        url, _ = self.store.get_temp_url(loc)
+
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        self.assertEqual(['60'], query['X-Amz-Expires'])
+
+    def _make_record(self, name, msg, *args):
+        return logging.LogRecord(name, logging.DEBUG, __file__, 0, msg,
+                                 args, None)
+
+    def _redaction_filters(self, name):
+        return [f for f in logging.getLogger(name).filters
+                if isinstance(f, s3._PresignedURLFilter)]
+
+    def _test_presigned_url_filter_redacts_secrets(self):
+        """Test the canonical request and the bare signature are redacted."""
+        canonical = (
+            "GET\n/glance/IMG\n"
+            "X-Amz-Algorithm=AWS4-HMAC-SHA256"
+            "&X-Amz-Credential=AKID%2F20261117%2Fregion1%2Fs3%2Faws4_request"
+            "&X-Amz-Date=20261117T135857Z&X-Amz-Expires=60"
+            "&X-Amz-SignedHeaders=host\nhost:s3.example.com\n\nhost\n"
+            "UNSIGNED-PAYLOAD")
+        record = self._make_record('botocore.auth', 'CanonicalRequest:\n%s',
+                                   canonical)
+        self.assertTrue(s3._PresignedURLFilter().filter(record))
+        message = record.getMessage()
+        self.assertNotIn('AKID', message)
+        self.assertIn('X-Amz-Credential=<redacted>&X-Amz-Date=', message)
+        # Host, path and the non-secret params are kept for debugging
+        self.assertIn('/glance/IMG', message)
+        self.assertIn('X-Amz-Expires=60', message)
+        self.assertIn('X-Amz-SignedHeaders=host', message)
+        self.assertIn('host:s3.example.com', message)
+
+        signature = 'a' * 64
+        record = self._make_record('botocore.auth', 'Signature:\n%s',
+                                   signature)
+        self.assertTrue(s3._PresignedURLFilter().filter(record))
+        self.assertEqual('Signature:\n<redacted>', record.getMessage())
+
+    def _test_presigned_url_filter_redacts_url_in_any_position(self):
+        """Test redaction stops at &, whitespace and quotes, any case."""
+        for template in ('GET /p?%s&X-Amz-Expires=60 HTTP/1.1',
+                         "url='/p?%s'",
+                         '"GET /p?%s" 200 2',
+                         '/p?%s -> /q'):
+            params = ('x-amz-security-token=SESSIONVALUE%2Bk'
+                      '&X-Amz-Signature=' + 'b' * 64)
+            record = self._make_record('botocore.auth', template % params)
+            s3._PresignedURLFilter().filter(record)
+            message = record.getMessage()
+            self.assertNotIn('SESSIONVALUE', message)
+            self.assertNotIn('b' * 64, message)
+            self.assertIn('x-amz-security-token=<redacted>', message)
+            self.assertIn('X-Amz-Signature=<redacted>', message)
+
+    def _test_presigned_url_filter_keeps_unrelated_records(self):
+        """Test records without secrets pass through unchanged."""
+        record = self._make_record(
+            'botocore.auth', 'Calculating signature using v4 auth.')
+        self.assertTrue(s3._PresignedURLFilter().filter(record))
+        self.assertEqual('Calculating signature using v4 auth.',
+                         record.getMessage())
+        record = self._make_record(
+            'botocore.auth', 'StringToSign:\n%s', 'AWS4-HMAC-SHA256\n2026')
+        self.assertTrue(s3._PresignedURLFilter().filter(record))
+        self.assertEqual('StringToSign:\nAWS4-HMAC-SHA256\n2026',
+                         record.getMessage())
+
+    def _presign_and_capture(self, loc):
+        """Presign a URL and return it with the DEBUG logs it produced."""
+        with fixtures.FakeLogger(level=logging.DEBUG) as captured:
+            url, _ = self.store.get_temp_url(loc)
+        return url, captured.output
+
+    def _configure_presigning(self):
+        self._configure_temp_url(s3_store_host='https://s3.example.com',
+                                 s3_store_region_name='region1',
+                                 s3_store_bucket_url_format='path',
+                                 s3_store_temp_url_enabled=True)
+        return self._get_temp_url_location('glance', FAKE_UUID)
+
+    def _signature(self, url):
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        return query['X-Amz-Signature'][0]
+
+    def _strip_redaction_filters(self):
+        """Start from loggers with no redaction filter, restoring them later.
+
+        The filter lives on global loggers, so whichever test ran before may
+        have installed it.
+        """
+        for name in s3._REDACTED_LOGGERS:
+            log = logging.getLogger(name)
+            saved = list(log.filters)
+            log.filters[:] = [f for f in saved
+                              if not isinstance(f, s3._PresignedURLFilter)]
+            self.addCleanup(setattr, log, 'filters', saved)
+
+    def _test_get_temp_url_logs_no_secrets(self):
+        """Test the presigned URL secrets never reach the debug logs."""
+        self._strip_redaction_filters()
+        loc = self._configure_presigning()
+
+        url, logs = self._presign_and_capture(loc)
+
+        self.assertIn('CanonicalRequest', logs)
+        self.assertNotIn(self._signature(url), logs)
+        self.assertNotIn('X-Amz-Credential=%s' % self.store.access_key, logs)
+
+    def _test_get_temp_url_logs_secrets_without_filter(self):
+        """Test the secrets are logged without the filter."""
+        self._strip_redaction_filters()
+        loc = self._configure_presigning()
+        # Strip is issued twice here as we want to have clean initial state
+        # and actually remove filter afterwards
+        self._strip_redaction_filters()
+
+        url, logs = self._presign_and_capture(loc)
+
+        self.assertIn(self._signature(url), logs)
+        self.assertIn('X-Amz-Credential=%s' % self.store.access_key, logs)
+
+    def _test_log_redaction_installed_only_when_temp_url_enabled(self):
+        """Test the filter is installed once, and only for temp URLs."""
+        self._strip_redaction_filters()
+        self._configure_temp_url(s3_store_temp_url_enabled=False)
+        for name in s3._REDACTED_LOGGERS:
+            self.assertEqual([], self._redaction_filters(name))
+
+        self._configure_temp_url(s3_store_temp_url_enabled=True)
+        for name in s3._REDACTED_LOGGERS:
+            self.assertEqual(1, len(self._redaction_filters(name)))

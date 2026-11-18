@@ -28,6 +28,7 @@ from oslo_config import cfg
 import glance_store as store
 from glance_store._drivers import s3
 from glance_store import location
+from glance_store import multi_backend
 from glance_store.tests import base
 from glance_store.tests.unit import test_s3_store_base
 from glance_store.tests.unit import test_store_capabilities
@@ -289,3 +290,50 @@ class TestMultiS3Store(base.MultiStoreBaseTest,
 
     def test_create_s3_client_uses_config_credentials(self):
         self._test_create_s3_client_uses_config_credentials()
+
+    def test_get_temp_url(self):
+        self._test_get_temp_url()
+
+    def test_get_temp_url_no_region(self):
+        self._test_get_temp_url_no_region()
+
+    def test_get_temp_url_disabled(self):
+        self._test_get_temp_url_disabled()
+
+    def test_temp_url_expiry_out_of_range(self):
+        self._test_temp_url_expiry_out_of_range()
+
+    def test_temp_url_expiry_default(self):
+        self._test_temp_url_expiry_default()
+
+    def test_multi_backend_get_temp_url(self):
+        self.config(group='s3_region1', s3_store_region_name='region1',
+                    s3_store_temp_url_enabled=True)
+        self.store.configure()
+        key = test_s3_store_base.FAKE_UUID
+        with mock.patch.object(multi_backend,
+                               'get_store_from_store_identifier',
+                               return_value=self.store):
+            url, expires_at = store.get_temp_url(
+                "s3+https://s3-region1.com/glance/%s" % key,
+                's3_region1')
+        self.assertIn(key, url)
+        self.assertIsNotNone(expires_at.tzinfo)
+
+    def test_presigned_url_filter_redacts_secrets(self):
+        self._test_presigned_url_filter_redacts_secrets()
+
+    def test_presigned_url_filter_redacts_url_in_any_position(self):
+        self._test_presigned_url_filter_redacts_url_in_any_position()
+
+    def test_presigned_url_filter_keeps_unrelated_records(self):
+        self._test_presigned_url_filter_keeps_unrelated_records()
+
+    def test_get_temp_url_logs_no_secrets(self):
+        self._test_get_temp_url_logs_no_secrets()
+
+    def test_get_temp_url_logs_secrets_without_filter(self):
+        self._test_get_temp_url_logs_secrets_without_filter()
+
+    def test_log_redaction_installed_only_when_temp_url_enabled(self):
+        self._test_log_redaction_installed_only_when_temp_url_enabled()

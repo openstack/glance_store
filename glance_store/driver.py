@@ -169,6 +169,22 @@ class Store(capabilities.StoreCapability):
         """
         raise NotImplementedError
 
+    @capabilities.check
+    def get_temp_url(self, location, context=None):
+        """
+        Takes a `glance_store.location.Location` object that indicates
+        where to find the image file, and returns a URL giving read access to
+        it without credentials, for a limited time
+
+        :param location: `glance_store.location.Location` object, supplied
+                        from glance_store.location.get_location_from_uri()
+        :returns: tuple of: (1) the temporary URL, (2) its expiry time, as a
+                  timezone-aware UTC datetime
+        :raises: `glance_store.exceptions.TempURLNotSupported` if the store
+                 does not have the TEMP_URL capability
+        """
+        raise NotImplementedError
+
     # NOTE(rosmaita): use the @glance_store.driver.back_compat_add
     # annotation on implementions for backward compatibility with
     # pre-0.26.0 add().  Need backcompat because pre-0.26.0 returned

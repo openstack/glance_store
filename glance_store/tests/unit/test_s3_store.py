@@ -147,3 +147,36 @@ class TestStore(base.StoreBaseTest,
 
     def test_create_s3_client_uses_config_credentials(self):
         self._test_create_s3_client_uses_config_credentials()
+
+    def test_get_temp_url(self):
+        self._test_get_temp_url()
+
+    def test_get_temp_url_no_region(self):
+        self._test_get_temp_url_no_region()
+
+    def test_get_temp_url_disabled(self):
+        self._test_get_temp_url_disabled()
+
+    def test_temp_url_expiry_out_of_range(self):
+        self._test_temp_url_expiry_out_of_range()
+
+    def test_temp_url_expiry_default(self):
+        self._test_temp_url_expiry_default()
+
+    def test_presigned_url_filter_redacts_secrets(self):
+        self._test_presigned_url_filter_redacts_secrets()
+
+    def test_presigned_url_filter_redacts_url_in_any_position(self):
+        self._test_presigned_url_filter_redacts_url_in_any_position()
+
+    def test_presigned_url_filter_keeps_unrelated_records(self):
+        self._test_presigned_url_filter_keeps_unrelated_records()
+
+    def test_get_temp_url_logs_no_secrets(self):
+        self._test_get_temp_url_logs_no_secrets()
+
+    def test_get_temp_url_logs_secrets_without_filter(self):
+        self._test_get_temp_url_logs_secrets_without_filter()
+
+    def test_log_redaction_installed_only_when_temp_url_enabled(self):
+        self._test_log_redaction_installed_only_when_temp_url_enabled()
